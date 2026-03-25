@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% block title %}MarlinSpike — Scans{% endblock %}
+
+{% block head %}
+<style>
+.run-id-copy {
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+.run-id-copy:hover { background: var(--bg-surface); }
+.run-id-copy.copied { background: rgba(34,197,94,0.15); }
+.history-error-row td {
+  padding: 0 12px 8px 12px !important;
+  border-bottom: 1px solid var(--border-dim);
+}
+.error-detail {
+  background: var(--bg-deep);
+  border: 1px solid var(--border-dim);
+  border-left: 3px solid var(--color-danger);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.78em;
+  line-height: 1.4;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 150px;
+  overflow-y: auto;
+}
+.page-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.page-toolbar select {
+  padding: 7px 10px;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.9em;
+}
+.page-toolbar select:focus { border-color: var(--accent); outline: none; }
+.empty-hint {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--text-dim);
+}
+.empty-hint p { margin-bottom: 8px; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="ms-content">
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Scan History</h2>
+      <div class="page-toolbar">
+        <select id="project-filter" onchange="SH.onProjectChange()">
+          <option value="">Loading...</option>
+        </select>
+        <button class="btn btn-sm" onclick="SH.loadHistory()">Refresh</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <table class="ms-table" id="history-table">
+        <thead>
+          <tr>
+            <th>Run</th>
+            <th>User</th>
+            <th>Command</th>
+            <th>Source</th>
+            <th>Status</th>
+            <th title="Discovered nodes / edges">Nodes / Edges</th>
+            <th>Started</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="history-body">
+          <tr><td colspan="8" class="dim" style="text-align:center;padding:20px;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var SH = (function() {
+  'use strict';
+
+  var currentProjectId = null;
+
+  function init() {
+    loadProjects(function() {
+      loadHistory();
+    });
+  }
+
+  function loadProjects(callback) {
+    fetch('/api/projects').then(function(r) { return r.json(); }).then(function(d) {
+      var sel = document.getElementById('project-filter');
+      sel.innerHTML = '<option value="">All Projects</option>';
+      (d.projects || []).forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name;
+        sel.appendChild(opt);
+      });
+      if (callback) callback();
+    }).catch(function() { if (callback) callback(); });
+  }
+
+  function onProjectChange() {
+    var sel = document.getElementById('project-filter');
+    currentProjectId = sel.value ? parseInt(sel.value) : null;
+    loadHistory();
+  }
+
+  function loadHistory() {
+    var url = '/api/history';
+    var params = [];
+    if (currentProjectId) params.push('project_id=' + currentProjectId);
+    if (params.length) url += '?' + params.join('&');
+    fetch(url).then(function(r) { return r.json(); }).then(function(d) {
+      var tbody = document.getElementById('history-body');
+      if (!d.scans || d.scans.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8"><div class="empty-hint"><p>No scan history found.</p></div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = '';
+      d.scans.forEach(function(s) {
+        var tr = document.createElement('tr');
+        var actions = '';
+        if (s.status === 'completed' && s.report_filename) {
+          actions = '<a class="btn btn-sm" href="/api/reports/' + encodeURIComponent(s.report_filename) + '/viewer" target="_blank">View Report</a>';
+        } else if ((s.status === 'failed' || s.status === 'interrupted') && s.pcap_source && !s.pcap_source.startsWith('live:')) {
+          actions = '<button class="btn btn-sm" onclick="SH.retryScan(\'' + esc(s.pcap_source) + '\',\'' + esc(s.command) + '\')">Retry</button>';
+        }
+        var hasError = s.error_tail && (s.status === 'failed' || s.status === 'stopped' || s.status === 'interrupted');
+        if (hasError) {
+          actions += ' <button class="btn btn-sm btn-danger" onclick="SH.toggleError(this)" style="font-size:0.75em;padding:2px 6px;">Details</button>';
+        }
+        var nodeEdge = '--';
+        if (s.status === 'completed' && (s.node_count || s.edge_count)) {
+          nodeEdge = (s.node_count || 0) + ' / ' + (s.edge_count || 0);
+        }
+        tr.innerHTML =
+          '<td><span class="mono run-id-copy" title="Click to copy full ID" onclick="SH.copyId(this, \'' + esc(s.run_id) + '\')" style="font-size:0.8em;">' + esc(s.run_id.substring(0, 8)) + '</span></td>'
+          + '<td>' + esc(s.user) + '</td>'
+          + '<td>' + esc(s.command) + '</td>'
+          + '<td class="mono dim" style="font-size:0.8em;max-width:200px;overflow:hidden;text-overflow:ellipsis;">' + esc(s.pcap_source || '--') + '</td>'
+          + '<td><span class="badge badge-' + esc(s.status) + '">' + esc(s.status) + '</span></td>'
+          + '<td class="mono dim">' + nodeEdge + '</td>'
+          + '<td class="dim">' + formatDate(s.started_at) + '</td>'
+          + '<td>' + actions + '</td>';
+        tbody.appendChild(tr);
+        if (hasError) {
+          var errTr = document.createElement('tr');
+          errTr.className = 'history-error-row';
+          errTr.style.display = 'none';
+          errTr.innerHTML = '<td colspan="8"><div class="error-detail">' + esc(s.error_tail) + '</div></td>';
+          tbody.appendChild(errTr);
+        }
+      });
+    });
+  }
+
+  function toggleError(btn) {
+    var errorRow = btn.closest('tr').nextElementSibling;
+    if (errorRow && errorRow.classList.contains('history-error-row')) {
+      var showing = errorRow.style.display !== 'none';
+      errorRow.style.display = showing ? 'none' : '';
+      btn.textContent = showing ? 'Details' : 'Hide';
+    }
+  }
+
+  function copyId(el, fullId) {
+    navigator.clipboard.writeText(fullId).then(function() {
+      el.classList.add('copied');
+      setTimeout(function() { el.classList.remove('copied'); }, 1200);
+    });
+  }
+
+  function retryScan(pcapSource, command) {
+    var body = { command: command, pcap_file: pcapSource };
+    fetch('/api/scans/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        msToast('Scan retried — check Dashboard for progress');
+        loadHistory();
+      } else {
+        msToast(d.error || 'Failed to retry scan', true);
+      }
+    }).catch(function(e) { msToast('Error: ' + e.message, true); });
+  }
+
+  // Helpers
+  function esc(s) {
+    if (s == null) return '';
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+  function formatSize(bytes) {
+    if (!bytes) return '--';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+    return (bytes / 1073741824).toFixed(2) + ' GB';
+  }
+  function formatDate(iso) {
+    if (!iso) return '--';
+    try {
+      var d = new Date(iso);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+    } catch(e) { return iso; }
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+
+  return {
+    loadHistory: loadHistory,
+    toggleError: toggleError,
+    copyId: copyId,
+    retryScan: retryScan,
+    onProjectChange: onProjectChange,
+  };
+})();
+</script>
+{% endblock %}

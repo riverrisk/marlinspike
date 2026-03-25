@@ -1,0 +1,46 @@
+services:
+  app:
+    build: .
+    container_name: marlinspike-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5001:5001"
+    environment:
+      - DATABASE_URL=postgresql://marlinspike:${DB_PASSWORD}@db:5432/marlinspike
+      - SECRET_KEY=${SECRET_KEY}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - marlinspike-data:/app/data
+    networks:
+      - internal
+    mem_limit: 3g
+
+  db:
+    image: postgres:16-alpine
+    container_name: marlinspike-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=marlinspike
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=marlinspike
+    volumes:
+      - marlinspike-pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marlinspike"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  marlinspike-data:
+  marlinspike-pgdata:
+
+networks:
+  internal:
+    driver: bridge

@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block title %}MarlinSpike — Profile{% endblock %}
+
+{% block head %}
+<style>
+.profile-layout {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+.stat-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+}
+.stat-label {
+  font-size: 0.7em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.stat-value {
+  font-size: 1.5em;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text);
+  line-height: 1.2;
+}
+.stat-sub {
+  font-size: 0.78em;
+  color: var(--text-dim);
+  margin-top: 3px;
+}
+.field-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 180px;
+}
+.field-group label {
+  font-size: 0.72em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-dim);
+}
+.field-group textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+.profile-ro {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.profile-ro-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-dim);
+  border-radius: 5px;
+  padding: 8px 14px;
+  min-width: 130px;
+}
+.profile-ro-label {
+  font-size: 0.68em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-dim);
+}
+.profile-ro-value {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  color: var(--text);
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="ms-content">
+<div class="profile-layout">
+
+  <!-- Stats row -->
+  <div class="profile-stats" id="profile-stats">
+    <div class="stat-card"><div class="stat-label">Scans</div><div class="stat-value" id="stat-scans">—</div></div>
+    <div class="stat-card"><div class="stat-label">Projects</div><div class="stat-value" id="stat-projects">—</div></div>
+    <div class="stat-card"><div class="stat-label">Subscription</div><div class="stat-value" id="stat-tier" style="font-size:1.1em;text-transform:capitalize;">—</div></div>
+    <div class="stat-card"><div class="stat-label">Upload Limit</div><div class="stat-value" id="stat-limit">—</div><div class="stat-sub">MB per file</div></div>
+    <div class="stat-card"><div class="stat-label">Member Since</div><div class="stat-value" id="stat-joined" style="font-size:0.85em;">—</div></div>
+  </div>
+
+  <!-- Profile info -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Profile</h2>
+      <button class="btn btn-primary" onclick="PRF.save()">Save</button>
+    </div>
+    <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="field-row">
+        <div class="field-group">
+          <label>Full Name</label>
+          <input type="text" id="prf-name" class="ms-input" placeholder="Jane Smith">
+        </div>
+        <div class="field-group">
+          <label>Company</label>
+          <input type="text" id="prf-company" class="ms-input" placeholder="Acme Corp">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-group">
+          <label>Email</label>
+          <input type="email" id="prf-email" class="ms-input" placeholder="jane@example.com">
+        </div>
+        <div class="field-group">
+          <label>Phone</label>
+          <input type="text" id="prf-phone" class="ms-input" placeholder="+1 555 000 0000">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-group" style="max-width:200px;">
+          <label>Birthday</label>
+          <input type="date" id="prf-birthday" class="ms-input">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-group">
+          <label>Address</label>
+          <textarea id="prf-address" class="ms-input"></textarea>
+        </div>
+      </div>
+
+      <!-- Read-only account info -->
+      <div style="margin-top:4px;">
+        <div class="stat-label" style="margin-bottom:8px;">Account</div>
+        <div class="profile-ro" id="profile-ro"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change password -->
+  <div class="panel">
+    <div class="panel-header"><h2>Change Password</h2></div>
+    <div class="panel-body">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+        <div class="field-group" style="min-width:160px;max-width:220px;">
+          <label>Current Password</label>
+          <input type="password" id="prf-cur-pass" class="ms-input">
+        </div>
+        <div class="field-group" style="min-width:160px;max-width:220px;">
+          <label>New Password</label>
+          <input type="password" id="prf-new-pass" class="ms-input">
+        </div>
+        <button class="btn btn-primary" onclick="PRF.changePassword()">Update</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var PRF = (function() {
+  'use strict';
+
+  function load() {
+    fetch('/api/profile').then(function(r) { return r.json(); }).then(function(d) {
+      document.getElementById('prf-name').value = d.full_name || '';
+      document.getElementById('prf-company').value = d.company || '';
+      document.getElementById('prf-email').value = d.email || '';
+      document.getElementById('prf-phone').value = d.phone || '';
+      document.getElementById('prf-birthday').value = d.birthday || '';
+      document.getElementById('prf-address').value = d.address || '';
+
+      document.getElementById('stat-scans').textContent = d.scan_count != null ? d.scan_count : '—';
+      document.getElementById('stat-projects').textContent = d.project_count != null ? d.project_count : '—';
+      document.getElementById('stat-tier').textContent = d.subscription_tier || 'free';
+      document.getElementById('stat-limit').textContent = d.upload_limit_mb || 200;
+      document.getElementById('stat-joined').textContent = d.joined ? new Date(d.joined).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+
+      var ro = document.getElementById('profile-ro');
+      ro.innerHTML = '';
+      [
+        ['Username', d.username],
+        ['Role', d.role],
+      ].forEach(function(pair) {
+        var el = document.createElement('div');
+        el.className = 'profile-ro-item';
+        el.innerHTML = '<div class="profile-ro-label">' + esc(pair[0]) + '</div><div class="profile-ro-value">' + esc(pair[1]) + '</div>';
+        ro.appendChild(el);
+      });
+    }).catch(function(e) { msToast('Failed to load profile', true); });
+  }
+
+  function save() {
+    var body = {
+      full_name: document.getElementById('prf-name').value.trim(),
+      company: document.getElementById('prf-company').value.trim(),
+      email: document.getElementById('prf-email').value.trim(),
+      phone: document.getElementById('prf-phone').value.trim(),
+      birthday: document.getElementById('prf-birthday').value,
+      address: document.getElementById('prf-address').value.trim(),
+    };
+    fetch('/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) msToast('Profile saved');
+      else msToast(d.error || 'Failed', true);
+    });
+  }
+
+  function changePassword() {
+    var c = document.getElementById('prf-cur-pass').value;
+    var n = document.getElementById('prf-new-pass').value;
+    if (!c || !n) { msToast('Fill in both fields', true); return; }
+    fetch('/api/account/password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: c, new_password: n }),
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        msToast('Password changed');
+        document.getElementById('prf-cur-pass').value = '';
+        document.getElementById('prf-new-pass').value = '';
+      } else msToast(d.error || 'Failed', true);
+    });
+  }
+
+  function esc(s) {
+    if (!s) return '';
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
+  document.addEventListener('DOMContentLoaded', load);
+
+  return { save: save, changePassword: changePassword };
+})();
+</script>
+{% endblock %}

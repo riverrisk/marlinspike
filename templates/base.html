@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}MarlinSpike{% endblock %}</title>
+<style>
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url(/static/fonts/inter-latin.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Fira Code';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url(/static/fonts/fira-code-latin.woff2) format('woff2');
+}
+:root {
+  --bg: #0f1923;
+  --bg-deep: #0b1420;
+  --bg-surface: #111b2b;
+  --panel: #162233;
+  --panel-alt: #111b2b;
+  --border: #243447;
+  --border-dim: #141e32;
+  --text: #d4dce6;
+  --text-dim: #7a8a9e;
+  --text-muted: #384560;
+  --accent: #5b8af0;
+  --accent-hover: #4a75d4;
+  --accent-dim: rgba(91,138,240,0.08);
+  --accent-cyan: #32b8c6;
+  --accent-green: #3aad6b;
+  --accent-rose: #c75070;
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+  --color-success: #22c55e;
+  --font-mono: 'Fira Code','Cascadia Code','Consolas','Courier New', monospace;
+  --font-ui: 'Inter','Segoe UI', system-ui, -apple-system, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Nav bar ── */
+.ms-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px;
+  height: 48px;
+  background: var(--bg-deep);
+  border-bottom: 1px solid var(--border-dim);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.ms-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95em;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+}
+.ms-nav-brand .brand-text { color: var(--color-danger); }
+.ms-nav-brand .brand-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  background: var(--bg-deep);
+  border: 1.5px solid #ef444488;
+  font-size: 0.62em;
+  font-weight: 800;
+  color: #ef4444;
+  letter-spacing: -0.5px;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(239,68,68,0.2);
+  text-shadow: 0 0 6px rgba(239,68,68,0.5);
+  position: relative;
+}
+.ms-nav-brand .brand-icon::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, rgba(239,68,68,0.25) 0%, transparent 40%, rgba(91,138,240,0.20) 100%);
+  pointer-events: none;
+}
+.ms-nav-version {
+  font-size: 0.68em;
+  font-weight: 400;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.ms-nav-links {
+  display: flex;
+  gap: 2px;
+  margin-left: 16px;
+  height: 100%;
+  align-items: stretch;
+}
+.ms-nav-links a {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.85em;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+.ms-nav-links a:hover { color: var(--text); }
+.ms-nav-links a.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.ms-nav-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.85em;
+  color: var(--text-dim);
+}
+.ms-nav-right a {
+  color: var(--text-dim);
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+.ms-nav-right a:hover { color: var(--text); background: var(--bg-surface); }
+.ms-nav-user {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  color: var(--text-dim);
+  padding: 3px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-dim);
+  border-radius: 3px;
+}
+
+/* ── Content wrapper ── */
+.ms-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel-alt);
+  color: var(--text);
+  font-size: 0.85em;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  transition: border-color 0.15s, background 0.15s;
+}
+.btn:hover { border-color: var(--accent); background: var(--bg-surface); }
+.btn-primary { border-color: var(--accent); background: rgba(91,138,240,0.12); color: var(--accent); }
+.btn-primary:hover { background: rgba(91,138,240,0.2); }
+.btn-danger { border-color: var(--color-danger); color: var(--color-danger); }
+.btn-danger:hover { background: rgba(239,68,68,0.1); }
+.btn-success { border-color: var(--color-success); color: var(--color-success); }
+.btn-success:hover { background: rgba(34,197,94,0.1); }
+.btn-sm { padding: 4px 10px; font-size: 0.82em; }
+
+/* ── Panels ── */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border-dim);
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-dim);
+}
+.panel-header h2 {
+  font-size: 0.88em;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.panel-body { padding: 16px; }
+
+/* ── Tables ── */
+.ms-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+.ms-table th {
+  text-align: left;
+  padding: 8px 12px;
+  color: var(--text-muted);
+  font-size: 0.72em;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+.ms-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-dim);
+}
+.ms-table tr:last-child td { border-bottom: none; }
+.ms-table tr:hover td { background: rgba(91,138,240,0.02); }
+.ms-table .mono { font-family: var(--font-mono); font-size: 0.92em; }
+.ms-table .dim { color: var(--text-dim); }
+
+/* ── Toast ── */
+.ms-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-size: 0.85em;
+  z-index: 2000;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.ms-toast.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.ms-toast.error { border-left-color: var(--color-danger); }
+
+/* ── Form inputs ── */
+.ms-input {
+  padding: 7px 10px;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.9em;
+}
+.ms-input:focus { border-color: var(--accent); outline: none; }
+.ms-select { composes: ms-input; }
+
+/* ── Status badges ── */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 0.72em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-family: var(--font-mono);
+}
+.badge-running { background: rgba(91,138,240,0.12); color: var(--accent); }
+.badge-completed { background: rgba(34,197,94,0.12); color: var(--color-success); }
+.badge-failed { background: rgba(239,68,68,0.12); color: var(--color-danger); }
+.badge-stopped { background: rgba(100,116,139,0.12); color: var(--text-dim); }
+.badge-interrupted { background: rgba(245,158,11,0.12); color: var(--color-warning); }
+.badge-pending { background: rgba(100,116,139,0.12); color: var(--text-dim); }
+</style>
+{% block head %}{% endblock %}
+</head>
+<body>
+
+<nav class="ms-nav">
+  <a href="/dashboard" class="ms-nav-brand">
+    <div class="brand-icon">MS</div>
+    <span class="brand-text">MarlinSpike</span>
+    <span class="ms-nav-version">v{{ app_version }}</span>
+  </a>
+  <div class="ms-nav-links">
+    <a href="/dashboard" class="{% if request.path == '/dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}">Reports</a>
+    <a href="/scans" class="{% if request.path == '/scans' %}active{% endif %}">Scans</a>
+    <a href="/projects" class="{% if request.path == '/projects' %}active{% endif %}">Projects</a>
+    {% if session.get('role') == 'admin' %}
+    <a href="/users" class="{% if request.path == '/users' %}active{% endif %}">Users</a>
+    <a href="/system" class="{% if request.path == '/system' %}active{% endif %}">System</a>
+    {% endif %}
+  </div>
+  <div class="ms-nav-right">
+    <a href="/about">About</a>
+    <a href="/profile" class="{% if request.path == '/profile' %}active{% endif %}">{{ session.get('user', '') }}</a>
+    <a href="/logout">Logout</a>
+  </div>
+</nav>
+
+{% block body %}{% endblock %}
+
+<div class="ms-toast" id="ms-toast"></div>
+
+<script>
+function msToast(msg, isError) {
+  var t = document.getElementById('ms-toast');
+  t.textContent = msg;
+  t.className = 'ms-toast visible' + (isError ? ' error' : '');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(function() { t.className = 'ms-toast'; }, 4000);
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

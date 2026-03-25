@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MarlinSpike — Passive OT Network Topology Mapping</title>
+<style>
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url(/static/fonts/inter-latin.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Fira Code';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url(/static/fonts/fira-code-latin.woff2) format('woff2');
+}
+:root {
+  --bg: #0f1923;
+  --bg-deep: #0b1420;
+  --bg-surface: #111b2b;
+  --panel: #162233;
+  --border: #243447;
+  --border-dim: #141e32;
+  --text: #d4dce6;
+  --text-dim: #7a8a9e;
+  --text-muted: #384560;
+  --accent: #5b8af0;
+  --accent-hover: #4a75d4;
+  --accent-dim: rgba(91,138,240,0.08);
+  --color-danger: #ef4444;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --font-mono: 'Fira Code','Cascadia Code','Consolas','Courier New', monospace;
+  --font-ui: 'Inter','Segoe UI', system-ui, -apple-system, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Subtle grid background ── */
+.bg-grid {
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(36,52,71,0.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(36,52,71,0.3) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+  mask-image: radial-gradient(ellipse 70% 50% at 50% 30%, black 20%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 50% at 50% 30%, black 20%, transparent 80%);
+}
+
+/* ── Top bar ── */
+.topbar {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 28px;
+}
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--text);
+}
+.topbar-brand .brand-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  background: #0b1420;
+  border: 1.5px solid #ef444488;
+  font-size: 0.62em;
+  font-weight: 800;
+  color: #ef4444;
+  letter-spacing: -0.5px;
+  box-shadow: 0 0 8px rgba(239,68,68,0.2);
+  text-shadow: 0 0 6px rgba(239,68,68,0.5);
+}
+.topbar-brand span {
+  font-weight: 700;
+  font-size: 0.95em;
+  color: var(--color-danger);
+}
+.topbar-nav {
+  display: flex;
+  gap: 6px;
+}
+.topbar-nav a {
+  padding: 6px 16px;
+  border-radius: 4px;
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.88em;
+  transition: color 0.15s, background 0.15s;
+}
+.topbar-nav a:hover { color: var(--text); background: var(--bg-surface); }
+
+/* ── Hero ── */
+.hero {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 60px 24px 40px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.hero-label {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.72em;
+  font-weight: 600;
+  color: var(--color-danger);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  padding: 4px 12px;
+  border: 1px solid rgba(239,68,68,0.25);
+  border-radius: 3px;
+  background: rgba(239,68,68,0.06);
+}
+.hero h1 {
+  font-size: 2.8em;
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1.1;
+  margin-bottom: 16px;
+}
+.hero h1 .accent { color: var(--color-danger); }
+.hero .tagline {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+  color: var(--text-dim);
+  margin-bottom: 24px;
+  letter-spacing: 0.3px;
+}
+.hero .desc {
+  color: var(--text-dim);
+  max-width: 520px;
+  margin: 0 auto 36px;
+  line-height: 1.65;
+  font-size: 0.95em;
+}
+
+/* ── CTA ── */
+.cta-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 56px;
+}
+.cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: 5px;
+  font-size: 0.92em;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
+  border: 1px solid transparent;
+}
+.cta-btn:hover { transform: translateY(-1px); }
+.cta-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.cta-primary:hover { background: var(--accent-hover); }
+.cta-secondary {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+.cta-secondary:hover { border-color: var(--accent); background: var(--accent-dim); }
+
+/* ── Stats bar ── */
+.stats-bar {
+  position: relative;
+  z-index: 1;
+  max-width: 700px;
+  margin: 0 auto 56px;
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-dim);
+  border-bottom: 1px solid var(--border-dim);
+}
+.stat-item {
+  text-align: center;
+}
+.stat-val {
+  font-family: var(--font-mono);
+  font-size: 1.3em;
+  font-weight: 700;
+  color: var(--accent);
+}
+.stat-label {
+  font-size: 0.72em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+/* ── Feature grid ── */
+.features {
+  position: relative;
+  z-index: 1;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 24px 56px;
+}
+.features-label {
+  text-align: center;
+  font-size: 0.72em;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  font-weight: 600;
+}
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border-dim);
+  border: 1px solid var(--border-dim);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.feature-card {
+  background: var(--bg);
+  padding: 24px 20px;
+  transition: background 0.2s;
+}
+.feature-card:hover { background: var(--bg-surface); }
+.feature-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.fi-recon {
+  background: rgba(34,197,94,0.1);
+  border: 1px solid rgba(34,197,94,0.25);
+  color: var(--color-success);
+}
+.fi-proto {
+  background: rgba(50,184,198,0.1);
+  border: 1px solid rgba(50,184,198,0.25);
+  color: #32b8c6;
+}
+.fi-topo {
+  background: rgba(91,138,240,0.1);
+  border: 1px solid rgba(91,138,240,0.25);
+  color: var(--accent);
+}
+.fi-risk {
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.25);
+  color: var(--color-warning);
+}
+.fi-c2 {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.25);
+  color: var(--color-danger);
+}
+.fi-pcap {
+  background: rgba(168,85,247,0.1);
+  border: 1px solid rgba(168,85,247,0.25);
+  color: #a855f7;
+}
+.feature-card h3 {
+  font-size: 0.88em;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+.feature-card p {
+  font-size: 0.82em;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+/* ── Protocol strip ── */
+.proto-strip {
+  position: relative;
+  z-index: 1;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 24px 48px;
+  text-align: center;
+}
+.proto-strip-label {
+  font-size: 0.72em;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  font-weight: 600;
+}
+.proto-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.proto-tag {
+  font-family: var(--font-mono);
+  font-size: 0.75em;
+  padding: 3px 10px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  background: var(--panel);
+}
+.proto-tag.ot {
+  border-color: rgba(34,197,94,0.3);
+  color: var(--color-success);
+  background: rgba(34,197,94,0.06);
+}
+
+/* ── Performance callout ── */
+.perf-callout {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 32px 24px 48px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+.perf-stat {
+  font-family: var(--font-mono);
+  font-size: 1.15em;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.perf-stat .hl { color: var(--accent); }
+.perf-desc {
+  font-size: 0.82em;
+  color: var(--text-muted);
+}
+
+/* ── Chain viz ── */
+.chain-section {
+  position: relative;
+  z-index: 1;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 24px 56px;
+  text-align: center;
+}
+.chain-label {
+  font-size: 0.72em;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+.chain-steps {
+  display: flex;
+  gap: 0;
+  align-items: center;
+  justify-content: center;
+}
+.chain-step {
+  padding: 8px 20px;
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+.chain-step:first-child { border-radius: 4px 0 0 4px; }
+.chain-step:last-child { border-radius: 0 4px 4px 0; }
+.chain-sep {
+  padding: 8px 0;
+  background: var(--border);
+  color: var(--text-muted);
+  font-size: 0.65em;
+  width: 24px;
+  text-align: center;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Footer ── */
+.landing-footer {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 32px 24px;
+  border-top: 1px solid var(--border-dim);
+  font-size: 0.78em;
+  color: var(--text-muted);
+}
+.landing-footer a {
+  color: var(--text-dim);
+  text-decoration: none;
+  margin: 0 10px;
+}
+.landing-footer a:hover { color: var(--text); }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .hero h1 { font-size: 2em; }
+  .feature-grid { grid-template-columns: 1fr; }
+  .stats-bar { flex-wrap: wrap; gap: 16px; }
+  .chain-steps { flex-wrap: wrap; }
+  .chain-sep { display: none; }
+  .chain-step { border-radius: 4px !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+
+<div class="topbar">
+  <a href="/" class="topbar-brand">
+    <div class="brand-icon">MS</div>
+    <span>MarlinSpike</span>
+  </a>
+  <div class="topbar-nav">
+    <a href="/about">About</a>
+    <a href="/login">Sign In</a>
+  </div>
+</div>
+
+<div class="hero">
+  <div class="hero-label">Passive Reconnaissance</div>
+  <h1><span class="accent">MarlinSpike</span></h1>
+  <div class="tagline">passive OT/ICS network topology mapping</div>
+  <div class="desc">
+    Drop a PCAP. Get a complete network topology map with asset inventory,
+    Purdue Model classification, risk analysis, and C2/beacon detection.
+    Zero packets transmitted.
+  </div>
+  <div class="cta-row">
+    <a href="/login" class="cta-btn cta-primary">Sign In</a>
+  </div>
+</div>
+
+<div class="stats-bar">
+  <div class="stat-item">
+    <div class="stat-val">2.2M</div>
+    <div class="stat-label">Packets Analyzed</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-val">104</div>
+    <div class="stat-label">Nodes Discovered</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-val">15</div>
+    <div class="stat-label">Protocols Detected</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-val">&lt;3m</div>
+    <div class="stat-label">Processing Time</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-val">552MB</div>
+    <div class="stat-label">Peak Memory</div>
+  </div>
+</div>
+
+<div class="features">
+  <div class="features-label">Capabilities</div>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feature-icon fi-recon">0tx</div>
+      <h3>Zero-Transmission Recon</h3>
+      <p>Analyzes existing PCAP captures or live traffic. Never injects a single packet. Safe for production OT environments.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon fi-proto">OT</div>
+      <h3>15+ ICS Protocols</h3>
+      <p>Modbus, EtherNet/IP, CIP, S7comm, DNP3, OPC-UA, BACnet, PROFINET, HART-IP, BSAP, ROCPlus, FINS, and more.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon fi-topo">2D</div>
+      <h3>Interactive Topology</h3>
+      <p>SVG topology viewer with Purdue Model zone layering, pan/zoom, node detail panels, and connection highlighting.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon fi-risk">!</div>
+      <h3>Risk + MITRE ATT&CK</h3>
+      <p>Automatic risk finding generation, Purdue Model violation detection, attack target prioritization with severity classification.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon fi-c2">C2</div>
+      <h3>Beacon / Exfil Detection</h3>
+      <p>Beaconing analysis with jitter scoring, DNS tunnel detection via entropy analysis, high-volume exfiltration identification.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon fi-pcap">LIB</div>
+      <h3>Optional Sample Library</h3>
+      <p>Load your own preset captures locally or through the admin UI without committing raw packet data to the public repo.</p>
+    </div>
+  </div>
+</div>
+
+<div class="chain-section">
+  <div class="chain-label">5-Stage Analysis Chain</div>
+  <div class="chain-steps">
+    <div class="chain-step">Ingest</div>
+    <div class="chain-sep">&#9654;</div>
+    <div class="chain-step">Dissect</div>
+    <div class="chain-sep">&#9654;</div>
+    <div class="chain-step">Classify</div>
+    <div class="chain-sep">&#9654;</div>
+    <div class="chain-step">Analyze</div>
+    <div class="chain-sep">&#9654;</div>
+    <div class="chain-step">Report</div>
+  </div>
+</div>
+
+<div class="proto-strip">
+  <div class="proto-strip-label">Supported Protocols</div>
+  <div class="proto-tags">
+    <span class="proto-tag ot">Modbus</span>
+    <span class="proto-tag ot">EtherNet/IP</span>
+    <span class="proto-tag ot">CIP</span>
+    <span class="proto-tag ot">S7comm</span>
+    <span class="proto-tag ot">DNP3</span>
+    <span class="proto-tag ot">OPC-UA</span>
+    <span class="proto-tag ot">BACnet</span>
+    <span class="proto-tag ot">PROFINET</span>
+    <span class="proto-tag ot">HART-IP</span>
+    <span class="proto-tag ot">BSAP</span>
+    <span class="proto-tag ot">ROCPlus</span>
+    <span class="proto-tag ot">FINS</span>
+    <span class="proto-tag ot">GENISYS</span>
+    <span class="proto-tag ot">C1222</span>
+    <span class="proto-tag">LLDP</span>
+    <span class="proto-tag">CDP</span>
+    <span class="proto-tag">STP</span>
+    <span class="proto-tag">LACP</span>
+  </div>
+</div>
+
+<div class="perf-callout">
+  <div class="perf-stat"><span class="hl">2.2M</span> packets. Under <span class="hl">3 minutes</span>. <span class="hl">552 MB</span> peak.</div>
+  <div class="perf-desc">Benchmarked on the 4SICS GeekLounge 200 MB industrial capture &mdash; 104 nodes, 15 protocols, full chain analysis.</div>
+</div>
+
+<div class="landing-footer">
+  <div>River Risk Partners</div>
+  <div style="margin-top:8px;">
+    <a href="/about">About</a>
+    <a href="/login">Sign In</a>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,53 @@
+# MarlinSpike — Releases
+
+## Versioning
+
+Engine and web UI are now versioned separately:
+- **Engine** (`_ms_engine.py`): versions tracked in the table below. Bumped on analysis chain / tshark / report format changes. Triggers Cython rebuild.
+- **Web UI** (`app.py` + templates): `APP_VERSION` in `app.py`. Bumped on UI/UX changes. Deployable independently via `./deploy.sh --ui-only` (no rebuild).
+
+## Engine Releases
+
+| Version | Date | Changes |
+|---------|------|---------|
+| v1.9.1 | 2026-02-26 | **Vendor infrastructure fix + demo refresh.** Added `"phoenix contact"` and `"innominate"` to `_assign_roles()` vendor infrastructure check — Phoenix Contact FL SWITCH and Innominate mGuard appliances appearing in IT-protocol-only traffic are now correctly classified as "Network Infrastructure" instead of "Historian/MES". Demo report (`demo/demo-report.json`) regenerated with current binary: Network Infrastructure 0 → 35, Historian/MES 31 → 18 on 4SICS benchmark. Demo dir restructured: `COPY demo/ ./demo/` (was `data/demo/`) — `demo/` is now the local source of truth, synced by `deploy.sh`. Dual-synced to `VORACITY-MODULE-MARLINSPIKE.py` |
+| v1.9.0 | 2026-02-25 | **L2 node merge + MAC table.** `_merge_l2_nodes()` merges MAC-only nodes (from LLDP/STP L2 packets) into IP-keyed counterparts — fixes switches being misclassified as "Engineering Workstation" due to MAC/IP node split. `_build_mac_table()` builds MAC-to-IP recon table with vendor/capabilities/source enrichment, exposed as `mac_table` field in report JSON. Viewer: tab bar in report pane ("Report" / "MAC Table"), sortable MAC table with color-coded source badges. ROLE_STYLES: added Network Switch + Router entries with prefix-matching fallback for named roles |
+| v1.8.0 | 2026-02-25 | **Dashboard truncation + dedicated Reports & Scans pages.** Dashboard now shows only the 10 most recent reports and scans with "View all" links. New `/reports` page (full report list with project filter, compare/diff, view/download/delete). New `/scans` page (full scan history with project filter, retry, error details). Nav bar updated: Dashboard, Reports, Scans, Projects. API: `/api/reports` and `/api/history` accept optional `limit` query param; `/api/reports` returns `total` count |
+| v1.7.0 | 2026-02-24 | **Security hardening + scalability overhaul.** XSS fix (`\|safe` → `\|tojson` in 3 templates). Path traversal fix (pathlib resolve + prefix check). CSRF origin check middleware. Rate limiting (flask-limiter). Session cookie hardening (Secure/HttpOnly/SameSite=Lax). Error message sanitization. Security event logging. Password 8-char minimum. `.env.backup` deleted and deployment secrets rotated. **Memory fix:** TCP reassembly disabled in all tshark invocations (`tcp.desegment_tcp_streams:FALSE`, `ip.defragment:FALSE`) — Stage 1 drops from 1.7 GB to ~300 MB. Both Stage 1 tshark passes (address extraction + io,phs protocol hierarchy) eliminated — MACs, IPs, and protocols deferred to Stage 2 dissection results; capinfos provides packet count/duration. **Inline unique conversation reduction:** port scan traffic collapsed by MAC pair during Stage 2 tshark processing when >N unique dest ports (default 50) — 1.8M port-scan packets merged inline, 473K raw → 2,205 unique conversations on 200 MB PCAP (2.2M packets). **Benchmark (200 MB 4SICS):** 2 min 56 sec, 395 MB peak memory, 69 MB idle (was 35 min / 3 GB OOM). **New CLI options:** `--chunk-size N` (editcap-based PCAP splitting), `--collapse-threshold N` (port scan dedup), `--reassembly` (opt-in TCP reassembly). WebUI defaults: chunk 300K, collapse 50. `MAX_CONCURRENT_SCANS` reduced to 1 (sequential queue) |
+| v1.6.0 | 2026-02-24 | **Sample PCAP Library + 50 MB upload limit.** 25 curated ICS/OT PCAPs from Malcolm-Test-Artifacts (Idaho National Lab) baked into Docker image under `presets/`. 4 categories: ICS/OT Protocols (16), IT Reference (4), Digital Bond S4 (4), CTF (1). New "Sample Library" tab on dashboard with browsable category cards. Upload limit reduced from 500 MB → 50 MB. Preset path resolution with `preset:` prefix, retry fallback searches preset subdirs |
+| v1.5.0 | 2026-02-23 | **Stage 3/4 performance fix.** Edge merging collapses 358K edges → ~hundreds by `(src, dst, protocol, dst_port, transport)` key. Conversation indexes (`_conv_by_src`/`_conv_by_dst`) eliminate O(n*m) nested loops in `_fingerprint_vendors()` and `_assign_roles()`. Cython `defaultdict` type annotation fix in `save_yaml_map()`. Stage 3 drops from 20+ min to seconds on 200 MB PCAPs |
+| v1.4.0 | 2026-02-23 | **Five-tuple port analysis + C2 detection.** Full five-tuple extraction (src/dst IP, src/dst port, transport) on all conversations — non-OT traffic no longer dropped. `WELL_KNOWN_PORTS` database (70+ IT/OT services). Service port profiles per node, port labels per edge. Beacon detection via IAT histogram clustering (jitter-resistant, adaptive bin width). DNS exfiltration detection via Shannon entropy of subdomain labels. Asymmetric flow analysis, suspect C2 channel detection, connection persistence scoring. Port risk analysis: cleartext remote access, IT-on-OT, unknown high-port services. Ephemeral port filtering (>= 49152 w/ single connection). `NO_AUTH_OBSERVED` suppressed from per-asset views. New MITRE ATT&CK coverage: T1071, T1573, T1048, T1132, T1029. New report fields: `port_summary`, `c2_indicators`, node `service_ports`, edge `dst_port`/`port_label`/`transport` |
+| v1.3.0 | 2026-02-23 | Assessment Report pane in viewer: collapsible bottom drawer with executive summary, risk findings with remediation, detailed asset inventory, protocol breakdown, Purdue violations. Google OAuth. User model extended with `email` + `oauth_provider` |
+| v1.2.1 | 2026-02-23 | Fix tshark L2 field names for tshark 4.4.x (LLDP, CDP, LACP) — Stage 2 no longer errors on `lldp.tlv.system_cap`, `cdp.native_vlan`, `lacp.actor.*` fields. Removed non-existent `cdp.addr.ip` field |
+| v1.2.0 | 2026-02-23 | Live streaming mode (incremental topology snapshots during capture), topology diff engine, inline L2 parsers for LLDP/CDP/STP/LACP, `_classify_protocol()` encap-aware stack walker |
+| v1.1.0 | 2026-02-22 | L2 protocol discovery: LLDP (chassis, ports, capabilities, VLANs), CDP (device ID, platform, native VLAN), STP/RSTP (root/bridge MAC, port cost, topology change), LACP (actor/partner system, port, key). Frame protocols stack-based classification. Conversation-level OT metadata enrichment |
+| v1.0.0 | 2026-02-22 | Initial standalone extraction from Voracity module. 5-stage chain: capture ingest, OT protocol dissection (Modbus, EtherNet/IP, CIP, S7comm, DNP3, OPC-UA), topology build with Purdue level inference, risk surface scoring, report generation. CLI + importable API. GrassMarlin bridge (optional) |
+
+## Web UI Releases
+
+| Version | Date | Changes |
+|---------|------|---------|
+| v1.9.0 | 2026-02-25 | **User profiles + per-user upload limits.** New `/profile` page: editable full name, company, email, phone, birthday, address. Read-only stats: subscription tier, upload limit, scan count, project count, join date, role. Password change moved to profile page. New `GET/POST /api/profile` endpoints. Per-user `upload_limit_mb` (default 200) replaces hardcoded global limit in upload handler — server enforces user's limit, `projects.html` label and client-side check fetch from `/api/profile` dynamically. New `POST /api/users/<username>/limits` admin endpoint to set `subscription_tier` (free/pro/enterprise) and `upload_limit_mb`. Users table gains Subscription and Upload Limit columns with inline Limits editor. Nav username is now a link to profile. Postgres schema migration runs on startup (`ALTER TABLE users ADD COLUMN IF NOT EXISTS` for all 7 new columns). Requires Cython rebuild (`_models.py` updated) |
+| v1.8.2 | 2026-02-25 | **Bugfix:** "Show log" button on scan panels now only rendered for admin users. Non-admin users no longer see the log toggle during active scans. `IS_ADMIN` injected via Jinja into dashboard JS |
+| v1.8.1 | 2026-02-25 | Initial separate web UI versioning (dashboard truncation, dedicated Reports + Scans pages) |
+
+## v1.7.0 Performance — Before & After
+
+200 MB PCAP — 4SICS-GeekLounge-151022.pcap (2,274,747 packets)
+
+| Metric | v1.4.0 (before) | v1.7.0 (after) | Improvement |
+|--------|-----------------|----------------|-------------|
+| **Total time** | 35 min | **2 min 56 sec** | **12x faster** |
+| **Peak memory** | 3 GB (OOM kill) | **552 MiB** | **5.6x less, no crash** |
+| **Idle memory** | 2 GB+ stuck | **80 MiB** | **25x less** |
+| **Conversations** | 473,000 raw | **2,205 unique** | **215x reduction** |
+| **Concurrent users** | 0 (crashes) | **4-5 feasible** | sequential queue, ~500 MiB/scan |
+
+Confirmed 2026-02-25 on a 3 GB RAM Debian 13 deployment with Docker and tshark 4.4.13.
+
+## Backup
+
+`backups/marlinspike-v1.7.0.py` — engine snapshot before Stage 1/2 optimization (inline collapse + deferred metadata).
+`backups/marlinspike-v1.6.0.py` — engine snapshot before security hardening + scalability overhaul.
+`backups/marlinspike-v1.4.0.py` — engine snapshot before Stage 3/4 performance fix.
+`backups/marlinspike-v1.0.0.py` — engine snapshot before L2 additions.

@@ -1,0 +1,5 @@
+flask
+flask-sqlalchemy
+flask-limiter
+psycopg2-binary
+zstandard

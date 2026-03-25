@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MarlinSpike — Login</title>
+<style>
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url(/static/fonts/inter-latin.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Fira Code';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url(/static/fonts/fira-code-latin.woff2) format('woff2');
+}
+:root {
+  --bg: #0f1923;
+  --bg-deep: #0b1420;
+  --bg-surface: #111b2b;
+  --panel: #162233;
+  --border: #243447;
+  --border-dim: #141e32;
+  --text: #d4dce6;
+  --text-dim: #7a8a9e;
+  --text-muted: #384560;
+  --accent: #5b8af0;
+  --color-danger: #ef4444;
+  --font-mono: 'Fira Code','Cascadia Code','Consolas','Courier New', monospace;
+  --font-ui: 'Inter','Segoe UI', system-ui, -apple-system, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle grid */
+.bg-grid {
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(36,52,71,0.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(36,52,71,0.3) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+  mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, black 10%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, black 10%, transparent 70%);
+}
+
+.login-card {
+  position: relative;
+  z-index: 1;
+  width: 360px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 32px;
+}
+.login-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.login-brand .brand-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #0b1420;
+  border: 1.5px solid #ef444488;
+  font-size: 0.65em;
+  font-weight: 800;
+  color: #ef4444;
+  letter-spacing: -0.5px;
+  box-shadow: 0 0 8px rgba(239,68,68,0.25);
+  text-shadow: 0 0 6px rgba(239,68,68,0.5);
+}
+.login-card h1 {
+  font-size: 1.3em;
+  font-weight: 700;
+  text-align: center;
+}
+.login-card h1 span { color: var(--color-danger); }
+.login-sub {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.78em;
+  font-family: var(--font-mono);
+  margin-bottom: 24px;
+  letter-spacing: 0.3px;
+}
+.login-field {
+  margin-bottom: 14px;
+}
+.login-field label {
+  display: block;
+  font-size: 0.75em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 4px;
+  letter-spacing: 0.3px;
+}
+.login-field input {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.95em;
+}
+.login-field input:focus { border-color: var(--accent); outline: none; }
+.login-btn {
+  width: 100%;
+  padding: 10px;
+  background: var(--accent);
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.95em;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+  font-family: var(--font-ui);
+  transition: background 0.15s;
+}
+.login-btn:hover { background: #4a75d4; }
+.login-error {
+  color: var(--color-danger);
+  font-size: 0.85em;
+  text-align: center;
+  margin-bottom: 12px;
+}
+.login-divider {
+  display: flex;
+  align-items: center;
+  margin: 18px 0;
+  color: var(--text-muted);
+  font-size: 0.75em;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-dim);
+}
+.login-divider::before { margin-right: 12px; }
+.login-divider::after { margin-left: 12px; }
+.google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.95em;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.google-btn:hover { border-color: var(--accent); }
+.google-btn svg { flex-shrink: 0; }
+.login-footer {
+  position: relative;
+  z-index: 1;
+  margin-top: 16px;
+  font-size: 0.82em;
+  color: var(--text-muted);
+}
+.login-footer a {
+  color: var(--text-dim);
+  text-decoration: none;
+  margin: 0 8px;
+}
+.login-footer a:hover { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="login-card">
+  <div class="login-brand">
+    <div class="brand-icon">MS</div>
+    <h1><span>MarlinSpike</span></h1>
+  </div>
+  <div class="login-sub">passive OT topology mapping</div>
+  {% if error %}
+  <div class="login-error">{{ error }}</div>
+  {% endif %}
+  <form method="POST" action="/login">
+    <div class="login-field">
+      <label>Username</label>
+      <input type="text" name="username" autocomplete="username" autofocus required>
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" name="password" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="login-btn">Sign In</button>
+  </form>
+</div>
+<div class="login-footer">
+  <a href="/">Home</a>
+  <a href="/about">About</a>
+</div>
+</body>
+</html>

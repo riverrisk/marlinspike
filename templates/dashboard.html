@@ -1,0 +1,1274 @@
+{% extends "base.html" %}
+{% block title %}MarlinSpike — Dashboard{% endblock %}
+
+{% block head %}
+<style>
+/* Scan controls */
+.scan-controls {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.scan-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.scan-field label {
+  font-size: 0.75em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.scan-field input,
+.scan-field select {
+  padding: 7px 10px;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.9em;
+  min-width: 200px;
+}
+.scan-field input:focus,
+.scan-field select:focus { border-color: var(--accent); outline: none; }
+
+/* Scan source tabs */
+.scan-source-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border);
+}
+.scan-source-tab {
+  padding: 7px 18px;
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: 4px 4px 0 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.82em;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: -1px;
+}
+.scan-source-tab:hover { color: var(--text); border-bottom-color: var(--text-muted); }
+.scan-source-tab.active {
+  border-color: var(--border);
+  border-bottom-color: var(--panel);
+  background: var(--panel);
+  color: var(--accent);
+  font-weight: 600;
+}
+.scan-source-panel { display: none; }
+.scan-source-panel.active { display: flex; }
+
+/* Active run panel */
+.run-panel {
+  display: none;
+  margin-top: 16px;
+}
+.run-panel.active { display: block; }
+
+/* Progress bar */
+.run-progress-bar {
+  display: flex;
+  height: 28px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--panel-alt);
+  margin: 10px 0 6px;
+}
+.run-progress-segment {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.72em;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--panel-alt);
+  border-right: 1px solid var(--border-dim);
+  transition: background 0.3s, color 0.3s;
+  gap: 4px;
+  letter-spacing: 0.2px;
+}
+.run-progress-segment:last-child { border-right: none; }
+.run-progress-segment.pending { color: var(--text-muted); }
+.run-progress-segment.running {
+  background: rgba(91,138,240,0.15);
+  color: var(--accent);
+  animation: progress-pulse 1.5s ease-in-out infinite;
+}
+.run-progress-segment.complete {
+  background: rgba(34,197,94,0.12);
+  color: var(--color-success);
+}
+.run-progress-segment.failed {
+  background: rgba(239,68,68,0.12);
+  color: var(--color-danger);
+}
+.run-progress-segment.stopped {
+  background: rgba(100,116,139,0.12);
+  color: var(--text-dim);
+}
+@keyframes progress-pulse {
+  0%, 100% { background: rgba(91,138,240,0.10); }
+  50% { background: rgba(91,138,240,0.22); }
+}
+.run-progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82em;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.run-progress-label { font-weight: 500; }
+.run-elapsed {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  color: var(--text-muted);
+}
+
+/* Log toggle */
+.run-log-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--panel-alt);
+  color: var(--text-dim);
+  font-size: 0.78em;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  margin-top: 4px;
+}
+.run-log-toggle:hover { border-color: var(--accent); color: var(--text); }
+
+/* Old stage chain (hidden by progress bar) */
+.run-stage-chain { display: none; }
+
+/* Live output */
+.live-output {
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  max-height: 360px;
+  overflow-y: auto;
+  line-height: 1.3;
+  color: var(--text-dim);
+  margin-top: 8px;
+  white-space: pre;
+}
+.live-output.collapsed { display: none; }
+.live-output .line-stage { color: #f59e0b; font-weight: 700; }
+.live-output .line-success { color: #22c55e; }
+.live-output .line-error { color: #ef4444; }
+.live-output .line-info { color: #58a6ff; }
+
+/* Reports table extras */
+.report-actions { display: flex; gap: 8px; }
+.report-actions a, .report-actions button {
+  font-size: 0.82em;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+.report-actions .view-link { color: var(--accent-cyan); }
+.report-actions .view-link:hover { text-decoration: underline; }
+.report-actions .dl-link { color: var(--accent); text-decoration: none; }
+.report-actions .dl-link:hover { text-decoration: underline; }
+.report-actions .del-btn { color: var(--color-danger); }
+.report-actions .del-btn:hover { text-decoration: underline; }
+
+/* Compare bar */
+.compare-bar {
+  display: none;
+  padding: 8px 16px;
+  background: rgba(91,138,240,0.08);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  margin-bottom: 12px;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.88em;
+}
+.compare-bar.active { display: flex; }
+
+/* Upload area */
+.upload-zone {
+  border: 2px dashed rgba(122,138,158,0.45);
+  border-radius: 6px;
+  padding: 14px 20px;
+  text-align: center;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.upload-zone:hover { border-color: var(--accent); background: rgba(91,138,240,0.03); }
+.upload-zone.dragging { border-color: var(--accent); background: rgba(91,138,240,0.06); }
+#upload-input { display: none; }
+
+/* Copyable run ID */
+.run-id-copy {
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+.run-id-copy:hover { background: var(--bg-surface); }
+.run-id-copy.copied { background: rgba(34,197,94,0.15); }
+
+/* Error detail row */
+.history-error-row td {
+  padding: 0 12px 8px 12px !important;
+  border-bottom: 1px solid var(--border-dim);
+}
+.error-detail {
+  background: var(--bg-deep);
+  border: 1px solid var(--border-dim);
+  border-left: 3px solid var(--color-danger);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.78em;
+  line-height: 1.4;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+/* Sample Library browser */
+.preset-library { width: 100%; }
+.preset-category {
+  margin-bottom: 10px;
+  border: 1px solid var(--border-dim);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.preset-category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 14px;
+  background: var(--bg-surface);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.preset-category-header:hover { background: var(--panel-alt); }
+.preset-category-header h3 {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.preset-category-header .cat-count {
+  font-size: 0.82em;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.preset-category-header .cat-chevron {
+  font-size: 0.7em;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+.preset-category.collapsed .cat-chevron { transform: rotate(-90deg); }
+.preset-category.collapsed .preset-grid { display: none; }
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+  padding: 10px 12px;
+}
+.preset-card {
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.preset-card:hover { border-color: var(--accent); background: rgba(91,138,240,0.04); }
+.preset-card.selected {
+  border-color: var(--accent);
+  background: rgba(91,138,240,0.1);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.preset-card .pc-name {
+  font-family: var(--font-mono);
+  font-size: 0.84em;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 3px;
+  word-break: break-all;
+}
+.preset-card .pc-meta {
+  font-size: 0.75em;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.preset-card .pc-desc {
+  font-size: 0.75em;
+  color: var(--text-muted);
+  margin-top: 3px;
+  line-height: 1.3;
+}
+
+/* Empty state hint */
+.empty-hint {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--text-dim);
+}
+.empty-hint p { margin-bottom: 8px; }
+.empty-hint .hint-action {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 500;
+}
+.empty-hint .hint-action:hover { text-decoration: underline; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="ms-content">
+
+  <!-- Scan Controls -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>New Scan</h2>
+      <button class="btn btn-success" id="btn-start" onclick="MS.startScan()">Start Scan</button>
+    </div>
+    <div class="panel-body">
+      <div class="scan-source-tabs">
+        <div class="scan-source-tab active" onclick="MS.setSource('file')">PCAP File</div>
+        <div class="scan-source-tab" onclick="MS.setSource('library')">Sample Library</div>
+        <div class="scan-source-tab" onclick="MS.setSource('upload')">Upload</div>
+        {% if enable_live_capture %}
+        <div class="scan-source-tab" onclick="MS.setSource('live')">Live Capture</div>
+        {% endif %}
+      </div>
+
+      <!-- Command selector (shared across file + upload sources) -->
+      <div class="scan-controls" id="scan-command-row" style="margin: 14px 0 12px; gap: 16px;">
+        <div class="scan-field">
+          <label>Project</label>
+          <select id="scan-project" onchange="MS.onProjectChange()">
+            <option value="">Loading...</option>
+          </select>
+        </div>
+        <div class="scan-field" id="new-project-field" style="display:none;">
+          <label>New Project Name</label>
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="new-project-name" placeholder="Project name..." style="min-width:160px;"
+              onkeydown="if(event.key==='Enter')MS.createNewProject();if(event.key==='Escape')MS.cancelNewProject();">
+            <button class="btn btn-primary btn-sm" onclick="MS.createNewProject()" style="white-space:nowrap;">Create</button>
+            <button class="btn btn-sm" onclick="MS.cancelNewProject()">Cancel</button>
+          </div>
+        </div>
+        <div class="scan-field">
+          <label>Command</label>
+          <select id="scan-command">
+            <option value="chain">Full Chain</option>
+            <option value="ingest">Ingest Only</option>
+            <option value="analyze">Analyze Only</option>
+            <option value="classify">Classify Only</option>
+            <option value="report">Report Only</option>
+          </select>
+        </div>
+        <div class="scan-field">
+          <label for="capture-filter">Capture filter (BPF)</label>
+          <input type="text" id="capture-filter" placeholder="e.g. host 10.0.0.1 or port 502">
+        </div>
+        <div class="scan-field">
+          <label>&nbsp;</label>
+          <label for="skip-ephemeral" style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;padding:7px 0;font-size:0.9em;text-transform:none;font-weight:normal;color:var(--text);" title="Skip edges on ports >= 49152 for a cleaner relationship view. Leave unchecked for C2/exfil analysis.">
+            <input type="checkbox" id="skip-ephemeral" style="width:auto;min-width:auto;margin:0;" checked>
+            Skip ephemeral ports
+          </label>
+        </div>
+      </div>
+
+      <!-- File select -->
+      <div class="scan-source-panel active" id="src-file">
+        <div class="scan-controls" style="flex-direction:column;align-items:stretch;gap:8px;">
+          <div class="scan-field">
+            <label>Select PCAP</label>
+            <select id="pcap-select">
+              <option value="">-- Loading... --</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sample Library -->
+      <div class="scan-source-panel" id="src-library" style="flex-direction:column;">
+        <div class="preset-library" id="preset-library">
+          <div style="text-align:center;padding:16px;color:var(--text-dim);">Loading sample library...</div>
+        </div>
+      </div>
+
+      <!-- Upload -->
+      <div class="scan-source-panel" id="src-upload">
+        <div style="width:100%;">
+          <div class="upload-zone" id="upload-zone" onclick="document.getElementById('upload-input').click()">
+            <span style="font-size:1.1em;margin-right:6px;">&#128193;</span>
+            Drop PCAP file here or click to browse
+            <span style="font-size:0.82em;color:var(--text-muted);margin-left:8px;">Max 200 MB</span>
+          </div>
+          <input type="file" id="upload-input" accept=".pcap,.pcapng,.cap">
+          <div id="upload-status" style="margin-top:8px;font-size:0.85em;color:var(--text-dim);"></div>
+        </div>
+      </div>
+
+      {% if enable_live_capture %}
+      <!-- Live capture -->
+      <div class="scan-source-panel" id="src-live">
+        <div class="scan-controls">
+          <div class="scan-field">
+            <label>Interface</label>
+            <select id="live-interface"><option value="">Loading...</option></select>
+          </div>
+          <div class="scan-field">
+            <label>Duration (seconds)</label>
+            <input type="number" id="live-duration" value="60" min="5" max="3600">
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Active Runs (dynamically populated) -->
+  <div id="runs-container"></div>
+
+  <!-- Reports -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Reports</h2>
+      <button class="btn btn-sm" onclick="MS.loadReports()">Refresh</button>
+    </div>
+    <div class="panel-body">
+      <div class="compare-bar" id="compare-bar">
+        <span>Compare: <b id="compare-a">—</b> vs <b id="compare-b">—</b></span>
+        <button class="btn btn-primary btn-sm" onclick="MS.compareDiff()">View Diff</button>
+        <button class="btn btn-sm" onclick="MS.clearCompare()">Clear</button>
+      </div>
+      <table class="ms-table" id="reports-table">
+        <thead>
+          <tr>
+            <th style="width:30px;"></th>
+            <th>Filename</th>
+            <th>Size</th>
+            <th>Modified</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="reports-body">
+          <tr><td colspan="5" class="dim" style="text-align:center;padding:20px;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Scan History -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Scan History</h2>
+    </div>
+    <div class="panel-body">
+      <table class="ms-table" id="history-table">
+        <thead>
+          <tr>
+            <th>Run</th>
+            <th>User</th>
+            <th>Command</th>
+            <th>Source</th>
+            <th>Status</th>
+            <th title="Discovered nodes / edges">Nodes / Edges</th>
+            <th>Started</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="history-body">
+          <tr><td colspan="8" class="dim" style="text-align:center;padding:20px;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var IS_ADMIN = {{ (session.get('role') == 'admin')|tojson }};
+var MS = (function() {
+  'use strict';
+
+  // Track multiple attached runs: { runId: { cursor, pollTimer } }
+  var attachedRuns = {};
+  var source = 'file';
+  var uploadedFile = null;
+  var compareA = null, compareB = null;
+  var currentProjectId = null;
+
+  function init() {
+    loadProjects(function() {
+      loadReports();
+      loadHistory();
+      checkActiveRuns();
+      loadFiles();
+    });
+    if (document.getElementById('src-live')) loadInterfaces();
+    setupUpload();
+  }
+
+  // ── Projects ──
+  function loadProjects(callback) {
+    fetch('/api/projects').then(function(r) { return r.json(); }).then(function(d) {
+      var sel = document.getElementById('scan-project');
+      sel.innerHTML = '';
+      (d.projects || []).forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name + ' (' + p.pcap_count + ' PCAPs)';
+        sel.appendChild(opt);
+      });
+      // Add sentinel
+      var sentinel = document.createElement('option');
+      sentinel.value = '__new__';
+      sentinel.textContent = '+ Create new project...';
+      sel.appendChild(sentinel);
+      // Select first (Default)
+      if (d.projects && d.projects.length > 0) {
+        sel.value = d.projects[0].id;
+        currentProjectId = d.projects[0].id;
+      }
+      if (callback) callback();
+    }).catch(function() {
+      if (callback) callback();
+    });
+  }
+
+  function onProjectChange() {
+    var sel = document.getElementById('scan-project');
+    if (sel.value === '__new__') {
+      document.getElementById('new-project-field').style.display = '';
+      document.getElementById('new-project-name').focus();
+      return;
+    }
+    document.getElementById('new-project-field').style.display = 'none';
+    currentProjectId = parseInt(sel.value) || null;
+    loadFiles();
+    loadReports();
+  }
+
+  function createNewProject() {
+    var name = document.getElementById('new-project-name').value.trim();
+    if (!name) return;
+    fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name }),
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        document.getElementById('new-project-field').style.display = 'none';
+        document.getElementById('new-project-name').value = '';
+        currentProjectId = d.id;
+        loadProjects(function() {
+          document.getElementById('scan-project').value = d.id;
+          loadFiles();
+          loadReports();
+        });
+        msToast('Project created');
+      } else {
+        msToast(d.error || 'Failed', true);
+      }
+    });
+  }
+
+  function cancelNewProject() {
+    document.getElementById('new-project-field').style.display = 'none';
+    var sel = document.getElementById('scan-project');
+    if (currentProjectId) sel.value = currentProjectId;
+    else if (sel.options.length > 1) { sel.selectedIndex = 0; currentProjectId = parseInt(sel.value) || null; }
+  }
+
+  // ── Source tabs ──
+  var sourceTabMap = { 'file': 'pcap file', 'library': 'sample library', 'upload': 'upload', 'live': 'live' };
+  function setSource(s) {
+    source = s;
+    document.querySelectorAll('.scan-source-tab').forEach(function(t) {
+      t.classList.toggle('active', t.textContent.toLowerCase().includes(sourceTabMap[s] || s));
+    });
+    document.querySelectorAll('.scan-source-panel').forEach(function(p) { p.classList.remove('active'); });
+    var panel = document.getElementById('src-' + s);
+    if (panel) panel.classList.add('active');
+    // Hide command selector for live capture (not applicable)
+    var cmdRow = document.getElementById('scan-command-row');
+    if (cmdRow) cmdRow.style.display = (s === 'live') ? 'none' : '';
+    // Lazy-load presets on first open
+    if (s === 'library' && !presetsLoaded) loadPresets();
+  }
+
+  // ── Upload ──
+  function setupUpload() {
+    var zone = document.getElementById('upload-zone');
+    var input = document.getElementById('upload-input');
+    zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('dragging'); });
+    zone.addEventListener('dragleave', function() { zone.classList.remove('dragging'); });
+    zone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      zone.classList.remove('dragging');
+      if (e.dataTransfer.files.length) doUpload(e.dataTransfer.files[0]);
+    });
+    input.addEventListener('change', function() {
+      if (input.files.length) doUpload(input.files[0]);
+    });
+  }
+
+  function doUpload(file) {
+    // Client-side size check
+    if (file.size > 200 * 1024 * 1024) {
+      msToast('File too large (max 200 MB)', true);
+      return;
+    }
+    var status = document.getElementById('upload-status');
+    status.textContent = 'Uploading ' + file.name + '...';
+    var fd = new FormData();
+    fd.append('file', file);
+    if (currentProjectId) fd.append('project_id', currentProjectId);
+    fetch('/api/upload', { method: 'POST', body: fd })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok) {
+          uploadedFile = d.filename;
+          var msg = 'Uploaded: <b>' + esc(d.filename) + '</b> (' + formatSize(d.size) + ') — ready to scan';
+          if (d.trimmed) {
+            msg += ' <span style="color:var(--color-warning);">(trimmed to ' + formatSize(d.trimmed_size) + ', original ' + formatSize(d.original_size) + ')</span>';
+          }
+          status.innerHTML = msg;
+          // Refresh file list and auto-select the uploaded file, switch to file tab
+          loadFiles(d.filename);
+          setSource('file');
+        } else {
+          status.innerHTML = '<span style="color:var(--color-danger)">Upload failed: ' + esc(d.error) + '</span>';
+        }
+      })
+      .catch(function(e) { status.textContent = 'Upload error: ' + e.message; });
+  }
+
+  // ── Interfaces ──
+  function loadInterfaces() {
+    fetch('/api/interfaces').then(function(r) { return r.json(); }).then(function(d) {
+      var sel = document.getElementById('live-interface');
+      sel.innerHTML = '<option value="">-- Select --</option>';
+      (d.interfaces || []).forEach(function(iface) {
+        if (!iface.suitable) return;
+        var label = iface.name;
+        if (iface.ips && iface.ips.length) label += ' (' + iface.ips.join(', ') + ')';
+        var opt = document.createElement('option');
+        opt.value = iface.name;
+        opt.textContent = label;
+        sel.appendChild(opt);
+      });
+    }).catch(function() {
+      document.getElementById('live-interface').innerHTML = '<option value="">No interfaces found</option>';
+    });
+  }
+
+  // ── Sample Library ──
+  var presetsLoaded = false;
+  var selectedPreset = null; // "category/filename.pcap"
+
+  // Category display names and icons
+  var categoryMeta = {
+    'ics-ot':           { label: 'ICS / OT Protocols', icon: '\u2699' },
+    'it-reference':     { label: 'IT Reference',       icon: '\u26A1' },
+    'digital-bond-s4':  { label: 'Digital Bond S4 ICS Testbed', icon: '\uD83C\uDFED' },
+    'ctf':              { label: 'CTF Exercise',        icon: '\uD83D\uDEA9' },
+  };
+
+  // Protocol descriptions
+  var presetDesc = {
+    'S7comm.pcap': 'Siemens S7 PLC communication',
+    'Modbus.pcap': 'Modbus/TCP function codes',
+    'ENIP.pcap': 'Allen-Bradley EtherNet/IP + CIP',
+    'DNP3.pcap': 'Distributed Network Protocol',
+    'OPCUA-Binary.pcap': 'OPC-UA binary sessions',
+    'BACnet.pcap': 'Building automation (BACnet/IP)',
+    'BACnet_device_control.pcap': 'BACnet device commands',
+    'PROFINET.pcap': 'Siemens industrial ethernet',
+    'ETHERCAT.pcap': 'Real-time EtherCAT fieldbus',
+    'BSAP.pcap': 'Bristol/Emerson BSAP',
+    'HARTIP.pcap': 'HART-IP process control',
+    'OmronFINS.pcap': 'Omron PLC FINS protocol',
+    'Synchrophasor.pcap': 'IEEE C37.118 power grid',
+    'GENISYS.pcap': 'Genisys SCADA protocol',
+    'ROCPlus.pcap': 'Emerson ROC Plus',
+    'C1222.pcap': 'ANSI C12.22 smart meter',
+    'DNS.pcap': 'DNS queries and responses',
+    'SSH.pcap': 'Encrypted remote access',
+    'MQTT.pcap': 'IoT pub/sub messaging',
+    'Telnet.pcap': 'Cleartext terminal sessions',
+    'MicroLogix56.pcap': 'Allen-Bradley MicroLogix PLC',
+    'Modicon.pcap': 'Schneider Modicon PLC',
+    'BACnet_Host.pcap': 'BACnet host traffic',
+    'BACnet_FIU.pcap': 'BACnet field interface unit',
+    'malcolm-micro-ctf.pcap': 'Mixed ICS/IT traffic CTF',
+  };
+
+  function loadPresets() {
+    fetch('/api/files').then(function(r) { return r.json(); }).then(function(d) {
+      var container = document.getElementById('preset-library');
+      if (!d.presets || d.presets.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-dim);">No sample PCAPs available.</div>';
+        presetsLoaded = true;
+        return;
+      }
+      container.innerHTML = '';
+      d.presets.forEach(function(cat) {
+        var meta = categoryMeta[cat.category] || { label: cat.category, icon: '' };
+
+        var catDiv = document.createElement('div');
+        catDiv.className = 'preset-category';
+
+        // Header
+        var header = document.createElement('div');
+        header.className = 'preset-category-header';
+        header.innerHTML = '<h3>' + esc(meta.icon) + ' ' + esc(meta.label)
+          + ' <span class="cat-count">(' + cat.files.length + ')</span></h3>'
+          + '<span class="cat-chevron">\u25BC</span>';
+        header.onclick = function() { catDiv.classList.toggle('collapsed'); };
+        catDiv.appendChild(header);
+
+        // Grid of cards
+        var grid = document.createElement('div');
+        grid.className = 'preset-grid';
+        cat.files.forEach(function(f) {
+          var card = document.createElement('div');
+          card.className = 'preset-card';
+          card.dataset.path = f.path;
+          var desc = presetDesc[f.name] || '';
+          card.innerHTML = '<div class="pc-name">' + esc(f.name.replace('.pcap', '')) + '</div>'
+            + '<div class="pc-meta">' + formatSize(f.size) + '</div>'
+            + (desc ? '<div class="pc-desc">' + esc(desc) + '</div>' : '');
+          card.onclick = function() { selectPreset(f.path, card); };
+          grid.appendChild(card);
+        });
+        catDiv.appendChild(grid);
+        container.appendChild(catDiv);
+      });
+      presetsLoaded = true;
+    });
+  }
+
+  function selectPreset(path, cardEl) {
+    // Deselect previous
+    document.querySelectorAll('.preset-card.selected').forEach(function(c) { c.classList.remove('selected'); });
+    if (selectedPreset === path) {
+      selectedPreset = null;
+      return;
+    }
+    selectedPreset = path;
+    if (cardEl) cardEl.classList.add('selected');
+  }
+
+  // ── File browser ──
+  function loadFiles(autoSelect) {
+    var url = '/api/files';
+    if (currentProjectId) url += '?project_id=' + currentProjectId;
+    fetch(url).then(function(r) { return r.json(); }).then(function(d) {
+      var sel = document.getElementById('pcap-select');
+      sel.innerHTML = '<option value="">-- Select a file --</option>';
+      (d.files || []).forEach(function(f) {
+        var opt = document.createElement('option');
+        opt.value = f.name;
+        opt.textContent = f.name + ' (' + formatSize(f.size) + ')';
+        if (autoSelect && f.name === autoSelect) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      if (!d.files || d.files.length === 0) {
+        sel.innerHTML = '<option value="">-- No uploaded PCAPs --</option>';
+      }
+    }).catch(function() {
+      var sel = document.getElementById('pcap-select');
+      sel.innerHTML = '<option value="">-- Failed to load files --</option>';
+    });
+  }
+
+  // ── Start scan ──
+  function startScan() {
+    var body = { command: document.getElementById('scan-command').value };
+    if (currentProjectId) body.project_id = currentProjectId;
+    if (document.getElementById('skip-ephemeral').checked) body.skip_ephemeral = true;
+    var captureFilter = document.getElementById('capture-filter').value.trim();
+    if (captureFilter) body.capture_filter = captureFilter;
+    if (source === 'file') {
+      body.pcap_file = document.getElementById('pcap-select').value;
+      if (!body.pcap_file) { msToast('Select a PCAP file', true); return; }
+    } else if (source === 'library') {
+      if (!selectedPreset) { msToast('Select a sample PCAP from the library', true); return; }
+      body.pcap_file = 'preset:' + selectedPreset;
+    } else if (source === 'upload') {
+      if (!uploadedFile) { msToast('Upload a PCAP file first', true); return; }
+      body.pcap_file = uploadedFile;
+    } else if (source === 'live') {
+      var ifaceEl = document.getElementById('live-interface');
+      if (!ifaceEl) { msToast('Live capture is disabled on this instance', true); return; }
+      body.interface = ifaceEl.value;
+      body.duration = document.getElementById('live-duration').value;
+      if (!body.interface) { msToast('Select a capture interface', true); return; }
+    }
+
+    fetch('/api/scans/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        attachRun(d.run_id);
+        msToast('Scan started');
+      } else {
+        msToast(d.error || 'Failed to start scan', true);
+      }
+    }).catch(function(e) { msToast('Error: ' + e.message, true); });
+  }
+
+  function stopScan(runId) {
+    if (!runId) return;
+    fetch('/api/runs/' + runId + '/stop', { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function() { msToast('Scan stopped'); loadHistory(); });
+  }
+
+  function detachRun(runId) {
+    var state = attachedRuns[runId];
+    if (state && state.pollTimer) clearInterval(state.pollTimer);
+    delete attachedRuns[runId];
+    var panel = document.getElementById('run-panel-' + runId);
+    if (panel) panel.remove();
+  }
+
+  function attachRun(runId) {
+    if (attachedRuns[runId]) return; // already attached
+    attachedRuns[runId] = { cursor: 0, pollTimer: null };
+    createRunPanel(runId);
+    startPolling(runId);
+    msToast('Attached to run ' + runId.substring(0, 8));
+  }
+
+  function createRunPanel(runId) {
+    var container = document.getElementById('runs-container');
+    var panel = document.createElement('div');
+    panel.className = 'panel run-panel active';
+    panel.id = 'run-panel-' + runId;
+    var state = attachedRuns[runId];
+    if (state) state.startedAt = Date.now();
+    panel.innerHTML =
+      '<div class="panel-header">'
+      + '<h2>Scan <span class="mono" style="font-size:0.8em;color:var(--text-dim);">' + esc(runId.substring(0, 8)) + '</span></h2>'
+      + '<div style="display:flex;gap:8px;align-items:center;">'
+      + '<span class="badge badge-running" id="run-badge-' + runId + '">RUNNING</span>'
+      + '<button class="btn btn-danger btn-sm" id="run-stop-' + runId + '" onclick="MS.stopScan(\'' + esc(runId) + '\')">Stop</button>'
+      + '<button class="btn btn-sm" onclick="MS.detachRun(\'' + esc(runId) + '\')" title="Detach">&#10005;</button>'
+      + '</div></div>'
+      + '<div class="panel-body">'
+      + '<div class="run-progress-bar" id="run-bar-' + runId + '"></div>'
+      + '<div class="run-progress-info">'
+      + '<span class="run-progress-label" id="run-label-' + runId + '">Starting...</span>'
+      + '<span class="run-elapsed" id="run-elapsed-' + runId + '">0:00</span>'
+      + '</div>'
+      + (IS_ADMIN ? '<button class="run-log-toggle" id="run-log-toggle-' + runId + '" onclick="MS.toggleLog(\'' + esc(runId) + '\')">Show log</button>' : '')
+      + '<div class="live-output collapsed" id="run-output-' + runId + '"></div>'
+      + '<div style="margin-top:8px;font-size:0.82em;color:var(--text-dim);" id="run-info-' + runId + '"></div>'
+      + '<div style="margin-top:8px;">'
+      + '<a href="/api/runs/' + runId + '/live" id="run-live-link-' + runId + '" style="color:var(--accent-cyan);font-size:0.88em;" target="_blank">Open Live Topology Viewer</a>'
+      + '</div></div>';
+    container.appendChild(panel);
+  }
+
+  // ── Polling ──
+  function checkActiveRuns() {
+    fetch('/api/runs').then(function(r) { return r.json(); }).then(function(d) {
+      if (d.active && d.active.length > 0) {
+        d.active.forEach(function(run) {
+          attachRun(run.run_id);
+        });
+      }
+    });
+  }
+
+  function startPolling(runId) {
+    var state = attachedRuns[runId];
+    if (!state) return;
+    if (state.pollTimer) clearInterval(state.pollTimer);
+    pollRun(runId);
+    state.pollTimer = setInterval(function() { pollRun(runId); }, 2000);
+  }
+
+  function pollRun(runId) {
+    var state = attachedRuns[runId];
+    if (!state) return;
+
+    // Status
+    fetch('/api/runs/' + runId + '/status')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.error) return;
+        updateRunPanel(runId, d);
+        if (d.status === 'running') {
+          loadReports();
+        } else if (d.status !== 'pending') {
+          if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
+          setTimeout(function() { fetchOutput(runId); loadReports(); loadHistory(); }, 500);
+        }
+      });
+
+    // Output
+    fetchOutput(runId);
+  }
+
+  function fetchOutput(runId) {
+    var state = attachedRuns[runId];
+    if (!state) return;
+    fetch('/api/runs/' + runId + '/output?from=' + state.cursor)
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.error) return;
+        state.cursor = d.next_from;
+        var el = document.getElementById('run-output-' + runId);
+        if (!el) return;
+        d.lines.forEach(function(line) {
+          var div = document.createElement('div');
+          if (/^\s*STAGE\s+\d/.test(line)) div.className = 'line-stage';
+          else if (/\[\+\]|success|complete/i.test(line)) div.className = 'line-success';
+          else if (/\[!\]|error|fail/i.test(line)) div.className = 'line-error';
+          else if (/\[\*\]|info/i.test(line)) div.className = 'line-info';
+          div.textContent = line;
+          el.appendChild(div);
+        });
+        if (d.lines.length > 0) el.scrollTop = el.scrollHeight;
+      });
+  }
+
+  function updateRunPanel(runId, d) {
+    var badge = document.getElementById('run-badge-' + runId);
+    if (badge) {
+      badge.textContent = d.status.toUpperCase();
+      badge.className = 'badge badge-' + d.status;
+    }
+
+    // Progress bar segments
+    var barEl = document.getElementById('run-bar-' + runId);
+    if (barEl && d.stages) {
+      var html = '';
+      d.stages.forEach(function(s) {
+        var icon = '';
+        if (s.state === 'complete') icon = '\u2713 ';
+        else if (s.state === 'running') icon = '\u25CF ';
+        else if (s.state === 'failed') icon = '\u2717 ';
+        else if (s.state === 'stopped') icon = '\u25A0 ';
+        html += '<div class="run-progress-segment ' + s.state + '">' + icon + esc(s.name) + '</div>';
+      });
+      barEl.innerHTML = html;
+    }
+
+    // Stage label
+    var labelEl = document.getElementById('run-label-' + runId);
+    if (labelEl) {
+      if (d.status === 'completed') {
+        labelEl.textContent = 'Complete';
+        labelEl.style.color = 'var(--color-success)';
+      } else if (d.status === 'failed') {
+        var failedStage = '';
+        (d.stages || []).forEach(function(s) { if (s.state === 'failed') failedStage = s.name; });
+        labelEl.textContent = failedStage ? 'Failed at ' + failedStage : 'Failed';
+        labelEl.style.color = 'var(--color-danger)';
+      } else if (d.status === 'stopped') {
+        labelEl.textContent = 'Stopped';
+        labelEl.style.color = 'var(--text-dim)';
+      } else if (d.stage_name) {
+        labelEl.textContent = d.stage_name + '...';
+        labelEl.style.color = '';
+      }
+    }
+
+    // Elapsed timer
+    var elapsedEl = document.getElementById('run-elapsed-' + runId);
+    if (elapsedEl) {
+      var start = d.started_at ? new Date(d.started_at).getTime() : 0;
+      var end = d.finished_at ? new Date(d.finished_at).getTime() : Date.now();
+      if (start) {
+        var secs = Math.floor((end - start) / 1000);
+        var mins = Math.floor(secs / 60);
+        var s = secs % 60;
+        elapsedEl.textContent = mins + ':' + (s < 10 ? '0' : '') + s;
+      }
+    }
+
+    var infoEl = document.getElementById('run-info-' + runId);
+    if (infoEl) {
+      infoEl.textContent = d.output_lines + ' lines | ' + d.command + ' | ' + (d.started_at || '');
+    }
+
+    var stopBtn = document.getElementById('run-stop-' + runId);
+    if (stopBtn && d.status !== 'running' && d.status !== 'pending') {
+      stopBtn.style.display = 'none';
+    }
+  }
+
+  // ── Reports ──
+  function loadReports() {
+    var url = '/api/reports?limit=10';
+    if (currentProjectId) url += '&project_id=' + currentProjectId;
+    fetch(url).then(function(r) { return r.json(); }).then(function(d) {
+      var tbody = document.getElementById('reports-body');
+      if (!d.reports || d.reports.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5"><div class="empty-hint"><p>No reports yet.</p><p style="font-size:0.88em;">Upload a PCAP and run a scan to generate your first topology report.</p></div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = '';
+      d.reports.forEach(function(r) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td><input type="checkbox" class="compare-cb" data-fn="' + esc(r.filename) + '" onchange="MS.toggleCompare(this)"></td>'
+          + '<td class="mono">' + esc(r.filename) + '</td>'
+          + '<td class="dim">' + formatSize(r.size) + '</td>'
+          + '<td class="dim">' + formatDate(r.modified) + '</td>'
+          + '<td class="report-actions">'
+          + '<a class="view-link" href="/api/reports/' + encodeURIComponent(r.filename) + '/viewer' + (currentProjectId ? '?project_id=' + currentProjectId : '') + '" target="_blank">View</a>'
+          + '<a class="dl-link" href="/api/reports/' + encodeURIComponent(r.filename) + (currentProjectId ? '?project_id=' + currentProjectId : '') + '">Download</a>'
+          + '<button class="del-btn" onclick="MS.deleteReport(\'' + esc(r.filename) + '\')">Delete</button>'
+          + '</td>';
+        tbody.appendChild(tr);
+      });
+      if (d.total > 10) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="5" style="text-align:center;padding:12px;"><a href="/reports" style="color:var(--accent);font-size:0.88em;font-weight:500;">View all ' + d.total + ' reports &rarr;</a></td>';
+        tbody.appendChild(tr);
+      }
+    });
+  }
+
+  function deleteReport(filename) {
+    if (!confirm('Delete ' + filename + '?')) return;
+    var url = '/api/reports/' + encodeURIComponent(filename);
+    if (currentProjectId) url += '?project_id=' + currentProjectId;
+    fetch(url, { method: 'DELETE' })
+      .then(function(r) { return r.json(); })
+      .then(function() { loadReports(); msToast('Report deleted'); });
+  }
+
+  // ── Compare ──
+  function toggleCompare(cb) {
+    var fn = cb.dataset.fn;
+    if (cb.checked) {
+      if (!compareA) compareA = fn;
+      else if (!compareB) compareB = fn;
+      else {
+        cb.checked = false;
+        msToast('Select only 2 reports to compare', true);
+        return;
+      }
+    } else {
+      if (compareA === fn) compareA = null;
+      if (compareB === fn) compareB = null;
+    }
+    updateCompareBar();
+  }
+
+  function updateCompareBar() {
+    var bar = document.getElementById('compare-bar');
+    if (compareA && compareB) {
+      bar.classList.add('active');
+      document.getElementById('compare-a').textContent = compareA;
+      document.getElementById('compare-b').textContent = compareB;
+    } else {
+      bar.classList.remove('active');
+    }
+  }
+
+  function compareDiff() {
+    if (!compareA || !compareB) return;
+    var url = '/api/reports/diff?a=' + encodeURIComponent(compareA) + '&b=' + encodeURIComponent(compareB);
+    if (currentProjectId) url += '&project_id=' + currentProjectId;
+    window.open(url, '_blank');
+  }
+
+  function clearCompare() {
+    compareA = null;
+    compareB = null;
+    document.querySelectorAll('.compare-cb').forEach(function(c) { c.checked = false; });
+    updateCompareBar();
+  }
+
+  // ── History ──
+  function loadHistory() {
+    fetch('/api/history?limit=10').then(function(r) { return r.json(); }).then(function(d) {
+      var tbody = document.getElementById('history-body');
+      if (!d.scans || d.scans.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8"><div class="empty-hint"><p>No scan history yet.</p></div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = '';
+      d.scans.forEach(function(s) {
+        var tr = document.createElement('tr');
+        // Actions column
+        var actions = '';
+        if (s.status === 'running') {
+          actions = '<button class="btn btn-sm btn-success" onclick="MS.attachRun(\'' + esc(s.run_id) + '\')">Attach</button>';
+        } else if (s.status === 'completed' && s.report_filename) {
+          actions = '<a class="btn btn-sm" href="/api/reports/' + encodeURIComponent(s.report_filename) + '/viewer" target="_blank">View Report</a>';
+        } else if ((s.status === 'failed' || s.status === 'interrupted') && s.pcap_source && !s.pcap_source.startsWith('live:')) {
+          actions = '<button class="btn btn-sm" onclick="MS.retryScan(\'' + esc(s.pcap_source) + '\',\'' + esc(s.command) + '\')">Retry</button>';
+        }
+        // Error expand toggle
+        var hasError = s.error_tail && (s.status === 'failed' || s.status === 'stopped' || s.status === 'interrupted');
+        if (hasError) {
+          actions += ' <button class="btn btn-sm btn-danger" onclick="MS.toggleError(this)" style="font-size:0.75em;padding:2px 6px;">Details</button>';
+        }
+        // Nodes/Edges display
+        var nodeEdge = '--';
+        if (s.status === 'completed' && (s.node_count || s.edge_count)) {
+          nodeEdge = (s.node_count || 0) + ' / ' + (s.edge_count || 0);
+        }
+        tr.innerHTML =
+          '<td><span class="mono run-id-copy" title="Click to copy full ID" onclick="MS.copyId(this, \'' + esc(s.run_id) + '\')" style="font-size:0.8em;">' + esc(s.run_id.substring(0, 8)) + '</span></td>'
+          + '<td>' + esc(s.user) + '</td>'
+          + '<td>' + esc(s.command) + '</td>'
+          + '<td class="mono dim" style="font-size:0.8em;max-width:200px;overflow:hidden;text-overflow:ellipsis;">' + esc(s.pcap_source || '--') + '</td>'
+          + '<td><span class="badge badge-' + esc(s.status) + '">' + esc(s.status) + '</span></td>'
+          + '<td class="mono dim">' + nodeEdge + '</td>'
+          + '<td class="dim">' + formatDate(s.started_at) + '</td>'
+          + '<td>' + actions + '</td>';
+        tbody.appendChild(tr);
+        // Error detail row (hidden by default)
+        if (hasError) {
+          var errTr = document.createElement('tr');
+          errTr.className = 'history-error-row';
+          errTr.style.display = 'none';
+          errTr.innerHTML = '<td colspan="8"><div class="error-detail">' + esc(s.error_tail) + '</div></td>';
+          tbody.appendChild(errTr);
+        }
+      });
+      if (d.scans.length >= 10) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="8" style="text-align:center;padding:12px;"><a href="/scans" style="color:var(--accent);font-size:0.88em;font-weight:500;">View all scans &rarr;</a></td>';
+        tbody.appendChild(tr);
+      }
+    });
+  }
+
+  function toggleError(btn) {
+    var errorRow = btn.closest('tr').nextElementSibling;
+    if (errorRow && errorRow.classList.contains('history-error-row')) {
+      var showing = errorRow.style.display !== 'none';
+      errorRow.style.display = showing ? 'none' : '';
+      btn.textContent = showing ? 'Details' : 'Hide';
+    }
+  }
+
+  function copyId(el, fullId) {
+    navigator.clipboard.writeText(fullId).then(function() {
+      el.classList.add('copied');
+      setTimeout(function() { el.classList.remove('copied'); }, 1200);
+    });
+  }
+
+  function toggleLog(runId) {
+    var output = document.getElementById('run-output-' + runId);
+    var btn = document.getElementById('run-log-toggle-' + runId);
+    if (!output || !btn) return;
+    var collapsed = output.classList.toggle('collapsed');
+    btn.textContent = collapsed ? 'Show log' : 'Hide log';
+    if (!collapsed) output.scrollTop = output.scrollHeight;
+  }
+
+  function retryScan(pcapSource, command) {
+    var body = { command: command, pcap_file: pcapSource };
+    fetch('/api/scans/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        attachRun(d.run_id);
+        msToast('Scan retried');
+      } else {
+        msToast(d.error || 'Failed to retry scan', true);
+      }
+    }).catch(function(e) { msToast('Error: ' + e.message, true); });
+  }
+
+  // ── Helpers ──
+  function esc(s) {
+    if (s == null) return '';
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
+  function formatSize(bytes) {
+    if (!bytes) return '--';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+    return (bytes / 1073741824).toFixed(2) + ' GB';
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '--';
+    try {
+      var d = new Date(iso);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+    } catch(e) { return iso; }
+  }
+
+  // ── Init ──
+  document.addEventListener('DOMContentLoaded', init);
+
+  return {
+    startScan: startScan,
+    stopScan: stopScan,
+    attachRun: attachRun,
+    detachRun: detachRun,
+    setSource: setSource,
+    loadReports: loadReports,
+    loadFiles: loadFiles,
+    loadPresets: loadPresets,
+    deleteReport: deleteReport,
+    toggleCompare: toggleCompare,
+    compareDiff: compareDiff,
+    clearCompare: clearCompare,
+    toggleError: toggleError,
+    copyId: copyId,
+    retryScan: retryScan,
+    toggleLog: toggleLog,
+    onProjectChange: onProjectChange,
+    createNewProject: createNewProject,
+    cancelNewProject: cancelNewProject,
+  };
+})();
+</script>
+{% endblock %}

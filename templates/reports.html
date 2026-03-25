@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}MarlinSpike — Reports{% endblock %}
+
+{% block head %}
+<style>
+.report-actions { display: flex; gap: 8px; }
+.report-actions a, .report-actions button {
+  font-size: 0.82em;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+.report-actions .view-link { color: var(--accent-cyan); }
+.report-actions .view-link:hover { text-decoration: underline; }
+.report-actions .dl-link { color: var(--accent); text-decoration: none; }
+.report-actions .dl-link:hover { text-decoration: underline; }
+.report-actions .del-btn { color: var(--color-danger); }
+.report-actions .del-btn:hover { text-decoration: underline; }
+.compare-bar {
+  display: none;
+  padding: 8px 16px;
+  background: rgba(91,138,240,0.08);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  margin-bottom: 12px;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.88em;
+}
+.compare-bar.active { display: flex; }
+.page-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.page-toolbar select {
+  padding: 7px 10px;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.9em;
+}
+.page-toolbar select:focus { border-color: var(--accent); outline: none; }
+.empty-hint {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--text-dim);
+}
+.empty-hint p { margin-bottom: 8px; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="ms-content">
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>All Reports</h2>
+      <div class="page-toolbar">
+        <select id="project-filter" onchange="RP.onProjectChange()">
+          <option value="">Loading...</option>
+        </select>
+        <button class="btn btn-sm" onclick="RP.loadReports()">Refresh</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="compare-bar" id="compare-bar">
+        <span>Compare: <b id="compare-a">&mdash;</b> vs <b id="compare-b">&mdash;</b></span>
+        <button class="btn btn-primary btn-sm" onclick="RP.compareDiff()">View Diff</button>
+        <button class="btn btn-sm" onclick="RP.clearCompare()">Clear</button>
+      </div>
+      <table class="ms-table" id="reports-table">
+        <thead>
+          <tr>
+            <th style="width:30px;"></th>
+            <th>Filename</th>
+            <th>Size</th>
+            <th>Modified</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="reports-body">
+          <tr><td colspan="5" class="dim" style="text-align:center;padding:20px;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var RP = (function() {
+  'use strict';
+
+  var compareA = null, compareB = null;
+  var currentProjectId = null;
+
+  function init() {
+    loadProjects(function() {
+      loadReports();
+    });
+  }
+
+  function loadProjects(callback) {
+    fetch('/api/projects').then(function(r) { return r.json(); }).then(function(d) {
+      var sel = document.getElementById('project-filter');
+      sel.innerHTML = '<option value="">All Projects</option>';
+      (d.projects || []).forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name;
+        sel.appendChild(opt);
+      });
+      if (callback) callback();
+    }).catch(function() { if (callback) callback(); });
+  }
+
+  function onProjectChange() {
+    var sel = document.getElementById('project-filter');
+    currentProjectId = sel.value ? parseInt(sel.value) : null;
+    loadReports();
+  }
+
+  function loadReports() {
+    var url = '/api/reports';
+    if (currentProjectId) url += '?project_id=' + currentProjectId;
+    fetch(url).then(function(r) { return r.json(); }).then(function(d) {
+      var tbody = document.getElementById('reports-body');
+      if (!d.reports || d.reports.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5"><div class="empty-hint"><p>No reports found.</p></div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = '';
+      d.reports.forEach(function(r) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td><input type="checkbox" class="compare-cb" data-fn="' + esc(r.filename) + '" onchange="RP.toggleCompare(this)"></td>'
+          + '<td class="mono">' + esc(r.filename) + '</td>'
+          + '<td class="dim">' + formatSize(r.size) + '</td>'
+          + '<td class="dim">' + formatDate(r.modified) + '</td>'
+          + '<td class="report-actions">'
+          + '<a class="view-link" href="/api/reports/' + encodeURIComponent(r.filename) + '/viewer' + (currentProjectId ? '?project_id=' + currentProjectId : '') + '" target="_blank">View</a>'
+          + '<a class="dl-link" href="/api/reports/' + encodeURIComponent(r.filename) + (currentProjectId ? '?project_id=' + currentProjectId : '') + '">Download</a>'
+          + '<button class="del-btn" onclick="RP.deleteReport(\'' + esc(r.filename) + '\')">Delete</button>'
+          + '</td>';
+        tbody.appendChild(tr);
+      });
+    });
+  }
+
+  function deleteReport(filename) {
+    if (!confirm('Delete ' + filename + '?')) return;
+    var url = '/api/reports/' + encodeURIComponent(filename);
+    if (currentProjectId) url += '?project_id=' + currentProjectId;
+    fetch(url, { method: 'DELETE' })
+      .then(function(r) { return r.json(); })
+      .then(function() { loadReports(); msToast('Report deleted'); });
+  }
+
+  function toggleCompare(cb) {
+    var fn = cb.dataset.fn;
+    if (cb.checked) {
+      if (!compareA) compareA = fn;
+      else if (!compareB) compareB = fn;
+      else { cb.checked = false; msToast('Select only 2 reports to compare', true); return; }
+    } else {
+      if (compareA === fn) compareA = null;
+      if (compareB === fn) compareB = null;
+    }
+    updateCompareBar();
+  }
+
+  function updateCompareBar() {
+    var bar = document.getElementById('compare-bar');
+    if (compareA && compareB) {
+      bar.classList.add('active');
+      document.getElementById('compare-a').textContent = compareA;
+      document.getElementById('compare-b').textContent = compareB;
+    } else {
+      bar.classList.remove('active');
+    }
+  }
+
+  function compareDiff() {
+    if (!compareA || !compareB) return;
+    var url = '/api/reports/diff?a=' + encodeURIComponent(compareA) + '&b=' + encodeURIComponent(compareB);
+    if (currentProjectId) url += '&project_id=' + currentProjectId;
+    window.open(url, '_blank');
+  }
+
+  function clearCompare() {
+    compareA = null;
+    compareB = null;
+    document.querySelectorAll('.compare-cb').forEach(function(c) { c.checked = false; });
+    updateCompareBar();
+  }
+
+  // Helpers
+  function esc(s) {
+    if (s == null) return '';
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+  function formatSize(bytes) {
+    if (!bytes) return '--';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+    return (bytes / 1073741824).toFixed(2) + ' GB';
+  }
+  function formatDate(iso) {
+    if (!iso) return '--';
+    try {
+      var d = new Date(iso);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+    } catch(e) { return iso; }
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+
+  return {
+    loadReports: loadReports,
+    deleteReport: deleteReport,
+    toggleCompare: toggleCompare,
+    compareDiff: compareDiff,
+    clearCompare: clearCompare,
+    onProjectChange: onProjectChange,
+  };
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block title %}MarlinSpike — Users{% endblock %}
+
+{% block body %}
+<div class="ms-content">
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>User Management</h2>
+      <button class="btn btn-primary" onclick="USR.showAdd()">Add User</button>
+    </div>
+    <div class="panel-body">
+      <table class="ms-table" id="users-table">
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Subscription</th>
+            <th>Upload Limit</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="users-body">
+          <tr><td colspan="6" class="dim" style="text-align:center;padding:20px;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add user form (hidden) -->
+  <div class="panel" id="add-user-panel" style="display:none;">
+    <div class="panel-header">
+      <h2>Add User</h2>
+      <button class="btn btn-sm" onclick="USR.hideAdd()">Cancel</button>
+    </div>
+    <div class="panel-body">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:0.75em;color:var(--text-dim);text-transform:uppercase;font-weight:600;">Username</label>
+          <input type="text" id="new-username" class="ms-input" placeholder="username" style="min-width:160px;">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:0.75em;color:var(--text-dim);text-transform:uppercase;font-weight:600;">Password</label>
+          <input type="password" id="new-password" class="ms-input" placeholder="password" style="min-width:160px;">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:0.75em;color:var(--text-dim);text-transform:uppercase;font-weight:600;">Role</label>
+          <select id="new-role" class="ms-input">
+            <option value="user">user</option>
+            <option value="admin">admin</option>
+          </select>
+        </div>
+        <button class="btn btn-success" onclick="USR.createUser()">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit limits form (hidden) -->
+  <div class="panel" id="limits-panel" style="display:none;">
+    <div class="panel-header">
+      <h2>Limits — <span id="limits-user"></span></h2>
+      <button class="btn btn-sm" onclick="USR.hideLimits()">Cancel</button>
+    </div>
+    <div class="panel-body">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:0.75em;color:var(--text-dim);text-transform:uppercase;font-weight:600;">Subscription Tier</label>
+          <select id="limits-tier" class="ms-input">
+            <option value="free">free</option>
+            <option value="pro">pro</option>
+            <option value="enterprise">enterprise</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:0.75em;color:var(--text-dim);text-transform:uppercase;font-weight:600;">Upload Limit (MB)</label>
+          <input type="number" id="limits-upload" class="ms-input" min="1" max="10000" style="min-width:100px;">
+        </div>
+        <button class="btn btn-primary" onclick="USR.doLimits()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change password form (hidden) -->
+  <div class="panel" id="chpass-panel" style="display:none;">
+    <div class="panel-header">
+      <h2>Change Password — <span id="chpass-user"></span></h2>
+      <button class="btn btn-sm" onclick="USR.hideChpass()">Cancel</button>
+    </div>
+    <div class="panel-body">
+      <div style="display:flex;gap:12px;align-items:flex-end;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:0.75em;color:var(--text-dim);text-transform:uppercase;font-weight:600;">New Password</label>
+          <input type="password" id="chpass-password" class="ms-input" placeholder="new password" style="min-width:200px;">
+        </div>
+        <button class="btn btn-primary" onclick="USR.doChpass()">Update</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Own password -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Change My Password</h2>
+    </div>
+    <div class="panel-body">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:0.75em;color:var(--text-dim);text-transform:uppercase;font-weight:600;">Current Password</label>
+          <input type="password" id="my-current" class="ms-input" style="min-width:160px;">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:0.75em;color:var(--text-dim);text-transform:uppercase;font-weight:600;">New Password</label>
+          <input type="password" id="my-new" class="ms-input" style="min-width:160px;">
+        </div>
+        <button class="btn btn-primary" onclick="USR.changeMyPassword()">Update</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var USR = (function() {
+  'use strict';
+
+  var chpassTarget = null;
+
+  function loadUsers() {
+    fetch('/api/users').then(function(r) { return r.json(); }).then(function(d) {
+      var tbody = document.getElementById('users-body');
+      tbody.innerHTML = '';
+      (d.users || []).forEach(function(u) {
+        var tierColor = u.subscription_tier === 'enterprise' ? 'running' : u.subscription_tier === 'pro' ? 'stopped' : 'dim';
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td class="mono">' + esc(u.username) + '</td>'
+          + '<td><span class="badge badge-' + (u.role === 'admin' ? 'running' : 'stopped') + '">' + esc(u.role) + '</span></td>'
+          + '<td><span class="badge badge-' + tierColor + '">' + esc(u.subscription_tier || 'free') + '</span></td>'
+          + '<td class="mono dim">' + esc(u.upload_limit_mb || 200) + ' MB</td>'
+          + '<td class="dim">' + formatDate(u.created_at) + '</td>'
+          + '<td>'
+          + '<button class="btn btn-sm" style="margin-right:6px;" onclick="USR.showLimits(\'' + esc(u.username) + '\',\'' + esc(u.subscription_tier || 'free') + '\',' + (u.upload_limit_mb || 200) + ')">Limits</button>'
+          + '<button class="btn btn-sm" style="margin-right:6px;" onclick="USR.showChpass(\'' + esc(u.username) + '\')">Password</button>'
+          + '<button class="btn btn-sm btn-danger" onclick="USR.deleteUser(\'' + esc(u.username) + '\')">Delete</button>'
+          + '</td>';
+        tbody.appendChild(tr);
+      });
+    });
+  }
+
+  function showAdd() { document.getElementById('add-user-panel').style.display = ''; }
+  function hideAdd() { document.getElementById('add-user-panel').style.display = 'none'; }
+
+  function createUser() {
+    var u = document.getElementById('new-username').value.trim();
+    var p = document.getElementById('new-password').value;
+    var r = document.getElementById('new-role').value;
+    if (!u || !p) { msToast('Fill in all fields', true); return; }
+    fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p, role: r }),
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        msToast('User created');
+        hideAdd();
+        loadUsers();
+        document.getElementById('new-username').value = '';
+        document.getElementById('new-password').value = '';
+      } else {
+        msToast(d.error || 'Failed', true);
+      }
+    });
+  }
+
+  function deleteUser(username) {
+    if (!confirm('Delete user ' + username + '?')) return;
+    fetch('/api/users/' + encodeURIComponent(username), { method: 'DELETE' })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok) { msToast('User deleted'); loadUsers(); }
+        else msToast(d.error || 'Failed', true);
+      });
+  }
+
+  var limitsTarget = null;
+
+  function showLimits(username, tier, limitMb) {
+    limitsTarget = username;
+    document.getElementById('limits-user').textContent = username;
+    document.getElementById('limits-tier').value = tier || 'free';
+    document.getElementById('limits-upload').value = limitMb || 200;
+    document.getElementById('limits-panel').style.display = '';
+  }
+  function hideLimits() { document.getElementById('limits-panel').style.display = 'none'; }
+
+  function doLimits() {
+    if (!limitsTarget) return;
+    var tier = document.getElementById('limits-tier').value;
+    var mb = parseInt(document.getElementById('limits-upload').value);
+    if (!mb || mb < 1) { msToast('Enter a valid upload limit', true); return; }
+    fetch('/api/users/' + encodeURIComponent(limitsTarget) + '/limits', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription_tier: tier, upload_limit_mb: mb }),
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) { msToast('Limits updated'); hideLimits(); loadUsers(); }
+      else msToast(d.error || 'Failed', true);
+    });
+  }
+
+  function showChpass(username) {
+    chpassTarget = username;
+    document.getElementById('chpass-user').textContent = username;
+    document.getElementById('chpass-panel').style.display = '';
+    document.getElementById('chpass-password').value = '';
+  }
+  function hideChpass() { document.getElementById('chpass-panel').style.display = 'none'; }
+
+  function doChpass() {
+    var p = document.getElementById('chpass-password').value;
+    if (!p) { msToast('Enter a password', true); return; }
+    fetch('/api/users/' + encodeURIComponent(chpassTarget) + '/password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: p }),
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) { msToast('Password updated'); hideChpass(); }
+      else msToast(d.error || 'Failed', true);
+    });
+  }
+
+  function changeMyPassword() {
+    var c = document.getElementById('my-current').value;
+    var n = document.getElementById('my-new').value;
+    if (!c || !n) { msToast('Fill in both fields', true); return; }
+    fetch('/api/account/password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: c, new_password: n }),
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        msToast('Password changed');
+        document.getElementById('my-current').value = '';
+        document.getElementById('my-new').value = '';
+      } else msToast(d.error || 'Failed', true);
+    });
+  }
+
+  function esc(s) {
+    if (!s) return '';
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+  function formatDate(iso) {
+    if (!iso) return '--';
+    try { var d = new Date(iso); return d.toLocaleDateString() + ' ' + d.toLocaleTimeString(); }
+    catch(e) { return iso; }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadUsers);
+
+  return {
+    showAdd: showAdd,
+    hideAdd: hideAdd,
+    createUser: createUser,
+    deleteUser: deleteUser,
+    showLimits: showLimits,
+    hideLimits: hideLimits,
+    doLimits: doLimits,
+    showChpass: showChpass,
+    hideChpass: hideChpass,
+    doChpass: doChpass,
+    changeMyPassword: changeMyPassword,
+  };
+})();
+</script>
+{% endblock %}

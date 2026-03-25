@@ -1,0 +1,840 @@
+{% extends "base.html" %}
+{% block title %}MarlinSpike — Projects{% endblock %}
+
+{% block head %}
+<style>
+.proj-layout {
+  display: flex;
+  gap: 16px;
+  min-height: calc(100vh - 80px);
+}
+
+/* Sidebar */
+.proj-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+}
+.proj-sidebar .panel-body { padding: 0; }
+.proj-list { list-style: none; margin: 0; padding: 0; }
+.proj-list li {
+  padding: 10px 16px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--border-dim);
+  transition: background 0.12s, border-color 0.12s;
+}
+.proj-list li:hover { background: var(--bg-surface); }
+.proj-list li.active {
+  background: rgba(91,138,240,0.06);
+  border-left-color: var(--accent);
+}
+.proj-list li .proj-name {
+  font-weight: 600;
+  font-size: 0.92em;
+  color: var(--text);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.proj-list li .proj-meta {
+  font-size: 0.75em;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.proj-new-row {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-dim);
+}
+.proj-new-row input {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.88em;
+  margin-bottom: 6px;
+}
+.proj-new-row input:focus { border-color: var(--accent); outline: none; }
+.proj-new-btns { display: flex; gap: 6px; }
+
+/* Main panel */
+.proj-main { flex: 1; min-width: 0; }
+.proj-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.proj-header h2 { font-size: 1.1em; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proj-header-actions { display: flex; gap: 8px; }
+
+/* Tabs */
+.proj-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+}
+.proj-tab {
+  padding: 7px 18px;
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: 4px 4px 0 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.82em;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: -1px;
+}
+.proj-tab:hover { color: var(--text); border-bottom-color: var(--text-muted); }
+.proj-tab.active {
+  border-color: var(--border);
+  border-bottom-color: var(--panel);
+  background: var(--panel);
+  color: var(--accent);
+  font-weight: 600;
+}
+.proj-tab-panel { display: none; padding: 16px 0; }
+.proj-tab-panel.active { display: block; }
+
+/* Upload area */
+.proj-upload-zone {
+  border: 2px dashed rgba(122,138,158,0.45);
+  border-radius: 6px;
+  padding: 14px 20px;
+  text-align: center;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 12px;
+}
+.proj-upload-zone:hover { border-color: var(--accent); background: rgba(91,138,240,0.03); }
+.proj-upload-zone.dragging { border-color: var(--accent); background: rgba(91,138,240,0.06); }
+
+/* Report actions */
+.proj-report-actions { display: flex; gap: 8px; }
+.proj-report-actions a, .proj-report-actions button {
+  font-size: 0.82em;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+.proj-report-actions .view-link { color: var(--accent-cyan); }
+.proj-report-actions .view-link:hover { text-decoration: underline; }
+.proj-report-actions .dl-link { color: var(--accent); text-decoration: none; }
+.proj-report-actions .dl-link:hover { text-decoration: underline; }
+.proj-report-actions .del-btn { color: var(--color-danger); }
+.proj-report-actions .del-btn:hover { text-decoration: underline; }
+
+/* Compare bar */
+.proj-compare-bar {
+  display: none;
+  padding: 8px 16px;
+  background: rgba(91,138,240,0.08);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  margin-bottom: 12px;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.88em;
+}
+.proj-compare-bar.active { display: flex; }
+
+/* Empty state */
+.proj-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-dim);
+}
+.proj-empty p { margin-bottom: 8px; }
+
+/* Rename input inline */
+.proj-rename-input {
+  padding: 4px 8px;
+  background: var(--panel-alt);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 1em;
+  font-weight: 600;
+  width: 300px;
+}
+.proj-rename-input:focus { outline: none; }
+
+/* Trim notice */
+.trim-notice {
+  background: rgba(245,158,11,0.1);
+  border: 1px solid var(--color-warning);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 0.85em;
+  color: var(--color-warning);
+  margin-top: 8px;
+}
+
+/* Scan field for project page */
+.proj-scan-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+.proj-scan-row .scan-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.proj-scan-row .scan-field label {
+  font-size: 0.75em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.proj-scan-row .scan-field select,
+.proj-scan-row .scan-field input {
+  padding: 7px 10px;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.9em;
+}
+.proj-scan-row .scan-field select:focus,
+.proj-scan-row .scan-field input:focus { border-color: var(--accent); outline: none; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="ms-content">
+  <div class="proj-layout">
+
+    <!-- Sidebar: Project List -->
+    <div class="proj-sidebar">
+      <div class="panel" style="margin-bottom:0;height:100%;">
+        <div class="panel-header">
+          <h2>Projects</h2>
+          <button class="btn btn-primary btn-sm" onclick="PROJ.showNewForm()">+ New</button>
+        </div>
+        <div class="panel-body">
+          <div class="proj-new-row" id="proj-new-form" style="display:none;">
+            <input type="text" id="proj-new-name" placeholder="Project name..." maxlength="200"
+              onkeydown="if(event.key==='Enter')PROJ.createProject();if(event.key==='Escape')PROJ.hideNewForm();">
+            <div class="proj-new-btns">
+              <button class="btn btn-primary btn-sm" onclick="PROJ.createProject()">Create</button>
+              <button class="btn btn-sm" onclick="PROJ.hideNewForm()">Cancel</button>
+            </div>
+          </div>
+          <ul class="proj-list" id="proj-list"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main: Project Content -->
+    <div class="proj-main">
+      <div class="panel" style="margin-bottom:0;min-height:400px;">
+        <div class="panel-body" id="proj-content">
+
+          <!-- Header -->
+          <div class="proj-header" id="proj-header" style="display:none;">
+            <h2 id="proj-title"></h2>
+            <div class="proj-header-actions">
+              <button class="btn btn-sm" id="proj-rename-btn" onclick="PROJ.startRename()">Rename</button>
+              <button class="btn btn-danger btn-sm" id="proj-delete-btn" onclick="PROJ.deleteProject()">Delete</button>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="proj-tabs" id="proj-tabs" style="display:none;">
+            <div class="proj-tab active" data-tab="pcaps" onclick="PROJ.setTab('pcaps')">PCAPs</div>
+            <div class="proj-tab" data-tab="reports" onclick="PROJ.setTab('reports')">Reports</div>
+            <div class="proj-tab" data-tab="history" onclick="PROJ.setTab('history')">History</div>
+          </div>
+
+          <!-- PCAPs tab -->
+          <div class="proj-tab-panel active" id="tab-pcaps">
+            <div class="proj-upload-zone" id="proj-upload-zone"
+                 onclick="document.getElementById('proj-upload-input').click()">
+              Drop PCAP file here or click to browse
+              <span id="upload-limit-label" style="font-size:0.82em;color:var(--text-muted);margin-left:8px;">Max 200 MB</span>
+            </div>
+            <input type="file" id="proj-upload-input" accept=".pcap,.pcapng,.cap" style="display:none;">
+            <div id="proj-upload-status" style="margin-bottom:8px;font-size:0.85em;color:var(--text-dim);"></div>
+
+            <!-- Scan controls -->
+            <div class="proj-scan-row" id="proj-scan-row" style="display:none;">
+              <div class="scan-field">
+                <label>Selected PCAP</label>
+                <select id="proj-pcap-select" style="min-width:240px;">
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
+              <div class="scan-field">
+                <label>Command</label>
+                <select id="proj-scan-cmd">
+                  <option value="chain">Full Chain</option>
+                  <option value="ingest">Ingest Only</option>
+                  <option value="analyze">Analyze Only</option>
+                  <option value="classify">Classify Only</option>
+                  <option value="report">Report Only</option>
+                </select>
+              </div>
+              <button class="btn btn-success" onclick="PROJ.scanSelected()">Scan Selected</button>
+            </div>
+
+            <table class="ms-table" id="proj-files-table">
+              <thead>
+                <tr>
+                  <th style="width:30px;"></th>
+                  <th>Filename</th>
+                  <th>Size</th>
+                  <th>Modified</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="proj-files-body">
+                <tr><td colspan="5"><div class="proj-empty"><p>Select a project to view files.</p></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Reports tab -->
+          <div class="proj-tab-panel" id="tab-reports">
+            <div class="proj-compare-bar" id="proj-compare-bar">
+              <span>Compare: <b id="proj-compare-a">--</b> vs <b id="proj-compare-b">--</b></span>
+              <button class="btn btn-primary btn-sm" onclick="PROJ.compareDiff()">View Diff</button>
+              <button class="btn btn-sm" onclick="PROJ.clearCompare()">Clear</button>
+            </div>
+            <table class="ms-table" id="proj-reports-table">
+              <thead>
+                <tr>
+                  <th style="width:30px;"></th>
+                  <th>Filename</th>
+                  <th>Size</th>
+                  <th>Modified</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="proj-reports-body">
+                <tr><td colspan="5"><div class="proj-empty"><p>Select a project to view reports.</p></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- History tab -->
+          <div class="proj-tab-panel" id="tab-history">
+            <table class="ms-table" id="proj-history-table">
+              <thead>
+                <tr>
+                  <th>Run</th>
+                  <th>Command</th>
+                  <th>Source</th>
+                  <th>Status</th>
+                  <th>Nodes / Edges</th>
+                  <th>Started</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="proj-history-body">
+                <tr><td colspan="7"><div class="proj-empty"><p>Select a project to view history.</p></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- No project selected state -->
+          <div id="proj-no-selection" class="proj-empty" style="padding:60px 20px;">
+            <p style="font-size:1.1em;margin-bottom:12px;">Select a project from the sidebar</p>
+            <p style="font-size:0.88em;">or create a new one to get started.</p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var PROJ = (function() {
+  'use strict';
+
+  var currentProject = null;
+  var currentTab = 'pcaps';
+  var selectedPcap = null;
+  var compareA = null, compareB = null;
+
+  function init() {
+    loadProjects();
+    setupUpload();
+    loadUploadLimit();
+    // Check URL hash for deep-link
+    var hash = window.location.hash;
+    if (hash && hash.startsWith('#project-')) {
+      var pid = parseInt(hash.replace('#project-', ''));
+      if (pid) {
+        // Will be selected after loadProjects completes
+        window._pendingProjectId = pid;
+      }
+    }
+  }
+
+  // ── Projects ──
+
+  function loadProjects(selectId) {
+    fetch('/api/projects').then(function(r) { return r.json(); }).then(function(d) {
+      var ul = document.getElementById('proj-list');
+      ul.innerHTML = '';
+      (d.projects || []).forEach(function(p) {
+        var li = document.createElement('li');
+        li.dataset.id = p.id;
+        li.innerHTML = '<span class="proj-name">' + esc(p.name) + '</span>'
+          + '<span class="proj-meta">' + p.pcap_count + ' PCAPs, ' + p.report_count + ' reports</span>';
+        li.onclick = function() { selectProject(p.id, p.name); };
+        if (currentProject && currentProject.id === p.id) li.classList.add('active');
+        ul.appendChild(li);
+      });
+
+      // Auto-select
+      var targetId = selectId || window._pendingProjectId;
+      if (targetId) {
+        delete window._pendingProjectId;
+        var found = (d.projects || []).find(function(p) { return p.id === targetId; });
+        if (found) selectProject(found.id, found.name);
+      } else if (!currentProject && d.projects && d.projects.length > 0) {
+        selectProject(d.projects[0].id, d.projects[0].name);
+      }
+    });
+  }
+
+  function selectProject(id, name) {
+    currentProject = { id: id, name: name };
+    window.location.hash = 'project-' + id;
+
+    // Highlight sidebar
+    document.querySelectorAll('.proj-list li').forEach(function(li) {
+      li.classList.toggle('active', parseInt(li.dataset.id) === id);
+    });
+
+    // Show header + tabs
+    document.getElementById('proj-header').style.display = '';
+    document.getElementById('proj-tabs').style.display = '';
+    document.getElementById('proj-no-selection').style.display = 'none';
+    document.getElementById('proj-title').textContent = name;
+
+    // Default project can't be renamed/deleted
+    var isDefault = (name === 'Default');
+    document.getElementById('proj-rename-btn').style.display = isDefault ? 'none' : '';
+    document.getElementById('proj-delete-btn').style.display = isDefault ? 'none' : '';
+
+    // Load content for current tab
+    loadTabData();
+  }
+
+  function showNewForm() {
+    document.getElementById('proj-new-form').style.display = '';
+    var input = document.getElementById('proj-new-name');
+    input.value = '';
+    input.focus();
+  }
+
+  function hideNewForm() {
+    document.getElementById('proj-new-form').style.display = 'none';
+  }
+
+  function createProject() {
+    var name = document.getElementById('proj-new-name').value.trim();
+    if (!name) return;
+    fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name }),
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        hideNewForm();
+        loadProjects(d.id);
+        msToast('Project created');
+      } else {
+        msToast(d.error || 'Failed to create project', true);
+      }
+    }).catch(function(e) { msToast('Error: ' + e.message, true); });
+  }
+
+  function startRename() {
+    if (!currentProject) return;
+    var titleEl = document.getElementById('proj-title');
+    var current = currentProject.name;
+    titleEl.innerHTML = '<input type="text" class="proj-rename-input" id="proj-rename-val" value="' + esc(current) + '"'
+      + ' onkeydown="if(event.key===\'Enter\')PROJ.doRename();if(event.key===\'Escape\')PROJ.cancelRename();">';
+    document.getElementById('proj-rename-val').focus();
+    document.getElementById('proj-rename-val').select();
+  }
+
+  function doRename() {
+    if (!currentProject) return;
+    var name = document.getElementById('proj-rename-val').value.trim();
+    if (!name || name === currentProject.name) { cancelRename(); return; }
+    fetch('/api/projects/' + currentProject.id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name }),
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        currentProject.name = name;
+        document.getElementById('proj-title').textContent = name;
+        loadProjects(currentProject.id);
+        msToast('Project renamed');
+      } else {
+        msToast(d.error || 'Rename failed', true);
+        cancelRename();
+      }
+    });
+  }
+
+  function cancelRename() {
+    if (currentProject) {
+      document.getElementById('proj-title').textContent = currentProject.name;
+    }
+  }
+
+  function deleteProject() {
+    if (!currentProject) return;
+    if (!confirm('Delete project "' + currentProject.name + '" and all its files? This cannot be undone.')) return;
+    fetch('/api/projects/' + currentProject.id + '?confirm=true', { method: 'DELETE' })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok) {
+          currentProject = null;
+          document.getElementById('proj-header').style.display = 'none';
+          document.getElementById('proj-tabs').style.display = 'none';
+          document.getElementById('proj-no-selection').style.display = '';
+          loadProjects();
+          msToast('Project deleted');
+        } else {
+          msToast(d.error || 'Delete failed', true);
+        }
+      });
+  }
+
+  // ── Tabs ──
+
+  function setTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.proj-tab').forEach(function(t) {
+      t.classList.toggle('active', t.dataset.tab === tab);
+    });
+    document.querySelectorAll('.proj-tab-panel').forEach(function(p) {
+      p.classList.toggle('active', p.id === 'tab-' + tab);
+    });
+    loadTabData();
+  }
+
+  function loadTabData() {
+    if (!currentProject) return;
+    if (currentTab === 'pcaps') loadFiles();
+    else if (currentTab === 'reports') loadReports();
+    else if (currentTab === 'history') loadHistory();
+  }
+
+  // ── PCAPs ──
+
+  function loadFiles() {
+    if (!currentProject) return;
+    fetch('/api/projects/' + currentProject.id + '/files').then(function(r) { return r.json(); }).then(function(d) {
+      var tbody = document.getElementById('proj-files-body');
+      var scanRow = document.getElementById('proj-scan-row');
+      var sel = document.getElementById('proj-pcap-select');
+      if (!d.files || d.files.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5"><div class="proj-empty"><p>No PCAP files yet. Upload one above.</p></div></td></tr>';
+        scanRow.style.display = 'none';
+        return;
+      }
+      scanRow.style.display = '';
+      sel.innerHTML = '<option value="">-- Select --</option>';
+      tbody.innerHTML = '';
+      d.files.forEach(function(f) {
+        // Select option
+        var opt = document.createElement('option');
+        opt.value = f.name;
+        opt.textContent = f.name + ' (' + formatSize(f.size) + ')';
+        if (selectedPcap === f.name) opt.selected = true;
+        sel.appendChild(opt);
+
+        // Table row
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td><input type="radio" name="proj-pcap-radio" value="' + esc(f.name) + '"'
+            + (selectedPcap === f.name ? ' checked' : '')
+            + ' onchange="PROJ.selectPcap(this.value)"></td>'
+          + '<td class="mono">' + esc(f.name) + '</td>'
+          + '<td class="dim">' + formatSize(f.size) + '</td>'
+          + '<td class="dim">' + formatDate(f.modified) + '</td>'
+          + '<td><button class="btn btn-danger btn-sm" onclick="PROJ.deleteFile(\'' + esc(f.name) + '\')">Delete</button></td>';
+        tbody.appendChild(tr);
+      });
+    });
+  }
+
+  function selectPcap(name) {
+    selectedPcap = name;
+    var sel = document.getElementById('proj-pcap-select');
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === name) { sel.selectedIndex = i; break; }
+    }
+  }
+
+  function deleteFile(filename) {
+    if (!currentProject) return;
+    if (!confirm('Delete ' + filename + '?')) return;
+    fetch('/api/projects/' + currentProject.id + '/files/' + encodeURIComponent(filename), { method: 'DELETE' })
+      .then(function(r) { return r.json(); })
+      .then(function() {
+        if (selectedPcap === filename) selectedPcap = null;
+        loadFiles();
+        loadProjects(currentProject.id);
+        msToast('File deleted');
+      });
+  }
+
+  function scanSelected() {
+    if (!currentProject) return;
+    var pcap = document.getElementById('proj-pcap-select').value;
+    if (!pcap) { msToast('Select a PCAP file first', true); return; }
+    var cmd = document.getElementById('proj-scan-cmd').value;
+    fetch('/api/scans/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command: cmd, pcap_file: pcap, project_id: currentProject.id }),
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        msToast('Scan started (run ' + d.run_id.substring(0, 8) + ')');
+        setTab('history');
+      } else {
+        msToast(d.error || 'Failed to start scan', true);
+      }
+    }).catch(function(e) { msToast('Error: ' + e.message, true); });
+  }
+
+  // ── Upload ──
+
+  function setupUpload() {
+    var zone = document.getElementById('proj-upload-zone');
+    var input = document.getElementById('proj-upload-input');
+    zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('dragging'); });
+    zone.addEventListener('dragleave', function() { zone.classList.remove('dragging'); });
+    zone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      zone.classList.remove('dragging');
+      if (e.dataTransfer.files.length) doUpload(e.dataTransfer.files[0]);
+    });
+    input.addEventListener('change', function() {
+      if (input.files.length) doUpload(input.files[0]);
+      input.value = '';
+    });
+  }
+
+  var uploadLimitMb = 200;
+
+  function loadUploadLimit() {
+    fetch('/api/profile').then(function(r) { return r.json(); }).then(function(d) {
+      uploadLimitMb = d.upload_limit_mb || 200;
+      var lbl = document.getElementById('upload-limit-label');
+      if (lbl) lbl.textContent = 'Max ' + uploadLimitMb + ' MB';
+    }).catch(function() {});
+  }
+
+  function doUpload(file) {
+    if (!currentProject) { msToast('Select a project first', true); return; }
+    // Client-side size check
+    if (file.size > uploadLimitMb * 1024 * 1024) {
+      msToast('File too large (max ' + uploadLimitMb + ' MB)', true);
+      return;
+    }
+    var status = document.getElementById('proj-upload-status');
+    status.textContent = 'Uploading ' + file.name + '...';
+    var fd = new FormData();
+    fd.append('file', file);
+    fetch('/api/projects/' + currentProject.id + '/upload', { method: 'POST', body: fd })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok) {
+          var msg = 'Uploaded: <b>' + esc(d.filename) + '</b> (' + formatSize(d.size) + ')';
+          if (d.trimmed) {
+            msg += '<div class="trim-notice">File trimmed to first '
+              + formatSize(d.trimmed_size) + ' for processing (original: '
+              + formatSize(d.original_size) + '). Full version archived.</div>';
+          }
+          status.innerHTML = msg;
+          selectedPcap = d.filename;
+          loadFiles();
+          loadProjects(currentProject.id);
+        } else {
+          status.innerHTML = '<span style="color:var(--color-danger)">Upload failed: ' + esc(d.error) + '</span>';
+        }
+      })
+      .catch(function(e) { status.textContent = 'Upload error: ' + e.message; });
+  }
+
+  // ── Reports ──
+
+  function loadReports() {
+    if (!currentProject) return;
+    compareA = null; compareB = null;
+    document.getElementById('proj-compare-bar').classList.remove('active');
+
+    fetch('/api/projects/' + currentProject.id + '/reports').then(function(r) { return r.json(); }).then(function(d) {
+      var tbody = document.getElementById('proj-reports-body');
+      if (!d.reports || d.reports.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5"><div class="proj-empty"><p>No reports yet. Run a scan to generate one.</p></div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = '';
+      d.reports.forEach(function(r) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td><input type="checkbox" class="proj-compare-cb" data-fn="' + esc(r.filename) + '" onchange="PROJ.toggleCompare(this)"></td>'
+          + '<td class="mono">' + esc(r.filename) + '</td>'
+          + '<td class="dim">' + formatSize(r.size) + '</td>'
+          + '<td class="dim">' + formatDate(r.modified) + '</td>'
+          + '<td class="proj-report-actions">'
+          + '<a class="view-link" href="/api/reports/' + encodeURIComponent(r.filename) + '/viewer?project_id=' + currentProject.id + '" target="_blank">View</a>'
+          + '<a class="dl-link" href="/api/reports/' + encodeURIComponent(r.filename) + '?project_id=' + currentProject.id + '">Download</a>'
+          + '<button class="del-btn" onclick="PROJ.deleteReport(\'' + esc(r.filename) + '\')">Delete</button>'
+          + '</td>';
+        tbody.appendChild(tr);
+      });
+    });
+  }
+
+  function deleteReport(filename) {
+    if (!currentProject) return;
+    if (!confirm('Delete ' + filename + '?')) return;
+    fetch('/api/reports/' + encodeURIComponent(filename) + '?project_id=' + currentProject.id, { method: 'DELETE' })
+      .then(function(r) { return r.json(); })
+      .then(function() {
+        loadReports();
+        loadProjects(currentProject.id);
+        msToast('Report deleted');
+      });
+  }
+
+  function toggleCompare(cb) {
+    var fn = cb.dataset.fn;
+    if (cb.checked) {
+      if (!compareA) compareA = fn;
+      else if (!compareB) compareB = fn;
+      else { cb.checked = false; msToast('Select only 2 reports to compare', true); return; }
+    } else {
+      if (compareA === fn) compareA = null;
+      if (compareB === fn) compareB = null;
+    }
+    var bar = document.getElementById('proj-compare-bar');
+    if (compareA && compareB) {
+      bar.classList.add('active');
+      document.getElementById('proj-compare-a').textContent = compareA;
+      document.getElementById('proj-compare-b').textContent = compareB;
+    } else {
+      bar.classList.remove('active');
+    }
+  }
+
+  function compareDiff() {
+    if (!compareA || !compareB || !currentProject) return;
+    window.open('/api/reports/diff?a=' + encodeURIComponent(compareA) + '&b=' + encodeURIComponent(compareB) + '&project_id=' + currentProject.id, '_blank');
+  }
+
+  function clearCompare() {
+    compareA = null; compareB = null;
+    document.querySelectorAll('.proj-compare-cb').forEach(function(c) { c.checked = false; });
+    document.getElementById('proj-compare-bar').classList.remove('active');
+  }
+
+  // ── History ──
+
+  function loadHistory() {
+    if (!currentProject) return;
+    fetch('/api/history?project_id=' + currentProject.id).then(function(r) { return r.json(); }).then(function(d) {
+      var tbody = document.getElementById('proj-history-body');
+      if (!d.scans || d.scans.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7"><div class="proj-empty"><p>No scan history for this project.</p></div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = '';
+      d.scans.forEach(function(s) {
+        var actions = '';
+        if (s.status === 'completed' && s.report_filename) {
+          actions = '<a class="btn btn-sm" href="/api/reports/' + encodeURIComponent(s.report_filename) + '/viewer?project_id=' + currentProject.id + '" target="_blank">View</a>';
+        }
+        var nodeEdge = '--';
+        if (s.status === 'completed' && (s.node_count || s.edge_count)) {
+          nodeEdge = (s.node_count || 0) + ' / ' + (s.edge_count || 0);
+        }
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td class="mono dim" style="font-size:0.8em;">' + esc(s.run_id.substring(0, 8)) + '</td>'
+          + '<td>' + esc(s.command) + '</td>'
+          + '<td class="mono dim" style="font-size:0.8em;max-width:180px;overflow:hidden;text-overflow:ellipsis;">' + esc(s.pcap_source || '--') + '</td>'
+          + '<td><span class="badge badge-' + esc(s.status) + '">' + esc(s.status) + '</span></td>'
+          + '<td class="mono dim">' + nodeEdge + '</td>'
+          + '<td class="dim">' + formatDate(s.started_at) + '</td>'
+          + '<td>' + actions + '</td>';
+        tbody.appendChild(tr);
+      });
+    });
+  }
+
+  // ── Helpers ──
+
+  function esc(s) {
+    if (s == null) return '';
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
+  function formatSize(bytes) {
+    if (!bytes) return '--';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+    return (bytes / 1073741824).toFixed(2) + ' GB';
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '--';
+    try {
+      var d = new Date(iso);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+    } catch(e) { return iso; }
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+
+  return {
+    showNewForm: showNewForm,
+    hideNewForm: hideNewForm,
+    createProject: createProject,
+    startRename: startRename,
+    doRename: doRename,
+    cancelRename: cancelRename,
+    deleteProject: deleteProject,
+    setTab: setTab,
+    selectPcap: selectPcap,
+    deleteFile: deleteFile,
+    scanSelected: scanSelected,
+    deleteReport: deleteReport,
+    toggleCompare: toggleCompare,
+    compareDiff: compareDiff,
+    clearCompare: clearCompare,
+  };
+})();
+</script>
+{% endblock %}

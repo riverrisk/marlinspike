@@ -1,0 +1,686 @@
+{% extends "base.html" %}
+{% block title %}MarlinSpike — System{% endblock %}
+
+{% block head %}
+<style>
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.stat-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+}
+.stat-label {
+  font-size: 0.72em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.stat-value {
+  font-size: 1.6em;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text);
+  line-height: 1.2;
+}
+.stat-sub {
+  font-size: 0.78em;
+  color: var(--text-dim);
+  margin-top: 4px;
+  font-family: var(--font-mono);
+}
+.usage-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-deep);
+  margin-top: 8px;
+  overflow: hidden;
+}
+.usage-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.fill-blue { background: var(--accent); }
+.fill-green { background: var(--accent-green); }
+.fill-amber { background: var(--color-warning); }
+.fill-red { background: var(--color-danger); }
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-dim);
+  font-size: 0.88em;
+}
+.info-row:last-child { border-bottom: none; }
+.info-label { color: var(--text-dim); }
+.info-value { color: var(--text); font-family: var(--font-mono); }
+.storage-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+.storage-table th {
+  text-align: left; padding: 8px 12px; color: var(--text-dim);
+  font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.5px;
+  font-weight: 600; border-bottom: 1px solid var(--border);
+}
+.storage-table td { padding: 8px 12px; border-bottom: 1px solid var(--border-dim); }
+.storage-table tr:last-child td { border-bottom: none; }
+.refresh-btn { opacity: 0.7; transition: opacity 0.15s; cursor: pointer; }
+.refresh-btn:hover { opacity: 1; }
+
+/* ── Sample Library ── */
+.lib-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.lib-card {
+  background: var(--panel-alt);
+  border: 1px solid var(--border-dim);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.lib-card:hover { border-color: var(--border); }
+.lib-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+}
+.lib-card-head h3 {
+  font-size: 0.88em;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lib-card-head .meta {
+  font-size: 0.72em;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+.lib-card-body {
+  display: none;
+  padding: 0 14px 12px;
+}
+.lib-card.open .lib-card-body { display: block; }
+.lib-file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border-dim);
+  font-size: 0.82em;
+}
+.lib-file:last-child { border-bottom: none; }
+.lib-file .fname {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+.lib-file .fsize {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  flex-shrink: 0;
+  margin: 0 10px;
+}
+.lib-file .fdel {
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.82em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  background: none;
+  transition: color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+  font-family: var(--font-ui);
+}
+.lib-file .fdel:hover { color: var(--color-danger); border-color: var(--color-danger); }
+.lib-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-dim);
+}
+.lib-upload-row input[type=file] { display: none; }
+.lib-upload-btn {
+  font-size: 0.78em;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  font-family: var(--font-ui);
+}
+.lib-upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+.lib-drop-zone {
+  border: 1.5px dashed var(--border);
+  border-radius: 5px;
+  padding: 16px;
+  text-align: center;
+  font-size: 0.82em;
+  color: var(--text-muted);
+  transition: border-color 0.2s, background 0.2s;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+.lib-drop-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(91,138,240,0.06);
+  color: var(--text-dim);
+}
+.add-cat-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.add-cat-row .ms-input { flex: 1; font-size: 0.85em; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="ms-content">
+
+  <!-- Top cards -->
+  <div class="stats-grid" id="stats-cards">
+    <div class="stat-card">
+      <div class="stat-label">Uptime</div>
+      <div class="stat-value" id="s-uptime">--</div>
+      <div class="stat-sub" id="s-platform"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">CPU Load</div>
+      <div class="stat-value" id="s-load">--</div>
+      <div class="stat-sub" id="s-cpu-info"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Memory</div>
+      <div class="stat-value" id="s-mem">--</div>
+      <div class="usage-bar"><div class="usage-bar-fill fill-blue" id="s-mem-bar" style="width:0%"></div></div>
+      <div class="stat-sub" id="s-mem-detail"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Disk</div>
+      <div class="stat-value" id="s-disk">--</div>
+      <div class="usage-bar"><div class="usage-bar-fill fill-green" id="s-disk-bar" style="width:0%"></div></div>
+      <div class="stat-sub" id="s-disk-detail"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Active Scans</div>
+      <div class="stat-value" id="s-active">--</div>
+      <div class="stat-sub">of 3 max concurrent</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Scans</div>
+      <div class="stat-value" id="s-scans">--</div>
+      <div class="stat-sub" id="s-scan-detail"></div>
+    </div>
+  </div>
+
+  <!-- Database & data panels -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+    <div class="panel" style="margin-bottom:0;">
+      <div class="panel-header">
+        <h2>Database</h2>
+      </div>
+      <div class="panel-body" id="db-info">
+        <div class="info-row"><span class="info-label">Users</span><span class="info-value" id="s-users">--</span></div>
+        <div class="info-row"><span class="info-label">Scans (total)</span><span class="info-value" id="s-db-total">--</span></div>
+        <div class="info-row"><span class="info-label">Completed</span><span class="info-value" id="s-db-completed">--</span></div>
+        <div class="info-row"><span class="info-label">Failed</span><span class="info-value" id="s-db-failed">--</span></div>
+        <div class="info-row"><span class="info-label">Running</span><span class="info-value" id="s-db-running">--</span></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-bottom:0;">
+      <div class="panel-header">
+        <h2>Data Storage</h2>
+      </div>
+      <div class="panel-body" id="data-info">
+        <div class="info-row"><span class="info-label">PCAPs</span><span class="info-value" id="s-pcap-info">--</span></div>
+        <div class="info-row"><span class="info-label">Reports</span><span class="info-value" id="s-report-info">--</span></div>
+        <div class="info-row"><span class="info-label">Submissions archive</span><span class="info-value" id="s-submissions-info">--</span></div>
+        <div class="info-row"><span class="info-label">Total data</span><span class="info-value" id="s-data-total">--</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Per-user storage -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Per-User Storage</h2>
+      <button class="btn btn-sm" onclick="SYS.refresh()">Refresh</button>
+    </div>
+    <div class="panel-body">
+      <table class="storage-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>PCAPs</th>
+            <th>Reports</th>
+            <th>Total Size</th>
+          </tr>
+        </thead>
+        <tbody id="user-storage-body">
+          <tr><td colspan="4" class="dim" style="text-align:center;padding:20px;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Sample Library -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Sample Library</h2>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-sm" onclick="LIB.refresh()">Refresh</button>
+        <button class="btn btn-sm btn-primary" onclick="LIB.showAddCategory()">Add Category</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div id="lib-add-cat" style="display:none;margin-bottom:12px;">
+        <div class="add-cat-row">
+          <input type="text" class="ms-input" id="lib-cat-name" placeholder="Category name (e.g. benchmark)">
+          <button class="btn btn-sm btn-primary" onclick="LIB.createCategory()">Create</button>
+          <button class="btn btn-sm" onclick="LIB.hideAddCategory()">Cancel</button>
+        </div>
+      </div>
+      <div class="lib-drop-zone" id="lib-drop-zone">
+        Drop PCAP files here to upload, or click to select
+        <input type="file" id="lib-drop-input" accept=".pcap,.pcapng,.cap" multiple>
+        <div id="lib-drop-cat-select" style="display:none;margin-top:8px;">
+          <select class="ms-input" id="lib-drop-category" style="font-size:0.85em;"></select>
+        </div>
+      </div>
+      <div class="lib-grid" id="lib-grid">
+        <div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-dim);">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var SYS = (function() {
+  'use strict';
+
+  function fmtBytes(b) {
+    if (b == null || b === 0) return '0 B';
+    var units = ['B','KB','MB','GB','TB'];
+    var i = 0;
+    var v = b;
+    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+    return v.toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+  }
+
+  function fmtUptime(secs) {
+    if (secs == null) return '--';
+    var d = Math.floor(secs / 86400);
+    var h = Math.floor((secs % 86400) / 3600);
+    var m = Math.floor((secs % 3600) / 60);
+    if (d > 0) return d + 'd ' + h + 'h';
+    if (h > 0) return h + 'h ' + m + 'm';
+    return m + 'm';
+  }
+
+  function pct(used, total) {
+    if (!total) return 0;
+    return Math.round((used / total) * 100);
+  }
+
+  function barColor(p) {
+    if (p >= 90) return 'fill-red';
+    if (p >= 75) return 'fill-amber';
+    return null; // keep default
+  }
+
+  function refresh() {
+    fetch('/api/admin/stats').then(function(r) { return r.json(); }).then(function(s) {
+      // Uptime
+      document.getElementById('s-uptime').textContent = fmtUptime(s.uptime_seconds);
+      // platform hidden
+
+      // Load
+      if (s.load) {
+        document.getElementById('s-load').textContent = s.load['1m'];
+        document.getElementById('s-cpu-info').textContent =
+          (s.cpu_count || '?') + ' cores \u2014 5m: ' + s.load['5m'] + ' / 15m: ' + s.load['15m'];
+      }
+
+      // Memory
+      if (s.memory) {
+        var mp = pct(s.memory.used, s.memory.total);
+        document.getElementById('s-mem').textContent = mp + '%';
+        var memBar = document.getElementById('s-mem-bar');
+        memBar.style.width = mp + '%';
+        var mc = barColor(mp);
+        if (mc) memBar.className = 'usage-bar-fill ' + mc;
+        document.getElementById('s-mem-detail').textContent =
+          fmtBytes(s.memory.used) + ' / ' + fmtBytes(s.memory.total);
+      }
+
+      // Disk
+      if (s.disk) {
+        var dp = pct(s.disk.used, s.disk.total);
+        document.getElementById('s-disk').textContent = dp + '%';
+        var diskBar = document.getElementById('s-disk-bar');
+        diskBar.style.width = dp + '%';
+        var dc = barColor(dp);
+        if (dc) diskBar.className = 'usage-bar-fill ' + dc;
+        document.getElementById('s-disk-detail').textContent =
+          fmtBytes(s.disk.used) + ' / ' + fmtBytes(s.disk.total);
+      }
+
+      // Active scans
+      document.getElementById('s-active').textContent = s.active_scans || 0;
+
+      // Total scans
+      if (s.db) {
+        document.getElementById('s-scans').textContent = s.db.scans_total;
+        document.getElementById('s-scan-detail').textContent =
+          s.db.scans_completed + ' ok / ' + s.db.scans_failed + ' failed';
+
+        document.getElementById('s-users').textContent = s.db.users;
+        document.getElementById('s-db-total').textContent = s.db.scans_total;
+        document.getElementById('s-db-completed').textContent = s.db.scans_completed;
+        document.getElementById('s-db-failed').textContent = s.db.scans_failed;
+        document.getElementById('s-db-running').textContent = s.db.scans_running;
+      }
+
+      // Data storage
+      if (s.data) {
+        document.getElementById('s-pcap-info').textContent =
+          s.data.uploads_count + ' files \u2014 ' + fmtBytes(s.data.uploads_size);
+        document.getElementById('s-report-info').textContent =
+          s.data.reports_count + ' files \u2014 ' + fmtBytes(s.data.reports_size);
+        var totalData = s.data.uploads_size + s.data.reports_size;
+        if (s.submissions) totalData += s.submissions.total_size;
+        document.getElementById('s-data-total').textContent = fmtBytes(totalData);
+      }
+      // Submissions
+      if (s.submissions) {
+        document.getElementById('s-submissions-info').textContent =
+          s.submissions.total_count + ' files \u2014 ' + fmtBytes(s.submissions.total_size);
+      }
+      // python version hidden
+
+      // Per-user storage
+      var tbody = document.getElementById('user-storage-body');
+      tbody.innerHTML = '';
+      if (s.user_storage && s.user_storage.length) {
+        s.user_storage.forEach(function(u) {
+          var total = u.uploads_size + u.reports_size;
+          var tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td><span class="mono">' + esc(u.username) + '</span></td>'
+            + '<td>' + u.uploads_count + ' files <span class="dim">\u2014 ' + fmtBytes(u.uploads_size) + '</span></td>'
+            + '<td>' + u.reports_count + ' files <span class="dim">\u2014 ' + fmtBytes(u.reports_size) + '</span></td>'
+            + '<td class="mono">' + fmtBytes(total) + '</td>';
+          tbody.appendChild(tr);
+        });
+      } else {
+        tbody.innerHTML = '<tr><td colspan="4" class="dim" style="text-align:center;padding:16px;">No user data</td></tr>';
+      }
+    }).catch(function(err) {
+      msToast('Failed to load stats: ' + err, true);
+    });
+  }
+
+  function esc(s) {
+    if (!s) return '';
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    refresh();
+    setInterval(refresh, 15000);
+  });
+
+  return { refresh: refresh };
+})();
+
+/* ── Sample Library module ── */
+var LIB = (function() {
+  'use strict';
+
+  var _categories = [];
+
+  function fmtBytes(b) {
+    if (b == null || b === 0) return '0 B';
+    var units = ['B','KB','MB','GB'];
+    var i = 0, v = b;
+    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+    return v.toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+  }
+
+  function esc(s) {
+    if (!s) return '';
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
+  function refresh() {
+    fetch('/api/admin/presets').then(function(r) { return r.json(); }).then(function(data) {
+      _categories = data.categories || [];
+      render();
+      updateCategorySelect();
+    }).catch(function(e) {
+      msToast('Failed to load presets: ' + e, true);
+    });
+  }
+
+  function render() {
+    var grid = document.getElementById('lib-grid');
+    if (!_categories.length) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-dim);">No categories yet</div>';
+      return;
+    }
+    var html = '';
+    _categories.forEach(function(cat) {
+      html += '<div class="lib-card" id="lib-cat-' + esc(cat.name) + '">';
+      html += '<div class="lib-card-head" onclick="LIB.toggle(\'' + esc(cat.name) + '\')">';
+      html += '<h3>' + esc(cat.name) + ' <span class="meta">' + cat.file_count + ' files</span></h3>';
+      html += '<span class="meta">' + fmtBytes(cat.total_size) + '</span>';
+      html += '</div>';
+      html += '<div class="lib-card-body">';
+      if (cat.files && cat.files.length) {
+        cat.files.forEach(function(f) {
+          html += '<div class="lib-file">';
+          html += '<span class="fname" title="' + esc(f.name) + '">' + esc(f.name) + '</span>';
+          html += '<span class="fsize">' + fmtBytes(f.size) + '</span>';
+          html += '<button class="fdel" onclick="LIB.deleteFile(\'' + esc(cat.name) + '\',\'' + esc(f.name) + '\')" title="Delete">&#10005;</button>';
+          html += '</div>';
+        });
+      } else {
+        html += '<div style="padding:8px 0;color:var(--text-muted);font-size:0.82em;">Empty category</div>';
+      }
+      html += '<div class="lib-upload-row">';
+      html += '<input type="file" id="lib-up-' + esc(cat.name) + '" accept=".pcap,.pcapng,.cap" onchange="LIB.uploadFile(\'' + esc(cat.name) + '\',this)">';
+      html += '<button class="lib-upload-btn" onclick="document.getElementById(\'lib-up-' + esc(cat.name) + '\').click()">Upload PCAP</button>';
+      html += '<button class="fdel" onclick="LIB.deleteCategory(\'' + esc(cat.name) + '\')" title="Delete category" style="margin-left:auto;">Delete category</button>';
+      html += '</div>';
+      html += '</div></div>';
+    });
+    grid.innerHTML = html;
+  }
+
+  function updateCategorySelect() {
+    var sel = document.getElementById('lib-drop-category');
+    sel.innerHTML = '';
+    _categories.forEach(function(cat) {
+      var opt = document.createElement('option');
+      opt.value = cat.name;
+      opt.textContent = cat.name;
+      sel.appendChild(opt);
+    });
+  }
+
+  function toggle(name) {
+    var el = document.getElementById('lib-cat-' + name);
+    if (el) el.classList.toggle('open');
+  }
+
+  function showAddCategory() {
+    document.getElementById('lib-add-cat').style.display = '';
+    document.getElementById('lib-cat-name').focus();
+  }
+
+  function hideAddCategory() {
+    document.getElementById('lib-add-cat').style.display = 'none';
+    document.getElementById('lib-cat-name').value = '';
+  }
+
+  function createCategory() {
+    var name = document.getElementById('lib-cat-name').value.trim();
+    if (!name) return;
+    fetch('/api/admin/presets/category', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name: name})
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        hideAddCategory();
+        refresh();
+        msToast('Category "' + name + '" created');
+      } else {
+        msToast(d.error || 'Failed', true);
+      }
+    }).catch(function(e) { msToast('Error: ' + e, true); });
+  }
+
+  function deleteFile(cat, fn) {
+    if (!confirm('Delete ' + fn + ' from ' + cat + '?')) return;
+    fetch('/api/admin/presets/' + encodeURIComponent(cat) + '/' + encodeURIComponent(fn) + '?confirm=true', {
+      method: 'DELETE'
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        refresh();
+        msToast('Deleted ' + fn);
+      } else {
+        msToast(d.error || 'Failed', true);
+      }
+    }).catch(function(e) { msToast('Error: ' + e, true); });
+  }
+
+  function deleteCategory(name) {
+    if (!confirm('Delete entire category "' + name + '" and all its files?')) return;
+    fetch('/api/admin/presets/category/' + encodeURIComponent(name) + '?confirm=true', {
+      method: 'DELETE'
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        refresh();
+        msToast('Category "' + name + '" deleted');
+      } else {
+        msToast(d.error || 'Failed', true);
+      }
+    }).catch(function(e) { msToast('Error: ' + e, true); });
+  }
+
+  function uploadFile(cat, input) {
+    if (!input.files || !input.files.length) return;
+    _doUpload(input.files[0], cat);
+    input.value = '';
+  }
+
+  function _doUpload(file, category) {
+    var form = new FormData();
+    form.append('file', file);
+    form.append('category', category);
+    msToast('Uploading ' + file.name + '...');
+    fetch('/api/admin/presets/upload', {
+      method: 'POST',
+      body: form
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        refresh();
+        msToast('Uploaded ' + d.filename + ' to ' + d.category);
+      } else {
+        msToast(d.error || 'Upload failed', true);
+      }
+    }).catch(function(e) { msToast('Upload error: ' + e, true); });
+  }
+
+  // Drag-and-drop zone
+  document.addEventListener('DOMContentLoaded', function() {
+    var zone = document.getElementById('lib-drop-zone');
+    var catSel = document.getElementById('lib-drop-cat-select');
+    var fileInput = document.getElementById('lib-drop-input');
+
+    zone.addEventListener('click', function(e) {
+      if (e.target.tagName !== 'SELECT' && e.target.tagName !== 'OPTION') {
+        fileInput.click();
+      }
+    });
+
+    zone.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      zone.classList.add('drag-over');
+      catSel.style.display = '';
+    });
+    zone.addEventListener('dragleave', function(e) {
+      zone.classList.remove('drag-over');
+    });
+    zone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      var cat = document.getElementById('lib-drop-category').value;
+      if (!cat) { msToast('Select a category first', true); return; }
+      var files = e.dataTransfer.files;
+      for (var i = 0; i < files.length; i++) {
+        _doUpload(files[i], cat);
+      }
+    });
+
+    fileInput.addEventListener('change', function() {
+      var cat = document.getElementById('lib-drop-category').value;
+      if (!cat) { msToast('Select a category first', true); return; }
+      for (var i = 0; i < fileInput.files.length; i++) {
+        _doUpload(fileInput.files[i], cat);
+      }
+      fileInput.value = '';
+    });
+
+    // Show category selector when files are dragged over
+    zone.addEventListener('dragenter', function() {
+      catSel.style.display = '';
+    });
+
+    refresh();
+  });
+
+  return {
+    refresh: refresh,
+    toggle: toggle,
+    showAddCategory: showAddCategory,
+    hideAddCategory: hideAddCategory,
+    createCategory: createCategory,
+    deleteFile: deleteFile,
+    deleteCategory: deleteCategory,
+    uploadFile: uploadFile
+  };
+})();
+</script>
+{% endblock %}

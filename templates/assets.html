@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MarlinSpike — Asset Inventory</title>
+<style>
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url(/static/fonts/inter-latin.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Fira Code';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url(/static/fonts/fira-code-latin.woff2) format('woff2');
+}
+:root {
+  --bg: #0f1923;
+  --bg-deep: #0b1420;
+  --panel: #162233;
+  --panel-alt: #111b2b;
+  --border: #243447;
+  --border-dim: #141e32;
+  --text: #d4dce6;
+  --text-dim: #7a8a9e;
+  --text-muted: #384560;
+  --accent: #5b8af0;
+  --accent-cyan: #32b8c6;
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+  --color-success: #22c55e;
+  --font-mono: 'Fira Code','Cascadia Code','Consolas','Courier New', monospace;
+  --font-ui: 'Inter','Segoe UI', system-ui, -apple-system, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: var(--font-ui); font-size: 14px; -webkit-font-smoothing: antialiased; }
+
+.topbar {
+  display: flex; align-items: center; gap: 16px; padding: 10px 20px;
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  z-index: 10;
+}
+.topbar h1 { font-size: 1em; font-weight: 700; white-space: nowrap; }
+.topbar h1 span { color: var(--color-danger); }
+.topbar .stats { font-size: 0.82em; color: var(--text-dim); font-family: var(--font-mono); }
+.topbar .stats b { color: var(--text); }
+.topbar .actions { display: flex; gap: 8px; margin-left: auto; }
+.btn {
+  padding: 5px 14px; border: 1px solid var(--border); border-radius: 4px;
+  background: var(--panel-alt); color: var(--text); font-size: 0.82em;
+  cursor: pointer; font-family: var(--font-ui); text-decoration: none;
+  transition: border-color 0.15s;
+}
+.btn:hover { border-color: var(--accent); }
+.btn-accent { border-color: var(--accent); color: var(--accent); }
+
+.toolbar {
+  display: flex; align-items: center; gap: 12px; padding: 10px 20px;
+  background: var(--bg-deep); border-bottom: 1px solid var(--border-dim);
+  flex-wrap: wrap;
+}
+.toolbar input[type="search"] {
+  padding: 6px 10px; background: var(--panel); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--text); font-family: var(--font-ui); font-size: 0.88em;
+  width: 240px;
+}
+.toolbar input:focus { border-color: var(--accent); outline: none; }
+.toolbar .filter-group { display: flex; gap: 4px; align-items: center; }
+.toolbar select {
+  padding: 5px 8px; background: var(--panel); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--text); font-family: var(--font-ui); font-size: 0.82em;
+}
+.toolbar .count { font-size: 0.82em; color: var(--text-dim); margin-left: auto; font-family: var(--font-mono); }
+
+.table-wrap { overflow-x: auto; padding: 0 20px 20px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.88em; }
+thead { z-index: 5; }
+th {
+  text-align: left; padding: 8px 10px; font-size: 0.75em; text-transform: uppercase;
+  color: var(--text-dim); background: var(--panel); border-bottom: 2px solid var(--border);
+  font-weight: 600; letter-spacing: 0.3px; cursor: pointer; user-select: none;
+  white-space: nowrap;
+}
+th:hover { color: var(--accent); }
+th .sort-arrow { font-size: 0.7em; margin-left: 3px; opacity: 0.5; }
+th.sorted .sort-arrow { opacity: 1; color: var(--accent); }
+td {
+  padding: 6px 10px; border-bottom: 1px solid var(--border-dim);
+  font-family: var(--font-mono); font-size: 0.92em; vertical-align: top;
+}
+tr:hover td { background: rgba(91,138,240,0.03); }
+.role-tag {
+  display: inline-block; padding: 1px 8px; border-radius: 3px;
+  font-size: 0.85em; font-family: var(--font-ui); white-space: nowrap;
+}
+.proto-tag {
+  display: inline-block; padding: 1px 5px; margin: 1px; border-radius: 2px;
+  font-size: 0.78em; border: 1px solid;
+}
+.auth-yes { color: var(--color-success); }
+.auth-no { color: var(--color-warning); }
+.pri-crit { color: var(--color-danger); font-weight: 600; }
+.pri-high { color: var(--color-warning); }
+.pri-low { color: var(--text-dim); }
+.detail-cell { font-family: var(--font-ui); font-size: 0.85em; color: var(--text-dim); max-width: 300px; }
+.detail-cell .lbl { color: var(--text-muted); }
+.type-tag {
+  display: inline-block; padding: 1px 6px; border-radius: 3px;
+  font-size: 0.78em; font-family: var(--font-ui); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+.type-local { background: rgba(34,197,94,0.1); color: var(--color-success); border: 1px solid rgba(34,197,94,0.25); }
+.type-external { background: rgba(139,92,246,0.1); color: #8b5cf6; border: 1px solid rgba(139,92,246,0.25); }
+.type-network { background: rgba(122,138,158,0.1); color: var(--text-dim); border: 1px solid rgba(122,138,158,0.25); }
+.section-divider {
+  padding: 10px 10px 6px; font-size: 0.78em; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; border-bottom: 1px solid var(--border);
+}
+.section-divider.local { color: var(--color-success); }
+.section-divider.external { color: #8b5cf6; }
+.section-divider.network { color: var(--text-dim); }
+
+/* Expandable row */
+.expand-btn {
+  background: none; border: none; color: var(--text-dim); cursor: pointer;
+  font-size: 0.9em; padding: 2px 4px;
+}
+.expand-btn:hover { color: var(--accent); }
+tr.detail-row td {
+  padding: 8px 10px 12px 30px; background: var(--bg-deep);
+  border-bottom: 1px solid var(--border);
+}
+.conn-line { padding: 2px 0; font-size: 0.85em; }
+.risk-line { padding: 2px 0; font-size: 0.85em; }
+
+.ephemeral-toggle {
+  display: inline-block; padding: 1px 6px; margin: 1px; border-radius: 2px;
+  font-size: 0.72em; border: 1px solid #64748b44; background: #64748b08;
+  color: #64748b; cursor: pointer; user-select: none; vertical-align: middle;
+}
+.ephemeral-toggle:hover { border-color: #64748b88; background: #64748b18; }
+.ephemeral-ports { display: none; margin-top: 2px; }
+.ephemeral-ports.open { display: inline; }
+
+@media print {
+  body { background: #fff; color: #111; }
+  .topbar, .toolbar { background: #f5f5f5; border-color: #ddd; }
+  th { background: #eee; border-color: #ccc; color: #333; }
+  td { border-color: #eee; }
+  .btn { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/dashboard" class="btn" style="font-size:0.82em;">&larr; Dashboard</a>
+  <h1><span>MarlinSpike</span> Asset Inventory</h1>
+  <div class="stats" id="stats"></div>
+  <div class="actions">
+    <button class="btn btn-accent" onclick="exportCsv()">Export CSV</button>
+    <button class="btn" onclick="window.print()">Print</button>
+  </div>
+</div>
+
+<div class="toolbar">
+  <input type="search" id="search" placeholder="Filter by IP, vendor, role..." oninput="applyFilters()">
+  <div class="filter-group">
+    <label style="font-size:0.78em;color:var(--text-dim)">Role:</label>
+    <select id="filter-role" onchange="applyFilters()"><option value="">All</option></select>
+  </div>
+  <div class="filter-group">
+    <label style="font-size:0.78em;color:var(--text-dim)">Level:</label>
+    <select id="filter-level" onchange="applyFilters()"><option value="">All</option></select>
+  </div>
+  <div class="filter-group">
+    <label style="font-size:0.78em;color:var(--text-dim)">Type:</label>
+    <select id="filter-type" onchange="applyFilters()">
+      <option value="">All</option>
+      <option value="local" selected>Local Assets</option>
+      <option value="external">External</option>
+      <option value="network">Broadcast/Multicast</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label style="font-size:0.78em;color:var(--text-dim)">Auth:</label>
+    <select id="filter-auth" onchange="applyFilters()">
+      <option value="">All</option><option value="yes">Yes</option><option value="no">No</option>
+    </select>
+  </div>
+  <span class="count" id="shown-count"></span>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr id="thead-row"></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<script>
+var REPORT = {{ report_json | tojson }};
+var FILENAME = {{ filename | tojson }};
+
+var PURDUE = { '-1':'Unknown','0':'L0 Physical','1':'L1 Control','2':'L2 Supervisory','3':'L3 Operations','4':'L4 Enterprise','5':'L5 DMZ' };
+var PURDUE_C = { '-1':'#64748b','0':'#f59e0b','1':'#22c55e','2':'#3b82f6','3':'#a855f7','4':'#ef4444','5':'#ec4899' };
+var ROLE_C = { 'PLC':'#d4943a','RTU':'#f59e0b','HMI':'#3b82f6','SCADA':'#32b8c6','Historian':'#a855f7','Engineering Workstation':'#ef4444','Server':'#8b5cf6','Gateway':'#06b6d4','Unknown':'#7a8a9e' };
+var PROTO_C = { 'Modbus':'#22c55e','Modbus/TCP':'#22c55e','DNP3':'#3aad6b','CIP':'#16a34a','EtherNet/IP':'#059669','OPC UA':'#0d9488','PROFINET':'#06b6d4','BACnet':'#0ea5e9','MQTT':'#3b82f6','HTTP':'#8b5cf6','HTTPS':'#7c3aed','SSH':'#6366f1','Telnet':'#ef4444','FTP':'#dc2626','SNMP':'#ec4899','ARP':'#f59e0b','ICMP':'#d4943a','DNS':'#a855f7','NTP':'#64748b','TCP':'#94a3b8','UDP':'#94a3b8' };
+
+var nodes = (REPORT.nodes || []).slice();
+var edges = REPORT.edges || [];
+var risks = REPORT.risk_findings || [];
+
+// Enrich nodes
+var edgesByIp = {};
+nodes.forEach(function(n) {
+  n._ip = n.ip || n.address || '';
+  n._role = n.role || 'Unknown';
+  n._level = (n.purdue_level != null) ? n.purdue_level : -1;
+  n._vendor = n.vendor || 'Unknown';
+  n._type = n.device_type || 'Unknown';
+  n._protos = n.protocols || [];
+  n._mac = n.mac || '';
+  n._auth = n.auth_observed ? 'Yes' : 'No';
+  n._pri = n.attack_priority || 0;
+  n._atype = n.asset_type || 'local';
+  n._svcPorts = n.service_ports || [];
+  n._conns = 0;
+  edgesByIp[n._ip] = [];
+});
+edges.forEach(function(e) {
+  if (edgesByIp[e.src]) { edgesByIp[e.src].push(e); nodes.find(function(n){return n._ip===e.src;})._conns++; }
+  if (edgesByIp[e.dst]) { edgesByIp[e.dst].push(e); nodes.find(function(n){return n._ip===e.dst;})._conns++; }
+});
+var risksByIp = {};
+risks.forEach(function(r) {
+  // Skip global/summary findings from per-asset display
+  if (r.category === 'NO_AUTH_OBSERVED') return;
+  (r.affected_nodes||[]).forEach(function(ip) { if (!risksByIp[ip]) risksByIp[ip]=[]; risksByIp[ip].push(r); });
+});
+
+// Column definitions
+var COLS = [
+  { key:'_ip', label:'IP Address', sort:'str' },
+  { key:'_atype', label:'Type', sort:'str' },
+  { key:'_role', label:'Role', sort:'str' },
+  { key:'_level', label:'Purdue', sort:'num' },
+  { key:'_vendor', label:'Vendor', sort:'str' },
+  { key:'_type', label:'Device Type', sort:'str' },
+  { key:'_mac', label:'MAC', sort:'str' },
+  { key:'_protos', label:'Protocols', sort:'count' },
+  { key:'_svcPorts', label:'Service Ports', sort:'count' },
+  { key:'_conns', label:'Connections', sort:'num' },
+  { key:'_pri', label:'Priority', sort:'num' },
+  { key:'_auth', label:'Auth', sort:'str' },
+  { key:'_detail', label:'Details', sort:null },
+];
+
+var sortCol = '_pri';
+var sortDir = -1; // -1 = desc
+var filtered = nodes.slice();
+var expanded = {};
+
+function esc(s) { if (s==null) return ''; var d=document.createElement('div');d.textContent=String(s);return d.innerHTML; }
+
+// Collapse sequential ephemeral ports into ranges: [{lo, hi, transport}]
+function collapsePortRanges(ports) {
+  if (!ports.length) return [];
+  var byTransport = {};
+  ports.forEach(function(sp) {
+    var t = sp.transport || 'tcp';
+    if (!byTransport[t]) byTransport[t] = [];
+    byTransport[t].push({port: sp.port, category: sp.category || 'Unknown'});
+  });
+  var ranges = [];
+  Object.keys(byTransport).forEach(function(t) {
+    var items = byTransport[t].slice().sort(function(a,b){return a.port-b.port;});
+    var lo = items[0].port, hi = lo, cat = items[0].category;
+    for (var i = 1; i < items.length; i++) {
+      if (items[i].port === hi + 1 && items[i].category === cat) {
+        hi = items[i].port;
+      } else {
+        ranges.push({lo: lo, hi: hi, transport: t, category: cat});
+        lo = hi = items[i].port; cat = items[i].category;
+      }
+    }
+    ranges.push({lo: lo, hi: hi, transport: t, category: cat});
+  });
+  return ranges.sort(function(a,b){return a.lo - b.lo;});
+}
+
+function init() {
+  // Stats
+  var localCount = nodes.filter(function(n){return n._atype==='local';}).length;
+  var extCount = nodes.filter(function(n){return n._atype==='external';}).length;
+  var netCount = nodes.filter(function(n){return n._atype==='network';}).length;
+  document.getElementById('stats').innerHTML = '<b>'+localCount+'</b> local &middot; <b>'+extCount+'</b> external &middot; <b>'+netCount+'</b> network &middot; <b>'+edges.length+'</b> connections';
+  // Filter dropdowns
+  var roles = {}, levels = {};
+  nodes.forEach(function(n) { roles[n._role]=1; levels[n._level]=1; });
+  var rs = document.getElementById('filter-role');
+  Object.keys(roles).sort().forEach(function(r) { var o=document.createElement('option'); o.value=r; o.textContent=r; rs.appendChild(o); });
+  var ls = document.getElementById('filter-level');
+  Object.keys(levels).map(Number).sort().forEach(function(l) { var o=document.createElement('option'); o.value=l; o.textContent=PURDUE[l]||('L'+l); ls.appendChild(o); });
+  // Header
+  buildHeader();
+  applyFilters();
+}
+
+function buildHeader() {
+  var tr = document.getElementById('thead-row');
+  tr.innerHTML = '<th style="width:28px"></th>';
+  COLS.forEach(function(c) {
+    var th = document.createElement('th');
+    var active = (sortCol === c.key);
+    th.className = active ? 'sorted' : '';
+    var arrow = c.sort ? ('<span class="sort-arrow">'+(active?(sortDir>0?'&#9650;':'&#9660;'):'&#9650;')+'</span>') : '';
+    th.innerHTML = esc(c.label) + arrow;
+    if (c.sort) th.onclick = function() { doSort(c.key, c.sort); };
+    tr.appendChild(th);
+  });
+}
+
+function doSort(key, type) {
+  if (sortCol === key) sortDir *= -1;
+  else { sortCol = key; sortDir = (type==='num'||type==='count') ? -1 : 1; }
+  buildHeader();
+  renderTable();
+}
+
+function applyFilters() {
+  var q = document.getElementById('search').value.toLowerCase();
+  var role = document.getElementById('filter-role').value;
+  var level = document.getElementById('filter-level').value;
+  var auth = document.getElementById('filter-auth').value;
+  var atype = document.getElementById('filter-type').value;
+  filtered = nodes.filter(function(n) {
+    if (atype && n._atype !== atype) return false;
+    if (role && n._role !== role) return false;
+    if (level !== '' && String(n._level) !== level) return false;
+    if (auth === 'yes' && !n.auth_observed) return false;
+    if (auth === 'no' && n.auth_observed) return false;
+    if (q) {
+      var hay = [n._ip, n._role, n._vendor, n._type, n._mac, (n.product_line||''), (n.system_name||'')].join(' ').toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+  renderTable();
+}
+
+function renderTable() {
+  // Sort
+  filtered.sort(function(a,b) {
+    var va = a[sortCol], vb = b[sortCol];
+    if (sortCol === '_protos' || sortCol === '_detail') { va = (va||[]).length; vb = (vb||[]).length; }
+    if (typeof va === 'string') return va.localeCompare(vb) * sortDir;
+    return ((va||0) - (vb||0)) * sortDir;
+  });
+
+  var tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  filtered.forEach(function(n, idx) {
+    var tr = document.createElement('tr');
+    var rc = ROLE_C[n._role] || '#7a8a9e';
+    var lc = PURDUE_C[n._level] || '#64748b';
+    var priCls = n._pri >= 20 ? 'pri-crit' : n._pri >= 10 ? 'pri-high' : 'pri-low';
+    var hasDetail = (edgesByIp[n._ip]||[]).length > 0 || (risksByIp[n._ip]||[]).length > 0;
+
+    // Expand button
+    var expandHtml = hasDetail ? '<button class="expand-btn" onclick="toggleExpand(\''+esc(n._ip)+'\',this)">&#9654;</button>' : '';
+
+    // Protocols — show up to 6 inline, collapse the rest
+    var PROTO_MAX = 6;
+    var protoShown = n._protos.slice(0, PROTO_MAX);
+    var protoOver = n._protos.slice(PROTO_MAX);
+    var protoHtml = protoShown.map(function(p) {
+      var pc = PROTO_C[p]||'#64748b';
+      return '<span class="proto-tag" style="color:'+pc+';border-color:'+pc+'44;background:'+pc+'12">'+esc(p)+'</span>';
+    }).join('');
+    if (protoOver.length) {
+      var pid = 'proto-'+idx;
+      protoHtml += '<span class="ephemeral-toggle" onclick="toggleEph(\''+pid+'\',this)" title="'+protoOver.length+' more protocols">+'+protoOver.length+' more &#9654;</span>';
+      protoHtml += '<span class="ephemeral-ports" id="'+pid+'">';
+      protoHtml += protoOver.map(function(p) {
+        var pc = PROTO_C[p]||'#64748b';
+        return '<span class="proto-tag" style="color:'+pc+';border-color:'+pc+'44;background:'+pc+'12">'+esc(p)+'</span>';
+      }).join('');
+      protoHtml += '</span>';
+    }
+    if (!protoHtml) protoHtml = '<span style="color:var(--text-muted)">-</span>';
+
+    // Service Ports — show up to 8 inline, collapse the rest
+    var svcCatC = {'OT':'#22c55e','IT':'#8b5cf6','IT/OT':'#32b8c6','Ephemeral':'#64748b','Unknown':'#f59e0b'};
+    var MAX_INLINE = 8;
+    var allPorts = n._svcPorts;
+    var shown = allPorts.slice(0, MAX_INLINE);
+    var overflow = allPorts.slice(MAX_INLINE);
+    var svcHtml = shown.map(function(sp) {
+      var cc = svcCatC[sp.category]||'#64748b';
+      return '<span class="proto-tag" style="color:'+cc+';border-color:'+cc+'44;background:'+cc+'12;font-size:0.72em">'+sp.port+'/'+esc(sp.transport)+'</span>';
+    }).join('');
+    if (overflow.length) {
+      var eid = 'eph-'+idx;
+      var ranges = collapsePortRanges(overflow);
+      svcHtml += '<span class="ephemeral-toggle" onclick="toggleEph(\''+eid+'\',this)" title="'+overflow.length+' more ports">+'+overflow.length+' more &#9654;</span>';
+      svcHtml += '<span class="ephemeral-ports" id="'+eid+'">';
+      svcHtml += ranges.map(function(r) {
+        var cc = svcCatC[r.category]||'#64748b';
+        var label = r.lo === r.hi ? r.lo+'/'+r.transport : r.lo+'-'+r.hi+'/'+r.transport;
+        var countTip = r.lo === r.hi ? '1 port' : (r.hi - r.lo + 1)+' ports';
+        return '<span class="proto-tag" style="color:'+cc+';border-color:'+cc+'44;background:'+cc+'12;font-size:0.72em" title="'+countTip+'">'+label+'</span>';
+      }).join('');
+      svcHtml += '</span>';
+    }
+    if (!svcHtml) svcHtml = '<span style="color:var(--text-muted)">-</span>';
+
+    // Details summary
+    var details = [];
+    if (n.product_line) details.push(esc(n.product_line));
+    if (n.system_name) details.push('<span class="lbl">Sys:</span> '+esc(n.system_name));
+    if (n.system_desc) details.push('<span class="lbl">Desc:</span> '+esc(n.system_desc));
+    if (n.mgmt_ip) details.push('<span class="lbl">Mgmt:</span> '+esc(n.mgmt_ip));
+    if (n.vlans && n.vlans.length) details.push('<span class="lbl">VLANs:</span> '+n.vlans.join(', '));
+    if (n.capabilities && n.capabilities.length) details.push('<span class="lbl">Cap:</span> '+n.capabilities.map(esc).join(', '));
+    if (n.recommended_modules && n.recommended_modules.length) details.push('<span class="lbl">Modules:</span> '+n.recommended_modules.map(esc).join(', '));
+    var netRole = (n.initiates&&n.responds)?'init+resp':n.initiates?'initiator':n.responds?'responder':'passive';
+    details.push('<span class="lbl">Net:</span> '+netRole);
+
+    var atCls = 'type-'+n._atype;
+    var atLabel = n._atype==='local'?'Local':n._atype==='external'?'External':'Network';
+
+    tr.innerHTML = '<td>'+expandHtml+'</td>'
+      +'<td>'+esc(n._ip)+'</td>'
+      +'<td><span class="type-tag '+atCls+'">'+atLabel+'</span></td>'
+      +'<td><span class="role-tag" style="background:'+rc+'22;color:'+rc+';border:1px solid '+rc+'44">'+esc(n._role)+'</span></td>'
+      +'<td style="color:'+lc+'">'+(PURDUE[n._level]||'L'+n._level)+'</td>'
+      +'<td style="font-family:var(--font-ui)">'+esc(n._vendor)+'</td>'
+      +'<td style="font-family:var(--font-ui)">'+esc(n._type)+'</td>'
+      +'<td style="font-size:0.82em">'+esc(n._mac)+'</td>'
+      +'<td>'+protoHtml+'</td>'
+      +'<td>'+svcHtml+'</td>'
+      +'<td style="text-align:center">'+n._conns+'</td>'
+      +'<td class="'+priCls+'" style="text-align:center">'+n._pri+'</td>'
+      +'<td class="'+((n.auth_observed)?'auth-yes':'auth-no')+'">'+n._auth+'</td>'
+      +'<td class="detail-cell">'+details.join(' &middot; ')+'</td>';
+    tbody.appendChild(tr);
+
+    // Expanded detail row (hidden by default)
+    if (hasDetail && expanded[n._ip]) {
+      appendDetailRow(tbody, n);
+    }
+  });
+
+  document.getElementById('shown-count').textContent = filtered.length + ' / ' + nodes.length + ' shown';
+}
+
+function toggleExpand(ip, btn) {
+  expanded[ip] = !expanded[ip];
+  if (btn) btn.innerHTML = expanded[ip] ? '&#9660;' : '&#9654;';
+  renderTable();
+}
+
+function appendDetailRow(tbody, n) {
+  var tr = document.createElement('tr');
+  tr.className = 'detail-row';
+  var html = '<td></td><td colspan="13">';
+
+  var nodeEdges = edgesByIp[n._ip] || [];
+  if (nodeEdges.length) {
+    html += '<div style="margin-bottom:6px;font-weight:600;font-size:0.82em;color:var(--text-dim);text-transform:uppercase">Connections ('+nodeEdges.length+')</div>';
+    nodeEdges.forEach(function(e) {
+      var peer = (e.src===n._ip)?e.dst:e.src;
+      var dir = (e.src===n._ip)?'\u2192':'\u2190';
+      var bytes = e.bytes_total||0;
+      var bs = bytes>=1048576?(bytes/1048576).toFixed(1)+' MB':bytes>=1024?(bytes/1024).toFixed(1)+' KB':bytes+' B';
+      var pc = PROTO_C[e.protocol]||'#64748b';
+      var portLabel = e.port_label ? ' <span style="color:var(--text-muted);font-size:0.9em">'+esc(e.port_label)+'</span>' : '';
+      html += '<div class="conn-line"><span style="color:'+pc+'">'+esc(e.protocol)+'</span> '+dir+' <span style="font-family:var(--font-mono)">'+esc(peer)+'</span>'+portLabel+' <span style="color:var(--text-muted)">'+e.conversation_count+' conv, '+bs+'</span>';
+      if (e.includes_writes) html += ' <span style="color:var(--color-danger);font-weight:600">[WRITE]</span>';
+      if (e.includes_program_access) html += ' <span style="color:var(--color-danger);font-weight:600">[PROGRAM]</span>';
+      html += '</div>';
+    });
+  }
+
+  var nodeRisks = risksByIp[n._ip] || [];
+  if (nodeRisks.length) {
+    html += '<div style="margin:8px 0 4px;font-weight:600;font-size:0.82em;color:var(--color-danger);text-transform:uppercase">Risk Findings ('+nodeRisks.length+')</div>';
+    nodeRisks.forEach(function(r) {
+      var sc = r.severity==='CRITICAL'?'#ef4444':r.severity==='HIGH'?'#f59e0b':'var(--text-dim)';
+      html += '<div class="risk-line"><span style="font-weight:600;color:'+sc+'">'+esc(r.severity)+'</span> '+esc(r.description);
+      if (r.remediation) html += '<br><span style="color:var(--accent);font-size:0.9em">Rec: '+esc(r.remediation)+'</span>';
+      html += '</div>';
+    });
+  }
+
+  html += '</td>';
+  tr.innerHTML = html;
+  tbody.appendChild(tr);
+}
+
+// CSV export
+function exportCsv() {
+  var sep = ',';
+  var headers = ['IP','Asset Type','MAC','Role','Purdue Level','Vendor','Device Type','Protocols','Service Ports','Connections','Attack Priority','Auth Observed','Product','System Name','Description','Mgmt IP','VLANs','Capabilities','Network Role','Recommended Modules','Risk Count'];
+  var lines = [headers.join(sep)];
+  var data = filtered.length ? filtered : nodes;
+  data.forEach(function(n) {
+    var netRole = (n.initiates&&n.responds)?'initiator+responder':n.initiates?'initiator':n.responds?'responder':'passive';
+    var row = [
+      n._ip, n._atype, n._mac, n._role, n._level, n._vendor, n._type,
+      (n._protos||[]).join('; '),
+      (n._svcPorts||[]).map(function(sp){return sp.port+'/'+sp.transport+'('+sp.protocol+')';}).join('; '),
+      n._conns, n._pri, n._auth,
+      n.product_line||'', n.system_name||'', n.system_desc||'',
+      n.mgmt_ip||'',
+      (n.vlans||[]).join('; '),
+      (n.capabilities||[]).join('; '),
+      netRole,
+      (n.recommended_modules||[]).join('; '),
+      (risksByIp[n._ip]||[]).length,
+    ];
+    lines.push(row.map(function(v) {
+      var s = String(v==null?'':v);
+      if (s.indexOf(sep)>=0||s.indexOf('"')>=0||s.indexOf('\n')>=0) return '"'+s.replace(/"/g,'""')+'"';
+      return s;
+    }).join(sep));
+  });
+  var blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  var stem = FILENAME.replace(/\.json$/,'');
+  a.download = stem + '-assets.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function toggleEph(id, btn) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var open = el.classList.toggle('open');
+  btn.innerHTML = 'Ephemeral (' + el.children.length + ') ' + (open ? '&#9660;' : '&#9654;');
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
