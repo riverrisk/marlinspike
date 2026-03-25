@@ -2,7 +2,7 @@
 
 MarlinSpike is a passive OT/ICS network topology mapper. It analyzes PCAP and PCAPNG captures, builds a topology graph, infers Purdue levels, fingerprints vendors, and scores the resulting environment for risk indicators such as cross-zone communication, cleartext services, beaconing, and DNS exfiltration.
 
-![MarlinSpike Topology Viewer](docs/screenshots/01-topology-viewer.png)
+![MarlinSpike Hero](docs/screenshots/00-hero.png)
 
 **1.1M packets -> 46 nodes, 1,344 edges, 432 findings in 29 seconds.**
 
