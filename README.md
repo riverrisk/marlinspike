@@ -53,6 +53,18 @@ The report workflow supports export directly from the UI:
 - Capture filter input and ephemeral-port suppression controls in the scan workflow
 - MAC table reporting alongside the main assessment view
 
+## Fingerprinting Roadmap
+
+MarlinSpike's classification engine is active work, and fingerprint quality improves over time. The highest-value enrichment areas right now are:
+
+- IEEE OUI data
+- CIP vendor and device-type mappings
+- PROFINET vendor and role mappings
+- Passive OS hints from `p0f`
+- Optional Fingerbank enrichment for IT and IoT-style endpoints
+
+Contributions are especially welcome in signatures, vendor mappings, and protocol-specific identification logic.
+
 ## Screenshots
 
 ### 1. Relationship map and topology viewer
