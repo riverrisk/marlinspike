@@ -2302,6 +2302,53 @@ class TopologyBuilder:
             elif "Router" in node.capabilities and node.device_type == "Unknown":
                 node.device_type = "Router"
 
+    @staticmethod
+    def _node_service_names(node: TopologyNode) -> set[str]:
+        names = set()
+        for proto in node.protocols:
+            if proto:
+                names.add(str(proto).strip().lower())
+        for sp in node.service_ports:
+            proto = str(sp.get("protocol", "")).strip().lower()
+            if proto:
+                names.add(proto)
+        return names
+
+    @staticmethod
+    def _node_text(node: TopologyNode) -> str:
+        return " ".join(
+            filter(
+                None,
+                [
+                    node.vendor,
+                    node.product_line,
+                    node.device_type,
+                    node.system_name,
+                    node.system_desc,
+                    " ".join(node.protocols),
+                    " ".join(str(sp.get("protocol", "")) for sp in node.service_ports),
+                ],
+            )
+        ).lower()
+
+    def _node_peer_count(self, ip: str) -> int:
+        peers = set()
+        for conv in self._conv_by_src.get(ip, []):
+            peer = conv.dst_ip or conv.dst_mac
+            if peer and peer != ip:
+                peers.add(peer)
+        for conv in self._conv_by_dst.get(ip, []):
+            peer = conv.src_ip or conv.src_mac
+            if peer and peer != ip:
+                peers.add(peer)
+        return len(peers)
+
+    def _has_engineering_activity(self, ip: str) -> bool:
+        for conv in self._conv_by_src.get(ip, []):
+            if conv.s7_program_access or conv.modbus_writes > 5:
+                return True
+        return False
+
     def _assign_roles(self):
         """Assign device roles based on protocols, L2 discovery, and communication patterns."""
         print(f"  Assigning device roles...")
@@ -2345,45 +2392,145 @@ class TopologyBuilder:
                     node.asset_type = "network"
                     continue
 
+            names = self._node_service_names(node)
+            text = self._node_text(node)
+            peer_count = self._node_peer_count(ip)
+            service_count = len(node.service_ports)
+            engineering = self._has_engineering_activity(ip)
+            has_db_or_file = any(
+                p in names for p in (
+                    "mysql", "postgresql", "mssql", "ms-sql-s", "netbios-ssn",
+                    "microsoft-ds", "smb", "ftp", "tftp", "rpc portmap",
+                )
+            )
+            has_server_stack = any(
+                p in names for p in (
+                    "http", "https", "dns", "ntp", "smtp", "smtp submission",
+                    "imap", "imaps", "pop3", "pop3s", "snmp", "opc ua",
+                )
+            )
+            has_remote_admin = any(p in names for p in ("ssh", "rdp", "vnc", "telnet"))
+            historian_hint = any(
+                token in text for token in (
+                    "historian", "mes", "factorytalk", "proficy", "wonderware",
+                    "ifix", "wincc", "ignition", "pi server", "pi-system",
+                )
+            )
+            camera_hint = any(
+                token in text for token in (
+                    "axis", "hikvision", "dahua", "avigilon", "mobotix",
+                    "bosch security", "camera",
+                )
+            )
+            workstation_hint = any(
+                token in text for token in (
+                    "apple", "pegatron", "dell", "lenovo", "hewlett packard",
+                    "hp ", "asus", "acer", "gigabyte", "microsoft",
+                )
+            )
+            appliance_hint = any(
+                token in text for token in (
+                    "advantech", "red lion", "digi", "moxa", "westermo",
+                    "phoenix contact", "ewon", "hms", "innominate",
+                )
+            )
+
             # Default role based on Purdue level and protocols
             if node.purdue_level in (0, 1):
-                # Field device — check protocol
                 if "Modbus" in " ".join(node.protocols):
                     node.role = "RTU/PLC"
+                    if node.device_type == "Unknown":
+                        node.device_type = "RTU/PLC"
                 elif "EtherNet/IP" in " ".join(node.protocols):
                     node.role = "PLC"
+                    if node.device_type == "Unknown":
+                        node.device_type = "PLC"
                 elif "S7comm" in " ".join(node.protocols):
                     node.role = "PLC"
+                    if node.device_type == "Unknown":
+                        node.device_type = "PLC"
                 elif "DNP3" in " ".join(node.protocols):
                     node.role = "RTU"
+                    if node.device_type == "Unknown":
+                        node.device_type = "RTU"
                 else:
                     node.role = "Field Device"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Field Device"
 
             elif node.purdue_level == 2:
-                # Supervisory — HMI or SCADA
-                if node.initiates and node.responds:
-                    node.role = "HMI/SCADA"
-                elif node.initiates:
+                if engineering:
                     node.role = "Engineering Workstation"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Engineering Workstation"
+                elif node.initiates and not node.responds:
+                    node.role = "HMI/SCADA"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Operator Workstation" if workstation_hint else "HMI Terminal"
+                elif workstation_hint:
+                    node.role = "HMI/SCADA"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Operator Workstation"
+                elif node.responds and not node.initiates:
+                    node.role = "Supervisory Controller"
+                    if node.device_type == "Unknown":
+                        node.device_type = "SCADA Server" if (service_count >= 2 or has_server_stack) else "Supervisory Controller"
+                elif node.initiates and node.responds:
+                    if service_count >= 3 or has_db_or_file:
+                        node.role = "Supervisory Controller"
+                        if node.device_type == "Unknown":
+                            node.device_type = "SCADA Server"
+                    else:
+                        node.role = "HMI/SCADA"
+                        if node.device_type == "Unknown":
+                            node.device_type = "Supervisory Workstation"
                 else:
                     node.role = "Supervisory Controller"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Supervisory Controller"
 
             elif node.purdue_level == 3:
-                # Operations — historian, MES
-                node.role = "Historian/MES"
+                if historian_hint and (has_db_or_file or has_server_stack or service_count >= 2):
+                    node.role = "Historian/MES"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Historian Server"
+                elif camera_hint:
+                    node.role = "Security Appliance"
+                    if node.device_type == "Unknown":
+                        node.device_type = "IP Camera"
+                elif appliance_hint and (has_remote_admin or has_server_stack or service_count >= 2):
+                    node.role = "Industrial Appliance"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Gateway/Appliance"
+                elif engineering:
+                    node.role = "Engineering Workstation"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Engineering Workstation"
+                elif workstation_hint or (node.initiates and not node.responds):
+                    node.role = "Operations Workstation"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Workstation"
+                elif node.responds and (has_db_or_file or (has_server_stack and peer_count >= 3)):
+                    node.role = "Application Server"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Application Server"
+                else:
+                    node.role = "Operations Host"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Endpoint"
 
             elif node.purdue_level == 5:
-                # External — already set during Purdue inference
                 node.role = "External Host"
+                if node.device_type == "Unknown":
+                    node.device_type = "External Endpoint"
 
             else:
                 node.role = "Unknown"
 
-            # Check for engineering workstation patterns
-            for conv in self._conv_by_src.get(ip, []):
-                if conv.s7_program_access or conv.modbus_writes > 5:
-                    node.role = "Engineering Workstation"
-                    break
+            if engineering and node.role not in ("PLC", "RTU", "RTU/PLC"):
+                node.role = "Engineering Workstation"
+                if node.device_type in ("Unknown", "Workstation", "Endpoint"):
+                    node.device_type = "Engineering Workstation"
 
     def _rank_targets(self):
         """Rank nodes for attack priority and recommend modules."""
