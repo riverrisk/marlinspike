@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="no-js">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MarlinSpike — {{ filename }}</title>
+<script>document.documentElement.className=document.documentElement.className.replace(/\bno-js\b/,'js');</script>
 <style>
 @font-face {
   font-family: 'Inter';
@@ -19,24 +20,26 @@
   font-display: swap;
   src: url(/static/fonts/fira-code-latin.woff2) format('woff2');
 }
-/* ===== Theme ===== */
+
 :root {
-  --bg: #0f1923;
-  --bg-deep: #0b1420;
-  --bg-surface: #111b2b;
-  --panel: #162233;
-  --panel-alt: #111b2b;
+  --bg: #0f1823;
+  --bg-deep: #0a121d;
+  --bg-surface: #101a2a;
+  --panel: #141f30;
+  --panel-alt: #0f1827;
+  --panel-strong: #18263a;
   --border: #243447;
-  --border-dim: #141e32;
+  --border-dim: #162234;
   --text: #d4dce6;
   --text-dim: #7a8a9e;
-  --text-muted: #384560;
+  --text-muted: #4a5a74;
   --accent: #5b8af0;
   --accent-hover: #4a75d4;
   --accent-cyan: #32b8c6;
   --accent-amber: #d4943a;
   --accent-green: #3aad6b;
   --accent-rose: #c75070;
+  --accent-steel: #8aa2c0;
   --color-vor-accent: #ef4444;
   --color-ot: #22c55e;
   --color-infra: #06b6d4;
@@ -49,135 +52,745 @@
   --color-zone-l2: #3b82f6;
   --color-zone-l3: #a855f7;
   --color-zone-dmz: #ef4444;
-  --font-mono: 'Fira Code','Cascadia Code','Consolas','Courier New', monospace;
-  --font-ui: 'Inter','Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Fira Code', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+  --font-ui: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  background: var(--bg);
+  background:
+    radial-gradient(circle at top left, rgba(91, 138, 240, 0.08), transparent 24%),
+    radial-gradient(circle at top right, rgba(50, 184, 198, 0.08), transparent 22%),
+    var(--bg);
   color: var(--text);
   font-family: var(--font-ui);
   font-size: 14px;
-  overflow: hidden;
-  height: 100vh;
+  overflow: auto;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   -webkit-font-smoothing: antialiased;
 }
 
+.js body {
+  overflow: hidden;
+  height: 100vh;
+}
+
 #ms-app {
   display: grid;
-  grid-template-rows: auto 1fr;
-  grid-template-columns: 1fr 280px;
+  grid-template-rows: auto auto 1fr;
+  grid-template-columns: minmax(0, 1fr) 360px;
   flex: 1;
   min-height: 0;
 }
+
 #ms-app.report-open {
-  grid-template-rows: auto 1fr minmax(200px, 45vh);
+  grid-template-rows: auto auto 1fr minmax(220px, 46vh);
+}
+
+#ms-header,
+#ms-toolbar {
+  grid-column: 1 / -1;
 }
 
 #ms-header {
-  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px 16px;
+  padding: 14px 18px 12px;
+  background: linear-gradient(180deg, rgba(24, 38, 58, 0.94), rgba(20, 31, 48, 0.98));
+  border-bottom: 1px solid var(--border);
+  align-items: start;
+}
+
+.ms-header-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ms-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.ms-title-copy {
+  min-width: 0;
+}
+
+.ms-back-link {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.86em;
+  white-space: nowrap;
+  padding-top: 2px;
+}
+
+.ms-back-link:hover { color: var(--text); }
+
+#ms-header h1 {
+  font-size: 1.06em;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+#ms-header h1 span { color: var(--color-vor-accent); }
+
+.ms-subtitle {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 10px 16px;
-  background: var(--panel);
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 5px;
+  color: var(--text-dim);
+  font-size: 0.84em;
+}
+
+.ms-file-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(91, 138, 240, 0.14);
+  border: 1px solid rgba(91, 138, 240, 0.24);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-stats {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 0.82em;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+.ms-stats b { color: var(--text); }
+
+.ms-controls {
+  display: flex;
+  gap: 8px;
+  align-self: start;
+  justify-self: end;
+  flex-wrap: wrap;
+}
+
+.ms-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-alt);
+  color: var(--text);
+  font-size: 0.82em;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+  font-family: var(--font-ui);
+  text-decoration: none;
+  min-height: 34px;
+}
+
+.ms-btn:hover {
+  border-color: var(--accent);
+  background: var(--bg-surface);
+}
+
+.ms-btn.active {
+  border-color: var(--accent);
+  background: rgba(91, 138, 240, 0.12);
+  color: #fff;
+}
+
+.ms-btn-accent {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f7b0b0;
+}
+
+.ms-btn-accent:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.7);
+}
+
+.ms-overview-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
+  gap: 8px;
+}
+
+.ms-kpi-card {
+  min-width: 0;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-dim);
+  background: linear-gradient(180deg, rgba(16, 26, 42, 0.96), rgba(12, 21, 33, 0.98));
+  cursor: pointer;
+}
+
+.ms-kpi-card:hover { border-color: rgba(91, 138, 240, 0.4); }
+
+.ms-kpi-card.healthy .ms-kpi-value { color: var(--accent-green); }
+.ms-kpi-card.warn .ms-kpi-value { color: var(--color-warning); }
+.ms-kpi-card.danger .ms-kpi-value { color: var(--color-danger); }
+
+.ms-kpi-value {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 1.24em;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.ms-kpi-label {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-dim);
+  font-size: 0.76em;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ms-kpi-detail {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 0.8em;
+  line-height: 1.35;
+}
+
+#ms-toolbar {
+  display: none;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  background: rgba(15, 24, 39, 0.94);
   border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
 }
-#ms-header h1 { font-size: 1em; font-weight: 700; white-space: nowrap; }
-#ms-header h1 span { color: var(--color-vor-accent); }
-.ms-stats { display: flex; gap: 14px; font-size: 0.82em; color: var(--text-dim); font-family: var(--font-mono); }
-.ms-stats b { color: var(--text); }
-.ms-controls { display: flex; gap: 8px; margin-left: auto; }
-.ms-btn {
-  padding: 5px 14px; border: 1px solid var(--border); border-radius: 4px;
-  background: var(--panel-alt); color: var(--text); font-size: 0.82em;
-  cursor: pointer; transition: border-color 0.2s, background 0.2s; font-family: var(--font-ui);
-}
-.ms-btn:hover { border-color: var(--accent); background: var(--bg-surface); }
-.ms-btn.active { border-color: var(--accent); background: rgba(91,138,240,0.12); color: #fff; }
-.ms-btn-accent { border-color: var(--color-vor-accent); color: var(--color-vor-accent); }
-.ms-btn-accent:hover { background: rgba(239,68,68,0.1); }
-.ms-back-link { color: var(--text-dim); text-decoration: none; font-size: 0.88em; }
-.ms-back-link:hover { color: var(--text); }
 
-#ms-viewport { position: relative; overflow: hidden; background: var(--bg-deep); }
-#ms-svg-container { width: 100%; height: 100%; cursor: grab; }
+.js #ms-toolbar { display: flex; }
+.no-js .ms-controls button { display: none; }
+.no-js .ms-report-close,
+.no-js .ms-report-tabs { display: none; }
+.no-js .ms-report-tab-content { display: block; }
+
+.ms-toolbar-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.ms-search-field,
+.ms-select-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--panel-alt);
+  border: 1px solid var(--border-dim);
+}
+
+.ms-search-field span,
+.ms-select-field span {
+  color: var(--text-dim);
+  font-size: 0.78em;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.ms-search-field input,
+.ms-select-field select {
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.92em;
+}
+
+.ms-search-field input { min-width: 220px; }
+.ms-select-field select { min-width: 210px; cursor: pointer; }
+
+.ms-toolbar-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--text-dim);
+  font-size: 0.84em;
+}
+
+.ms-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(24, 38, 58, 0.72);
+  color: var(--text-dim);
+}
+
+.ms-status-pill strong {
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+#ms-viewport {
+  position: relative;
+  overflow: hidden;
+  min-height: 320px;
+  background:
+    linear-gradient(180deg, rgba(8, 13, 21, 0.94), rgba(10, 18, 29, 0.98)),
+    var(--bg-deep);
+}
+
+#ms-svg-container {
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
 #ms-svg-container:active { cursor: grabbing; }
 #ms-svg-container svg { width: 100%; height: 100%; }
-#ms-sidebar { overflow-y: auto; background: var(--panel); border-left: 1px solid var(--border); padding: 12px; font-size: 0.85em; }
-#ms-sidebar h3 { font-size: 0.78em; text-transform: uppercase; color: var(--text-dim); margin: 14px 0 6px 0; letter-spacing: 0.5px; font-weight: 600; }
-#ms-sidebar h3:first-child { margin-top: 0; }
 
-.ms-legend-item { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 0.9em; }
-.ms-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.ms-legend-count { margin-left: auto; font-family: var(--font-mono); color: var(--text-dim); font-size: 0.85em; }
+#ms-sidebar {
+  overflow-y: auto;
+  background: linear-gradient(180deg, rgba(20, 31, 48, 0.98), rgba(14, 23, 36, 0.98));
+  border-left: 1px solid var(--border);
+  padding: 14px;
+  font-size: 0.85em;
+}
 
-.ms-risk-item { padding: 6px 8px; margin: 4px 0; border-radius: 4px; border-left: 3px solid var(--border); background: var(--panel-alt); font-size: 0.88em; line-height: 1.35; }
-.ms-risk-item.sev-CRITICAL { border-color: #ef4444; }
-.ms-risk-item.sev-HIGH { border-color: #f59e0b; }
-.ms-risk-item.sev-MEDIUM { border-color: #3b82f6; }
-.ms-risk-item.sev-LOW { border-color: #22c55e; }
-.ms-risk-item.sev-INFO { border-color: #7a8a9e; }
-.ms-risk-sev { font-size: 0.72em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.ms-sidebar-panel {
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-dim);
+  background: rgba(15, 24, 39, 0.76);
+}
+
+.ms-sidebar-panel h3 {
+  font-size: 0.78em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  margin-bottom: 9px;
+}
+
+.ms-sidebar-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ms-sidebar-kpi {
+  padding: 8px 9px;
+  border-radius: 8px;
+  background: var(--panel-alt);
+  border: 1px solid var(--border-dim);
+}
+
+.ms-sidebar-kpi .val {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 1.08em;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.ms-sidebar-kpi .lbl {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-dim);
+  font-size: 0.78em;
+}
+
+.ms-focus-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ms-focus-btn {
+  padding: 9px 10px;
+  text-align: left;
+  border-radius: 8px;
+  border: 1px solid var(--border-dim);
+  background: var(--panel-alt);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.ms-focus-btn:hover { border-color: rgba(91, 138, 240, 0.4); }
+.ms-focus-btn.active {
+  border-color: rgba(91, 138, 240, 0.6);
+  background: rgba(91, 138, 240, 0.1);
+}
+
+.ms-focus-btn .count {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 1.05em;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.ms-focus-btn .label {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.78em;
+  color: var(--text-dim);
+}
+
+.ms-focus-btn .note {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.76em;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.ms-queue-item,
+.ms-target-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 9px;
+  margin: 5px 0;
+  border-radius: 8px;
+  background: var(--panel-alt);
+  border: 1px solid var(--border-dim);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.ms-queue-item:hover,
+.ms-target-item:hover {
+  border-color: rgba(91, 138, 240, 0.45);
+  background: rgba(24, 38, 58, 0.82);
+}
+
+.ms-queue-copy,
+.ms-target-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.ms-queue-ip,
+.ms-target-ip {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--text);
+}
+
+.ms-queue-role,
+.ms-target-role {
+  margin-top: 2px;
+  font-size: 0.8em;
+  color: var(--text-dim);
+}
+
+.ms-queue-note {
+  margin-top: 4px;
+  font-size: 0.8em;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.ms-target-priority,
+.ms-queue-priority {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #f7b0b0;
+  white-space: nowrap;
+}
+
+.ms-empty-panel {
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+.ms-empty-panel strong { color: var(--text); }
+
+.ms-selection-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.ms-selection-title {
+  min-width: 0;
+}
+
+.ms-selection-title h2 {
+  font-size: 1.02em;
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.ms-selection-role {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.ms-role-badge,
+.ms-level-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 0.76em;
+  font-weight: 600;
+}
+
+.ms-selection-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.ms-mini-btn {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel-alt);
+  color: var(--text-dim);
+  font-size: 0.78em;
+  cursor: pointer;
+}
+
+.ms-mini-btn:hover {
+  color: var(--text);
+  border-color: rgba(91, 138, 240, 0.45);
+}
+
+.ms-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.ms-field {
+  min-width: 0;
+}
+
+.ms-field .label {
+  display: block;
+  color: var(--text-dim);
+  font-size: 0.75em;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.ms-field .value {
+  display: block;
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 0.9em;
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.ms-section-label {
+  margin-top: 10px;
+  margin-bottom: 6px;
+  color: var(--text-dim);
+  font-size: 0.74em;
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+  font-weight: 700;
+}
+
+.ms-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ms-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(24, 38, 58, 0.78);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+}
+
+.ms-service-list,
+.ms-connection-list {
+  display: grid;
+  gap: 6px;
+}
+
+.ms-service-item,
+.ms-connection-item,
+.ms-purdue-item {
+  padding: 7px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border-dim);
+  background: var(--panel-alt);
+  font-size: 0.84em;
+  line-height: 1.4;
+}
+
+.ms-service-item code,
+.ms-connection-item code,
+.ms-purdue-item code {
+  font-family: var(--font-mono);
+}
+
+.ms-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 0.88em;
+}
+
+.ms-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ms-legend-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  font-size: 0.84em;
+}
+
+.ms-risk-item {
+  padding: 8px 9px;
+  margin: 5px 0;
+  border-radius: 8px;
+  border-left: 3px solid var(--border);
+  background: var(--panel-alt);
+  border-top: 1px solid var(--border-dim);
+  border-right: 1px solid var(--border-dim);
+  border-bottom: 1px solid var(--border-dim);
+  font-size: 0.86em;
+  line-height: 1.4;
+}
+
+.ms-risk-item.sev-CRITICAL { border-left-color: #ef4444; }
+.ms-risk-item.sev-HIGH { border-left-color: #f59e0b; }
+.ms-risk-item.sev-MEDIUM { border-left-color: #3b82f6; }
+.ms-risk-item.sev-LOW { border-left-color: #22c55e; }
+.ms-risk-item.sev-INFO { border-left-color: #7a8a9e; }
+
+.ms-risk-sev {
+  font-size: 0.72em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .ms-risk-item.sev-CRITICAL .ms-risk-sev { color: #ef4444; }
 .ms-risk-item.sev-HIGH .ms-risk-sev { color: #f59e0b; }
 .ms-risk-item.sev-MEDIUM .ms-risk-sev { color: #3b82f6; }
 .ms-risk-item.sev-LOW .ms-risk-sev { color: #22c55e; }
 .ms-risk-item.sev-INFO .ms-risk-sev { color: #7a8a9e; }
 
-.ms-target-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; margin: 3px 0; border-radius: 4px; background: var(--panel-alt); cursor: pointer; transition: background 0.15s; }
-.ms-target-item:hover { background: rgba(239,68,68,0.08); }
-.ms-target-ip { font-family: var(--font-mono); font-size: 0.9em; color: var(--text); }
-.ms-target-role { font-size: 0.8em; color: var(--text-dim); }
-.ms-target-priority { margin-left: auto; font-family: var(--font-mono); font-size: 0.82em; padding: 1px 6px; border-radius: 3px; background: rgba(239,68,68,0.12); color: var(--color-vor-accent); }
-
-#ms-detail { display: none; position: absolute; bottom: 16px; left: 16px; width: 340px; max-height: 60%; overflow-y: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; z-index: 20; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
-#ms-detail .ms-detail-close { position: absolute; top: 8px; right: 10px; cursor: pointer; color: var(--text-dim); font-size: 1.1em; }
-#ms-detail .ms-detail-close:hover { color: var(--text); }
-#ms-detail h2 { font-size: 1.05em; font-family: var(--font-mono); margin-bottom: 8px; }
-.ms-detail-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 0.88em; border-bottom: 1px solid var(--border-dim); }
-.ms-detail-row:last-child { border-bottom: none; }
-.ms-detail-label { color: var(--text-dim); }
-.ms-detail-val { font-family: var(--font-mono); text-align: right; }
-.ms-detail-section { margin-top: 10px; font-size: 0.82em; color: var(--text-dim); text-transform: uppercase; font-weight: 600; }
-.ms-detail-tag { display: inline-block; padding: 2px 8px; margin: 2px 3px 2px 0; border-radius: 3px; background: var(--panel-alt); border: 1px solid var(--border); font-size: 0.85em; font-family: var(--font-mono); }
-.ms-detail-conn { padding: 4px 0; border-bottom: 1px solid var(--border-dim); font-size: 0.88em; }
-.ms-detail-conn:last-child { border-bottom: none; }
-
-#ms-empty { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--text-dim); }
-#ms-empty h2 { font-size: 1.2em; margin-bottom: 8px; color: var(--text-muted); }
-
-#ms-tooltip { display: none; position: absolute; padding: 6px 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 4px; font-size: 0.82em; font-family: var(--font-mono); pointer-events: none; z-index: 30; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-
-@media print {
-  body { background: #fff; color: #111; overflow: visible; height: auto; }
-  #ms-app { display: block; height: auto; }
-  #ms-header { background: #f0f0f0; border-color: #ccc; }
-  #ms-header h1 span { color: #c00; }
-  .ms-controls { display: none; }
-  #ms-viewport { height: 600px; position: relative; }
-  #ms-sidebar { border-color: #ccc; background: #fafafa; }
-  .ms-risk-item { background: #f5f5f5; }
-  .ms-target-item { background: #f5f5f5; }
-  #ms-detail { display: none !important; }
-  #ms-tooltip { display: none !important; }
+#ms-empty {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: var(--text-dim);
 }
 
-/* ===== Report Pane ===== */
-#ms-report-pane {
+#ms-empty h2 {
+  font-size: 1.2em;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+#ms-tooltip {
   display: none;
+  position: absolute;
+  padding: 6px 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.82em;
+  font-family: var(--font-mono);
+  pointer-events: none;
+  z-index: 30;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+#ms-report-pane {
+  display: block;
   grid-column: 1 / -1;
   background: var(--panel);
   border-top: 1px solid var(--border);
   overflow-y: auto;
   padding: 0 20px 20px;
 }
-#ms-app.report-open #ms-report-pane { display: block; }
+
+.js #ms-report-pane { display: none; }
+.js #ms-app.report-open #ms-report-pane { display: block; }
+
+.ms-noscript-note {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(91, 138, 240, 0.24);
+  border-radius: 8px;
+  background: rgba(91, 138, 240, 0.08);
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+.ms-link-list {
+  display: grid;
+  gap: 6px;
+}
+
+.ms-link-item {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ms-link-item:hover .ms-queue-item,
+.ms-link-item:hover .ms-target-item {
+  border-color: rgba(91, 138, 240, 0.45);
+}
 
 .ms-report-header {
   position: sticky;
@@ -190,12 +803,19 @@ body {
   border-bottom: 1px solid var(--border);
   z-index: 5;
 }
+
 .ms-report-header h2 { font-size: 0.95em; font-weight: 700; }
 .ms-report-header h2 span { color: var(--color-vor-accent); }
+
 .ms-report-close {
-  background: none; border: none; color: var(--text-dim); font-size: 1.2em;
-  cursor: pointer; padding: 4px 8px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.2em;
+  cursor: pointer;
+  padding: 4px 8px;
 }
+
 .ms-report-close:hover { color: var(--text); }
 
 .ms-report-tabs {
@@ -204,6 +824,7 @@ body {
   margin-top: 10px;
   border-bottom: 1px solid var(--border);
 }
+
 .ms-report-tab {
   padding: 7px 18px;
   background: none;
@@ -216,11 +837,14 @@ body {
   cursor: pointer;
   transition: color 0.2s, border-color 0.2s;
 }
+
 .ms-report-tab:hover { color: var(--text); }
+
 .ms-report-tab.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
 }
+
 .ms-report-tab-content { display: none; }
 .ms-report-tab-content.active { display: block; }
 
@@ -232,6 +856,7 @@ body {
 }
 
 .ms-section { margin-bottom: 4px; }
+
 .ms-section-toggle {
   display: flex;
   align-items: center;
@@ -250,19 +875,24 @@ body {
   cursor: pointer;
   text-align: left;
 }
+
 .ms-section-toggle:hover { color: var(--accent); }
+
 .ms-section-toggle .chevron {
   transition: transform 0.2s;
   font-size: 0.7em;
   color: var(--text-dim);
 }
+
 .ms-section.open .chevron { transform: rotate(90deg); }
+
 .ms-section-body {
   display: none;
   padding: 8px 0;
   font-size: 0.88em;
   line-height: 1.5;
 }
+
 .ms-section.open .ms-section-body { display: block; }
 
 .ms-summary-grid {
@@ -271,6 +901,7 @@ body {
   gap: 8px;
   margin-bottom: 8px;
 }
+
 .ms-summary-card {
   background: var(--panel-alt);
   border: 1px solid var(--border-dim);
@@ -278,12 +909,14 @@ body {
   padding: 10px;
   text-align: center;
 }
+
 .ms-summary-card .val {
   font-size: 1.4em;
   font-weight: 700;
   font-family: var(--font-mono);
   color: var(--accent);
 }
+
 .ms-summary-card .lbl {
   font-size: 0.78em;
   color: var(--text-dim);
@@ -298,17 +931,20 @@ body {
   padding: 10px 12px;
   margin-bottom: 8px;
 }
+
 .ms-finding-card.sev-CRITICAL { border-left-color: #ef4444; }
 .ms-finding-card.sev-HIGH { border-left-color: #f59e0b; }
 .ms-finding-card.sev-MEDIUM { border-left-color: #3b82f6; }
 .ms-finding-card.sev-LOW { border-left-color: #22c55e; }
 .ms-finding-card.sev-INFO { border-left-color: #7a8a9e; }
+
 .ms-finding-head {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 4px;
 }
+
 .ms-finding-sev {
   font-size: 0.7em;
   font-weight: 700;
@@ -317,22 +953,36 @@ body {
   padding: 2px 6px;
   border-radius: 3px;
 }
-.sev-CRITICAL .ms-finding-sev { color: #ef4444; background: rgba(239,68,68,0.1); }
-.sev-HIGH .ms-finding-sev { color: #f59e0b; background: rgba(245,158,11,0.1); }
-.sev-MEDIUM .ms-finding-sev { color: #3b82f6; background: rgba(59,130,246,0.1); }
-.sev-LOW .ms-finding-sev { color: #22c55e; background: rgba(34,197,94,0.1); }
-.sev-INFO .ms-finding-sev { color: #7a8a9e; background: rgba(122,138,158,0.1); }
-.ms-finding-cat { font-size: 0.82em; font-family: var(--font-mono); color: var(--text-dim); }
+
+.sev-CRITICAL .ms-finding-sev { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+.sev-HIGH .ms-finding-sev { color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
+.sev-MEDIUM .ms-finding-sev { color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
+.sev-LOW .ms-finding-sev { color: #22c55e; background: rgba(34, 197, 94, 0.1); }
+.sev-INFO .ms-finding-sev { color: #7a8a9e; background: rgba(122, 138, 158, 0.1); }
+
+.ms-finding-cat {
+  font-size: 0.82em;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+}
+
 .ms-finding-desc { margin: 4px 0; color: var(--text); }
+
 .ms-finding-remediation {
   margin-top: 6px;
   padding: 6px 8px;
-  background: rgba(91,138,240,0.06);
+  background: rgba(91, 138, 240, 0.06);
   border-radius: 3px;
   font-size: 0.88em;
   color: var(--text-dim);
 }
-.ms-finding-remediation strong { color: var(--accent); font-weight: 600; font-size: 0.85em; }
+
+.ms-finding-remediation strong {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.85em;
+}
+
 .ms-finding-nodes {
   margin-top: 4px;
   font-size: 0.82em;
@@ -345,6 +995,7 @@ body {
   border-collapse: collapse;
   font-size: 0.88em;
 }
+
 .ms-asset-table th {
   text-align: left;
   padding: 6px 8px;
@@ -354,13 +1005,16 @@ body {
   border-bottom: 1px solid var(--border);
   font-weight: 600;
 }
+
 .ms-asset-table td {
   padding: 5px 8px;
   border-bottom: 1px solid var(--border-dim);
   font-family: var(--font-mono);
   font-size: 0.92em;
 }
-.ms-asset-table tr:hover td { background: rgba(91,138,240,0.04); }
+
+.ms-asset-table tr:hover td { background: rgba(91, 138, 240, 0.04); }
+
 .ms-asset-table .role-tag {
   display: inline-block;
   padding: 1px 6px;
@@ -369,15 +1023,57 @@ body {
   font-family: var(--font-ui);
 }
 
-.ms-purdue-item {
-  padding: 4px 0;
-  border-bottom: 1px solid var(--border-dim);
-  font-size: 0.9em;
+@media (max-width: 1180px) {
+  #ms-app,
+  #ms-app.report-open {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto minmax(320px, 45vh) minmax(0, 1fr);
+  }
+
+  #ms-app.report-open {
+    grid-template-rows: auto auto minmax(320px, 45vh) minmax(0, 1fr) minmax(220px, 42vh);
+  }
+
+  #ms-sidebar {
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+
+  .ms-report-columns { grid-template-columns: 1fr; }
 }
 
 @media print {
-  #ms-report-pane { display: block !important; grid-column: 1 / -1; overflow: visible; }
-  #ms-app.report-open { grid-template-rows: auto 1fr auto; }
+  body {
+    background: #fff;
+    color: #111;
+    overflow: visible;
+    height: auto;
+  }
+
+  #ms-app { display: block; height: auto; }
+  #ms-header,
+  #ms-toolbar {
+    background: #f0f0f0;
+    border-color: #ccc;
+  }
+
+  #ms-header h1 span { color: #c00; }
+  .ms-controls { display: none; }
+  .ms-overview-strip { grid-template-columns: repeat(3, 1fr); }
+  #ms-viewport { height: 600px; position: relative; }
+  #ms-sidebar { border-color: #ccc; background: #fafafa; }
+  .ms-risk-item,
+  .ms-sidebar-panel,
+  .ms-queue-item,
+  .ms-target-item,
+  .ms-service-item,
+  .ms-connection-item { background: #f5f5f5; }
+  #ms-tooltip { display: none !important; }
+  #ms-report-pane {
+    display: block !important;
+    grid-column: 1 / -1;
+    overflow: visible;
+  }
   .ms-section-body { display: block !important; }
   .ms-report-close { display: none; }
   .ms-report-tab-content { display: block !important; }
@@ -388,32 +1084,224 @@ body {
 <body>
 <div id="ms-app">
   <div id="ms-header">
-    <a href="/dashboard" class="ms-back-link">&#8592; Dashboard</a>
-    <h1><span>MarlinSpike</span> Topology Viewer</h1>
-    <div class="ms-stats" id="ms-stats"></div>
+    <div class="ms-header-main">
+      <div class="ms-title-row">
+        <a href="/dashboard" class="ms-back-link">&#8592; Dashboard</a>
+        <div class="ms-title-copy">
+          <h1><span>MarlinSpike</span> Analyst Workbench</h1>
+          <div class="ms-subtitle">
+            <span class="ms-file-badge">{{ filename }}</span>
+            <span>Breach triage, topology, and portable report review from a single report artifact.</span>
+          </div>
+        </div>
+      </div>
+      <div class="ms-stats" id="ms-stats">
+        {% if viewer_context.summary.packet_count %}
+        <span><b>{{ "{:,}".format(viewer_context.summary.packet_count) }}</b> packets</span>
+        {% endif %}
+        {% if viewer_context.summary.duration_seconds %}
+        <span><b>{{ "%.1f"|format(viewer_context.summary.duration_seconds) }}s</b> duration</span>
+        {% endif %}
+        <span><b>{{ viewer_context.summary.asset_count }}</b> nodes</span>
+        <span><b>{{ viewer_context.summary.edge_count }}</b> edges</span>
+        <span><b>{{ viewer_context.summary.protocol_count }}</b> protocols</span>
+      </div>
+      <div class="ms-overview-strip" id="ms-overview-strip">
+        <div class="ms-kpi-card healthy">
+          <span class="ms-kpi-value">{{ viewer_context.summary.classified_count }}</span>
+          <span class="ms-kpi-label">Classified Assets</span>
+          <span class="ms-kpi-detail">{{ viewer_context.summary.unclassified_count }} still need deeper identity review</span>
+        </div>
+        <div class="ms-kpi-card {{ 'danger' if viewer_context.summary.critical_high_count else 'healthy' }}">
+          <span class="ms-kpi-value">{{ viewer_context.summary.critical_high_count }}</span>
+          <span class="ms-kpi-label">Critical / High</span>
+          <span class="ms-kpi-detail">Risk records linked to the current report artifact</span>
+        </div>
+        <div class="ms-kpi-card {{ 'warn' if viewer_context.summary.auth_gap_count else 'healthy' }}">
+          <span class="ms-kpi-value">{{ viewer_context.summary.auth_gap_count }}</span>
+          <span class="ms-kpi-label">Auth Gaps</span>
+          <span class="ms-kpi-detail">Assets where authentication was not observed in traffic</span>
+        </div>
+        <div class="ms-kpi-card {{ 'warn' if viewer_context.summary.write_node_count else 'healthy' }}">
+          <span class="ms-kpi-value">{{ viewer_context.summary.write_node_count }}</span>
+          <span class="ms-kpi-label">Write-Capable Nodes</span>
+          <span class="ms-kpi-detail">{{ viewer_context.summary.write_edge_count }} writable or programming-capable paths</span>
+        </div>
+        <div class="ms-kpi-card {{ 'danger' if viewer_context.summary.priority_count else 'healthy' }}">
+          <span class="ms-kpi-value">{{ viewer_context.summary.priority_count }}</span>
+          <span class="ms-kpi-label">Priority Targets</span>
+          <span class="ms-kpi-detail">High-value assets surfaced for immediate responder review</span>
+        </div>
+      </div>
+    </div>
     <div class="ms-controls">
-      <button class="ms-btn ms-btn-accent" id="ms-btn-risk" onclick="MS.toggleRisk()">Risk</button>
-      <button class="ms-btn" id="ms-btn-report" onclick="MS.toggleReport()">Report</button>
-      <a class="ms-btn" href="/api/reports/{{ filename }}/assets" target="_blank" style="text-decoration:none">Assets</a>
+      <button class="ms-btn ms-btn-accent" id="ms-btn-risk" onclick="MS.toggleRisk()">Risk Overlay</button>
+      <button class="ms-btn" id="ms-btn-report" onclick="MS.toggleReport()">Assessment Report</button>
+      <a class="ms-btn" href="/api/reports/{{ filename }}/assets" target="_blank">Assets</a>
       <button class="ms-btn" onclick="MS.printReport()">Print</button>
       <button class="ms-btn" onclick="MS.exportPng()">PNG</button>
     </div>
   </div>
 
+  <div id="ms-toolbar">
+    <div class="ms-toolbar-main">
+      <label class="ms-search-field">
+        <span>Find Asset</span>
+        <input id="ms-search" type="search" autocomplete="off" placeholder="IP, vendor, role, product, protocol">
+      </label>
+      <label class="ms-select-field">
+        <span>Focus Queue</span>
+        <select id="ms-focus">
+          <option value="all">All assets</option>
+          <option value="priority">Priority targets</option>
+          <option value="risk">Assets with findings</option>
+          <option value="auth-gap">Auth gaps</option>
+          <option value="writes">Write-capable paths</option>
+          <option value="unclassified">Needs classification review</option>
+          <option value="ot">OT levels 0-2</option>
+          <option value="external">External / Level 5</option>
+          <option value="level-1">Purdue Level 1</option>
+          <option value="level-2">Purdue Level 2</option>
+          <option value="level-3">Purdue Level 3</option>
+        </select>
+      </label>
+      <button class="ms-btn" onclick="MS.clearFilters()">Clear Focus</button>
+    </div>
+    <div class="ms-toolbar-status" id="ms-toolbar-status"></div>
+  </div>
+
   <div id="ms-viewport">
     <div id="ms-svg-container"></div>
-    <div id="ms-detail"></div>
     <div id="ms-tooltip"></div>
     <div id="ms-empty"><h2>No topology data</h2><p>Report contains no discovered nodes.</p></div>
+    <noscript>
+      <div class="ms-noscript-note" style="position:absolute;left:16px;right:16px;bottom:16px;z-index:2;">
+        Interactive topology controls are unavailable without JavaScript. The rendered triage queues, findings, writable paths, external communications, and full assessment sections below remain fully usable.
+      </div>
+    </noscript>
   </div>
 
   <div id="ms-sidebar">
-    <div id="ms-sidebar-content"></div>
+    <div id="ms-sidebar-content">
+      <div class="ms-sidebar-panel">
+        <h3>Selected Asset</h3>
+        <div class="ms-empty-panel">
+          <strong>No asset selected.</strong><br>
+          With JavaScript enabled you can click a node to inspect it in place. Without JavaScript, use the rendered queues below to jump directly into asset sections in the report.
+        </div>
+      </div>
+
+      <div class="ms-sidebar-panel">
+        <h3>Operator Snapshot</h3>
+        <div class="ms-sidebar-kpis">
+          <div class="ms-sidebar-kpi"><span class="val">{{ viewer_context.summary.classified_count }}</span><span class="lbl">Classified assets</span></div>
+          <div class="ms-sidebar-kpi"><span class="val">{{ viewer_context.summary.unclassified_count }}</span><span class="lbl">Needs review</span></div>
+          <div class="ms-sidebar-kpi"><span class="val">{{ viewer_context.summary.critical_high_count }}</span><span class="lbl">Critical / high</span></div>
+          <div class="ms-sidebar-kpi"><span class="val">{{ viewer_context.summary.auth_gap_count }}</span><span class="lbl">Auth gaps</span></div>
+          <div class="ms-sidebar-kpi"><span class="val">{{ viewer_context.summary.write_node_count }}</span><span class="lbl">Write-capable nodes</span></div>
+          <div class="ms-sidebar-kpi"><span class="val">{{ viewer_context.summary.external_count }}</span><span class="lbl">External assets</span></div>
+        </div>
+      </div>
+
+      <div class="ms-sidebar-panel">
+        <h3>Priority Targets</h3>
+        {% if viewer_context.priority_nodes %}
+        <div class="ms-link-list">
+          {% for node in viewer_context.priority_nodes %}
+          <a class="ms-link-item" href="#asset-{{ node._anchor }}">
+            <div class="ms-queue-item">
+              <div class="ms-queue-copy">
+                <div class="ms-queue-ip">{{ node._ip }}</div>
+                <div class="ms-queue-role">{{ node.role or 'Unknown' }}</div>
+                <div class="ms-queue-note">
+                  {{ node.vendor or 'Unknown vendor' }}{% if node.product_line %} · {{ node.product_line }}{% endif %}
+                  {% if node.recommended_modules %} · {{ node.recommended_modules[:2] | join(', ') }}{% endif %}
+                </div>
+              </div>
+              <span class="ms-queue-priority">{{ node.attack_priority or 0 }}</span>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="ms-empty-panel">No attack-prioritized assets were surfaced in this report.</div>
+        {% endif %}
+      </div>
+
+      <div class="ms-sidebar-panel">
+        <h3>Auth Gaps</h3>
+        {% if viewer_context.auth_gap_nodes %}
+        <div class="ms-link-list">
+          {% for node in viewer_context.auth_gap_nodes %}
+          <a class="ms-link-item" href="#asset-{{ node._anchor }}">
+            <div class="ms-queue-item">
+              <div class="ms-queue-copy">
+                <div class="ms-queue-ip">{{ node._ip }}</div>
+                <div class="ms-queue-role">{{ node.role or 'Unknown' }}</div>
+                <div class="ms-queue-note">Authentication was not observed{% if node.protocols %} · {{ node.protocols[:3] | join(', ') }}{% endif %}</div>
+              </div>
+              <span class="ms-queue-priority">{{ node._risk_count }}</span>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="ms-empty-panel">No auth-gap assets were identified in this report.</div>
+        {% endif %}
+      </div>
+
+      <div class="ms-sidebar-panel">
+        <h3>Write-Capable Paths</h3>
+        {% if viewer_context.write_paths %}
+        {% for edge in viewer_context.write_paths %}
+        <div class="ms-service-item">
+          <a class="ms-link-item" href="#asset-{{ edge._anchor_src }}"><code>{{ edge.src }}</code></a>
+          &nbsp;→&nbsp;
+          <a class="ms-link-item" href="#asset-{{ edge._anchor_dst }}"><code>{{ edge.dst }}</code></a>
+          <br>
+          <span style="color:{{ '#ef4444' if edge.includes_program_access else '#f59e0b' if edge.includes_writes else 'var(--text-dim)' }}">{{ edge.protocol or 'Unknown' }}</span>
+          · {{ edge.conversation_count or 0 }} conv
+          {% if edge.includes_program_access %} · PROGRAM{% elif edge.includes_writes %} · WRITE{% endif %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="ms-empty-panel">No write-capable or programming-capable paths were identified.</div>
+        {% endif %}
+      </div>
+
+      <div class="ms-sidebar-panel">
+        <h3>Suspicious External Comms</h3>
+        {% if viewer_context.external_indicators %}
+        {% for indicator in viewer_context.external_indicators[:5] %}
+        <div class="ms-risk-item sev-{{ indicator.severity }}">
+          <div class="ms-risk-sev">{{ indicator.severity }} — {{ indicator.type }}</div>
+          <div>{{ indicator.description }}</div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="ms-empty-panel">No C2 or external-communication indicators were produced for this report.</div>
+        {% endif %}
+      </div>
+
+      <div class="ms-sidebar-panel">
+        <h3>Protocol Mix</h3>
+        {% if viewer_context.protocol_items %}
+        {% for proto in viewer_context.protocol_items %}
+        <div class="ms-legend-item">
+          <span>{{ proto.name }}</span>
+          <span class="ms-legend-count">{{ proto.count }}</span>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="ms-empty-panel">No protocol summary is available.</div>
+        {% endif %}
+      </div>
+    </div>
   </div>
 
   <div id="ms-report-pane">
     <div class="ms-report-header">
-      <h2><span>Assessment</span> Report</h2>
+      <h2><span>Assessment</span> & Triage Report</h2>
       <button class="ms-report-close" onclick="MS.toggleReport()" title="Close">&times;</button>
     </div>
     <div class="ms-report-tabs">
@@ -423,65 +1311,282 @@ body {
     <div id="ms-tab-report" class="ms-report-tab-content active">
       <div class="ms-report-columns">
         <div class="ms-report-col">
-          <div id="ms-rpt-summary" class="ms-section open"></div>
-          <div id="ms-rpt-findings" class="ms-section open"></div>
-          <div id="ms-rpt-purdue" class="ms-section"></div>
+          <div id="ms-rpt-summary" class="ms-section open">
+            <button class="ms-section-toggle" onclick="MS.toggleSection('ms-rpt-summary')"><span class="chevron">&#9654;</span>Executive Summary</button>
+            <div class="ms-section-body">
+              <div class="ms-summary-grid">
+                <div class="ms-summary-card"><div class="val">{{ viewer_context.summary.asset_count }}</div><div class="lbl">Assets</div></div>
+                <div class="ms-summary-card"><div class="val">{{ viewer_context.summary.edge_count }}</div><div class="lbl">Connections</div></div>
+                <div class="ms-summary-card"><div class="val">{{ viewer_context.summary.protocol_count }}</div><div class="lbl">Protocols</div></div>
+                {% if viewer_context.summary.packet_count %}
+                <div class="ms-summary-card"><div class="val">{{ "{:,}".format(viewer_context.summary.packet_count) }}</div><div class="lbl">Packets</div></div>
+                {% endif %}
+                {% if viewer_context.summary.duration_seconds %}
+                <div class="ms-summary-card"><div class="val">{{ "%.1f"|format(viewer_context.summary.duration_seconds) }}s</div><div class="lbl">Duration</div></div>
+                {% endif %}
+                <div class="ms-summary-card"><div class="val" style="color:{{ 'var(--color-danger)' if viewer_context.summary.critical_high_count else 'var(--accent-green)' }}">{{ viewer_context.summary.critical_high_count }}</div><div class="lbl">Critical/High</div></div>
+              </div>
+              {% if report.timestamp_start %}
+              <div style="font-size:0.82em;color:var(--text-dim);margin-top:4px;">Scan: {{ report.timestamp_start }}{% if report.timestamp_end %} — {{ report.timestamp_end }}{% endif %}</div>
+              {% endif %}
+              {% if report.capture_info and report.capture_info.pcap_path %}
+              <div style="font-size:0.82em;color:var(--text-dim);">Source: <span style="font-family:var(--font-mono)">{{ report.capture_info.pcap_path }}</span></div>
+              {% endif %}
+            </div>
+          </div>
+          <div id="ms-rpt-findings" class="ms-section open">
+            <button class="ms-section-toggle" onclick="MS.toggleSection('ms-rpt-findings')"><span class="chevron">&#9654;</span>Risk Findings & Recommendations ({{ viewer_context.top_findings|length }})</button>
+            <div class="ms-section-body">
+              {% if viewer_context.top_findings %}
+                {% for finding in viewer_context.top_findings %}
+                <div class="ms-finding-card sev-{{ finding.severity }}">
+                  <div class="ms-finding-head"><span class="ms-finding-sev">{{ finding.severity }}</span><span class="ms-finding-cat">{{ finding.category }}</span></div>
+                  <div class="ms-finding-desc">{{ finding.description }}</div>
+                  {% if finding.remediation %}
+                  <div class="ms-finding-remediation"><strong>Recommendation:</strong> {{ finding.remediation }}</div>
+                  {% endif %}
+                  {% if finding.affected_nodes %}
+                  <div class="ms-finding-nodes">Affected: {{ finding.affected_nodes | join(', ') }}</div>
+                  {% endif %}
+                </div>
+                {% endfor %}
+              {% else %}
+              <div style="color:var(--text-dim);padding:8px 0;">No risk findings.</div>
+              {% endif %}
+            </div>
+          </div>
+          <div id="ms-rpt-purdue" class="ms-section">
+            <button class="ms-section-toggle" onclick="MS.toggleSection('ms-rpt-purdue')"><span class="chevron">&#9654;</span>Purdue Model Violations ({{ viewer_context.purdue_violations|length }})</button>
+            <div class="ms-section-body">
+              {% if viewer_context.purdue_violations %}
+                {% for violation in viewer_context.purdue_violations %}
+                <div class="ms-purdue-item">{{ violation }}</div>
+                {% endfor %}
+              {% else %}
+              <div style="color:var(--text-dim);padding:8px 0;">No violations detected.</div>
+              {% endif %}
+            </div>
+          </div>
         </div>
         <div class="ms-report-col">
-          <div id="ms-rpt-assets" class="ms-section open"></div>
-          <div id="ms-rpt-protocols" class="ms-section"></div>
-          <div id="ms-rpt-ports" class="ms-section"></div>
-          <div id="ms-rpt-c2" class="ms-section"></div>
+          <div id="ms-rpt-assets" class="ms-section open">
+            <button class="ms-section-toggle" onclick="MS.toggleSection('ms-rpt-assets')"><span class="chevron">&#9654;</span>Asset Inventory ({{ viewer_context.assets_sorted|length }})</button>
+            <div class="ms-section-body">
+              {% for node in viewer_context.assets_sorted %}
+              <div id="asset-{{ node._anchor }}" class="ms-asset-card" style="background:var(--panel-alt);border:1px solid var(--border-dim);border-radius:4px;padding:12px;margin-bottom:8px;border-left:3px solid var(--border);">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;">
+                  <span style="font-family:var(--font-mono);font-size:1.05em;font-weight:600">{{ node._ip }}</span>
+                  <span class="role-tag" style="background:rgba(91,138,240,0.12);color:var(--accent);border:1px solid rgba(91,138,240,0.24);padding:2px 8px;border-radius:3px;font-size:0.82em">{{ node.role or 'Unknown' }}</span>
+                  <span style="color:var(--text-dim);font-size:0.82em;font-weight:600">Level {{ node.purdue_level if node.purdue_level is not none else -1 }}</span>
+                  {% if node.attack_priority %}
+                  <span style="margin-left:auto;font-family:var(--font-mono);font-size:0.82em;padding:2px 8px;border-radius:3px;background:rgba(239,68,68,0.1);color:var(--color-danger)">Priority {{ node.attack_priority }}</span>
+                  {% endif %}
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:4px 16px;font-size:0.85em;margin-bottom:6px">
+                  <div><span style="color:var(--text-dim)">Vendor:</span> <span style="font-family:var(--font-mono)">{{ node.vendor or 'Unknown' }}</span></div>
+                  <div><span style="color:var(--text-dim)">Device Type:</span> <span style="font-family:var(--font-mono)">{{ node.device_type or 'Unknown' }}</span></div>
+                  <div><span style="color:var(--text-dim)">Product:</span> <span style="font-family:var(--font-mono)">{{ node.product_line or '—' }}</span></div>
+                  <div><span style="color:var(--text-dim)">System Name:</span> <span style="font-family:var(--font-mono)">{{ node.system_name or '—' }}</span></div>
+                  <div><span style="color:var(--text-dim)">Auth Observed:</span> <span style="font-family:var(--font-mono);color:{{ 'var(--accent-green)' if node.auth_observed else 'var(--color-warning)' }}">{{ 'Yes' if node.auth_observed else 'No' }}</span></div>
+                  <div><span style="color:var(--text-dim)">Mgmt IP:</span> <span style="font-family:var(--font-mono)">{{ node.mgmt_ip or '—' }}</span></div>
+                </div>
+                {% if node.protocols %}
+                <div style="margin-bottom:6px">
+                  {% for proto in node.protocols %}
+                  <span style="display:inline-block;padding:2px 6px;margin:2px;border-radius:3px;font-size:0.8em;font-family:var(--font-mono);background:rgba(91,138,240,0.08);color:var(--accent);border:1px solid rgba(91,138,240,0.2)">{{ proto }}</span>
+                  {% endfor %}
+                </div>
+                {% endif %}
+                {% if node.recommended_modules %}
+                <div style="margin-bottom:6px;font-size:0.82em"><span style="color:var(--text-dim)">Recommended Modules:</span> {{ node.recommended_modules | join(', ') }}</div>
+                {% endif %}
+                {% if node._top_risk %}
+                <div class="ms-risk-item sev-{{ node._top_risk.severity }}" style="margin:3px 0 0">
+                  <div class="ms-risk-sev">{{ node._top_risk.severity }} — {{ node._top_risk.category }}</div>
+                  <div>{{ node._top_risk.description }}</div>
+                </div>
+                {% endif %}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          <div id="ms-rpt-protocols" class="ms-section">
+            <button class="ms-section-toggle" onclick="MS.toggleSection('ms-rpt-protocols')"><span class="chevron">&#9654;</span>Protocol Breakdown ({{ viewer_context.protocol_items|length }})</button>
+            <div class="ms-section-body">
+              {% if viewer_context.protocol_items %}
+              <table class="ms-asset-table">
+                <thead><tr><th>Protocol</th><th>Conversations</th></tr></thead>
+                <tbody>
+                  {% for proto in viewer_context.protocol_items %}
+                  <tr><td>{{ proto.name }}</td><td>{{ proto.count }}</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+              <div style="color:var(--text-dim);padding:8px 0;">No protocols.</div>
+              {% endif %}
+            </div>
+          </div>
+          <div id="ms-rpt-ports" class="ms-section">
+            <button class="ms-section-toggle" onclick="MS.toggleSection('ms-rpt-ports')"><span class="chevron">&#9654;</span>Port Analysis ({{ viewer_context.port_items|length }})</button>
+            <div class="ms-section-body">
+              {% if viewer_context.port_items %}
+              <table class="ms-asset-table">
+                <thead><tr><th>Port</th><th>Protocol</th><th>Category</th><th>Conns</th><th>Peers</th></tr></thead>
+                <tbody>
+                  {% for port in viewer_context.port_items %}
+                  <tr>
+                    <td>{{ port.label }}</td>
+                    <td>{{ port.protocol }}</td>
+                    <td>{{ port.category }}</td>
+                    <td>{{ port.connections or 0 }}</td>
+                    <td>{{ port.unique_peers or 0 }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+              <div style="color:var(--text-dim);padding:8px 0;">No port data.</div>
+              {% endif %}
+            </div>
+          </div>
+          <div id="ms-rpt-c2" class="ms-section">
+            <button class="ms-section-toggle" onclick="MS.toggleSection('ms-rpt-c2')"><span class="chevron">&#9654;</span>C2 Indicators ({{ viewer_context.c2_indicators|length }})</button>
+            <div class="ms-section-body">
+              {% if viewer_context.c2_indicators %}
+                {% for indicator in viewer_context.c2_indicators %}
+                <div class="ms-finding-card sev-{{ indicator.severity }}">
+                  <div class="ms-finding-head"><span class="ms-finding-sev">{{ indicator.severity }}</span><span class="ms-finding-cat">{{ indicator.type }}</span></div>
+                  <div class="ms-finding-desc">{{ indicator.description }}</div>
+                </div>
+                {% endfor %}
+              {% else %}
+              <div style="color:var(--accent-green);padding:8px 0;">No C2 indicators detected.</div>
+              {% endif %}
+            </div>
+          </div>
         </div>
       </div>
     </div>
     <div id="ms-tab-mac-table" class="ms-report-tab-content">
-      <div id="ms-rpt-mac-table" style="margin-top:12px"></div>
+      <div id="ms-rpt-mac-table" style="margin-top:12px">
+        {% if viewer_context.mac_table %}
+        <table class="ms-asset-table">
+          <thead><tr><th>MAC Address</th><th>IP Address</th><th>Vendor</th><th>System Name</th><th>Capabilities</th><th>Source</th></tr></thead>
+          <tbody>
+            {% for entry in viewer_context.mac_table %}
+            <tr>
+              <td style="font-family:var(--font-mono)">{{ entry.mac }}</td>
+              <td style="font-family:var(--font-mono)">{{ entry.ip or '—' }}</td>
+              <td>{{ entry.vendor or 'Unknown' }}</td>
+              <td>{{ entry.system_name or '—' }}</td>
+              <td>{{ (entry.capabilities or []) | join(', ') or '—' }}</td>
+              <td>{{ entry.source or 'unknown' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div style="color:var(--text-dim);padding:16px 0;">No MAC address data available.</div>
+        {% endif %}
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-// ===========================================================================
-// MarlinSpike Viewer — Standalone topology visualization
-// (Identical to riverFLOW version, just with back-nav link added)
-// ===========================================================================
 var MS = (function() {
   'use strict';
 
   var REPORT = {{ report_json | tojson }};
 
   var ROLE_STYLES = {
-    'PLC':                    { color: '#d4943a', label: 'PLC',        geo: 'box',      level: 1 },
-    'RTU':                    { color: '#f59e0b', label: 'RTU',        geo: 'box',      level: 1 },
-    'RTU/PLC':                { color: '#f59e0b', label: 'RTU/PLC',    geo: 'box',      level: 1 },
-    'Field Device':           { color: '#22c55e', label: 'Field',      geo: 'sphere',   level: 1 },
-    'HMI':                    { color: '#3b82f6', label: 'HMI',        geo: 'box',      level: 2 },
-    'HMI/SCADA':              { color: '#3b82f6', label: 'HMI',        geo: 'box',      level: 2 },
-    'SCADA':                  { color: '#32b8c6', label: 'SCADA',      geo: 'icosa',    level: 2 },
-    'Supervisory Controller': { color: '#32b8c6', label: 'SCADA',      geo: 'icosa',    level: 2 },
-    'Building Controller':    { color: '#0ea5e9', label: 'BMS',        geo: 'box',      level: 2 },
-    'Protective Relay':       { color: '#f97316', label: 'Relay',      geo: 'box',      level: 1 },
-    'Historian':              { color: '#a855f7', label: 'Historian',  geo: 'cylinder', level: 3 },
-    'Historian/MES':          { color: '#a855f7', label: 'Historian',  geo: 'cylinder', level: 3 },
-    'Engineering Workstation':{ color: '#ef4444', label: 'Eng WS',     geo: 'box',      level: 2 },
-    'Operations Workstation': { color: '#60a5fa', label: 'Ops WS',     geo: 'box',      level: 3 },
-    'Operations Host':        { color: '#94a3b8', label: 'Host',       geo: 'sphere',   level: 3 },
-    'Application Server':     { color: '#8b5cf6', label: 'Server',     geo: 'cylinder', level: 3 },
-    'Server':                 { color: '#8b5cf6', label: 'Server',     geo: 'cylinder', level: 3 },
-    'Security Appliance':     { color: '#ec4899', label: 'Security',   geo: 'box',      level: 2 },
-    'Industrial Appliance':   { color: '#06b6d4', label: 'Appliance',  geo: 'box',      level: 2 },
-    'Gateway':                { color: '#06b6d4', label: 'Gateway',    geo: 'box',      level: 2 },
-    'External Host':          { color: '#94a3b8', label: 'External',   geo: 'sphere',   level: 4 },
-    'Broadcast/Multicast':    { color: '#64748b', label: 'Broadcast',  geo: 'sphere',   level: -1 },
-    'Network Switch':         { color: '#64748b', label: 'Switch',     geo: 'box',      level: -1 },
-    'Router':                 { color: '#06b6d4', label: 'Router',     geo: 'box',      level: -1 },
-    'Network Infrastructure': { color: '#64748b', label: 'Infrastructure', geo: 'box', level: -1 },
-    'Unknown':                { color: '#7a8a9e', label: 'Unknown',    geo: 'sphere',   level: -1 }
+    'PLC': { color: '#d4943a', label: 'PLC', level: 1 },
+    'RTU': { color: '#f59e0b', label: 'RTU', level: 1 },
+    'RTU/PLC': { color: '#f59e0b', label: 'RTU/PLC', level: 1 },
+    'Field Device': { color: '#22c55e', label: 'Field', level: 1 },
+    'HMI': { color: '#3b82f6', label: 'HMI', level: 2 },
+    'HMI/SCADA': { color: '#3b82f6', label: 'HMI', level: 2 },
+    'SCADA': { color: '#32b8c6', label: 'SCADA', level: 2 },
+    'Supervisory Controller': { color: '#32b8c6', label: 'SCADA', level: 2 },
+    'Building Controller': { color: '#0ea5e9', label: 'BMS', level: 2 },
+    'Protective Relay': { color: '#f97316', label: 'Relay', level: 1 },
+    'Historian': { color: '#a855f7', label: 'Historian', level: 3 },
+    'Historian/MES': { color: '#a855f7', label: 'Historian', level: 3 },
+    'Engineering Workstation': { color: '#ef4444', label: 'Eng WS', level: 2 },
+    'Operations Workstation': { color: '#60a5fa', label: 'Ops WS', level: 3 },
+    'Operations Host': { color: '#94a3b8', label: 'Host', level: 3 },
+    'Application Server': { color: '#8b5cf6', label: 'Server', level: 3 },
+    'Server': { color: '#8b5cf6', label: 'Server', level: 3 },
+    'Security Appliance': { color: '#ec4899', label: 'Security', level: 2 },
+    'Industrial Appliance': { color: '#06b6d4', label: 'Appliance', level: 2 },
+    'Gateway': { color: '#06b6d4', label: 'Gateway', level: 2 },
+    'External Host': { color: '#94a3b8', label: 'External', level: 4 },
+    'Broadcast/Multicast': { color: '#64748b', label: 'Broadcast', level: -1 },
+    'Network Switch': { color: '#64748b', label: 'Switch', level: -1 },
+    'Router': { color: '#06b6d4', label: 'Router', level: -1 },
+    'Network Infrastructure': { color: '#64748b', label: 'Infrastructure', level: -1 },
+    'Unknown': { color: '#7a8a9e', label: 'Unknown', level: -1 }
   };
 
+  var PROTOCOL_COLORS = {
+    'Modbus': '#22c55e',
+    'Modbus/TCP': '#22c55e',
+    'DNP3': '#3aad6b',
+    'CIP': '#16a34a',
+    'EtherNet/IP': '#059669',
+    'OPC UA': '#0d9488',
+    'PROFINET': '#06b6d4',
+    'BACnet': '#0ea5e9',
+    'MQTT': '#3b82f6',
+    'HTTP': '#8b5cf6',
+    'HTTPS': '#7c3aed',
+    'SSH': '#6366f1',
+    'Telnet': '#ef4444',
+    'FTP': '#dc2626',
+    'SNMP': '#ec4899',
+    'ARP': '#f59e0b',
+    'ICMP': '#d4943a',
+    'DNS': '#a855f7',
+    'NTP': '#64748b',
+    'TCP': '#94a3b8',
+    'UDP': '#94a3b8',
+    '_default': '#64748b'
+  };
+
+  var PURDUE_LABELS = {
+    '-1': 'Unknown',
+    '0': 'Level 0 — Physical Process',
+    '1': 'Level 1 — Basic Control',
+    '2': 'Level 2 — Supervisory',
+    '3': 'Level 3 — Operations',
+    '4': 'Level 4 — Enterprise',
+    '5': 'Level 5 — DMZ / External'
+  };
+
+  var PURDUE_COLORS = {
+    '-1': '#64748b',
+    '0': '#f59e0b',
+    '1': '#22c55e',
+    '2': '#3b82f6',
+    '3': '#a855f7',
+    '4': '#ef4444',
+    '5': '#ec4899'
+  };
+
+  var filterState = { query: '', focus: 'all' };
+  var riskOverlay = false;
+  var reportOpen = false;
+  var macTableRendered = false;
+  var nodes = [];
+  var edges = [];
+  var nodeByIp = {};
+  var selectedNode = null;
+  var svgEl = null;
+  var viewBox = { x: 0, y: 0, w: 1000, h: 600 };
+
   function resolveRoleStyle(role) {
-    if (!role) return ROLE_STYLES['Unknown'];
+    if (!role) return ROLE_STYLES.Unknown;
     if (ROLE_STYLES[role]) return ROLE_STYLES[role];
     for (var k in ROLE_STYLES) {
       if (role.indexOf(k) === 0) return ROLE_STYLES[k];
@@ -491,61 +1596,259 @@ var MS = (function() {
     if (role.indexOf('Relay') >= 0 || role.indexOf('IED') >= 0) return ROLE_STYLES['Protective Relay'];
     if (role.indexOf('Controller') >= 0) return ROLE_STYLES['Supervisory Controller'];
     if (role.indexOf('Appliance') >= 0 || role.indexOf('Gateway') >= 0) return ROLE_STYLES['Industrial Appliance'];
-    return { color: '#7a8a9e', label: role, geo: 'sphere', level: -1 };
+    return { color: '#7a8a9e', label: role, level: -1 };
   }
 
-  var PROTOCOL_COLORS = {
-    'Modbus': '#22c55e', 'Modbus/TCP': '#22c55e', 'DNP3': '#3aad6b',
-    'CIP': '#16a34a', 'EtherNet/IP': '#059669', 'OPC UA': '#0d9488',
-    'PROFINET': '#06b6d4', 'BACnet': '#0ea5e9', 'MQTT': '#3b82f6',
-    'HTTP': '#8b5cf6', 'HTTPS': '#7c3aed', 'SSH': '#6366f1',
-    'Telnet': '#ef4444', 'FTP': '#dc2626', 'SNMP': '#ec4899',
-    'ARP': '#f59e0b', 'ICMP': '#d4943a', 'DNS': '#a855f7',
-    'NTP': '#64748b', 'TCP': '#94a3b8', 'UDP': '#94a3b8',
-    '_default': '#64748b',
-  };
+  function protoColor(proto) {
+    return PROTOCOL_COLORS[proto] || PROTOCOL_COLORS._default;
+  }
 
-  var PURDUE_LABELS = {
-    '-1': 'Unknown', '0': 'Level 0 \u2014 Physical Process',
-    '1': 'Level 1 \u2014 Basic Control', '2': 'Level 2 \u2014 Supervisory',
-    '3': 'Level 3 \u2014 Operations', '4': 'Level 4 \u2014 Enterprise',
-    '5': 'Level 5 \u2014 DMZ',
-  };
-  var PURDUE_COLORS = { '-1': '#64748b', '0': '#f59e0b', '1': '#22c55e', '2': '#3b82f6', '3': '#a855f7', '4': '#ef4444', '5': '#ec4899' };
+  function esc(s) {
+    if (s == null) return '';
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
 
-  var riskOverlay = false;
-  var nodes = [];
-  var edges = [];
-  var nodeByIp = {};
-  var selectedNode = null;
-  var svgEl = null;
-  var viewBox = { x: 0, y: 0, w: 1000, h: 600 };
+  function escjs(s) {
+    return String(s == null ? '' : s)
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, '\\\'')
+      .replace(/\r/g, '')
+      .replace(/\n/g, ' ');
+  }
+
+  function formatList(values) {
+    return values && values.length ? values.map(esc).join(', ') : '—';
+  }
+
+  function toArray(value) {
+    return Array.isArray(value) ? value : [];
+  }
+
+  function formatBytes(bytes) {
+    var num = Number(bytes || 0);
+    if (num >= 1073741824) return (num / 1073741824).toFixed(1) + ' GB';
+    if (num >= 1048576) return (num / 1048576).toFixed(1) + ' MB';
+    if (num >= 1024) return (num / 1024).toFixed(1) + ' KB';
+    return num + ' B';
+  }
+
+  function severityRank(sev) {
+    return { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 }[sev] || 5;
+  }
+
+  function nodeRiskFindings(n) {
+    return n && n._riskFindings ? n._riskFindings : [];
+  }
+
+  function nodeHasRisk(n) {
+    return nodeRiskFindings(n).length > 0;
+  }
+
+  function nodeHasAuthGap(n) {
+    return !n.auth_observed;
+  }
+
+  function nodeHasWritePath(n) {
+    return !!n._hasWrites;
+  }
+
+  function nodeIsExternal(n) {
+    return n._level === 5 || n._role === 'External Host';
+  }
+
+  function nodeIsOt(n) {
+    return n._level >= 0 && n._level <= 2;
+  }
+
+  function nodeIsUnclassified(n) {
+    var vendorKnown = n.vendor && n.vendor !== 'Unknown';
+    var deviceKnown = n.device_type && n.device_type !== 'Unknown';
+    return !(vendorKnown || deviceKnown || n.product_line || n.system_name || n.system_desc);
+  }
+
+  function buildNodeSearchBlob(n) {
+    var parts = [
+      n._ip,
+      n._role,
+      n.vendor,
+      n.device_type,
+      n.product_line,
+      n.system_name,
+      n.system_desc,
+      n.mgmt_ip,
+      toArray(n.capabilities).join(' '),
+      toArray(n.vlans).join(' '),
+      toArray(n._protocols).join(' '),
+      toArray(n.recommended_modules).join(' ')
+    ];
+    return parts.join(' ').toLowerCase();
+  }
+
+  function nodePriorityScore(n) {
+    return (n.attack_priority || 0) * 10 + n._connCount + (nodeHasRisk(n) ? 3 : 0) + (nodeHasWritePath(n) ? 2 : 0);
+  }
+
+  function compareNodes(a, b) {
+    return nodePriorityScore(b) - nodePriorityScore(a);
+  }
 
   function initData() {
     nodes = REPORT.nodes || [];
     edges = REPORT.edges || [];
     nodeByIp = {};
+
     nodes.forEach(function(n) {
       var ip = n.ip || n.address || '';
       n._ip = ip;
       n._role = n.role || 'Unknown';
-      n._level = (n.purdue_level != null) ? n.purdue_level : -1;
+      n._level = n.purdue_level != null ? n.purdue_level : -1;
       n._style = resolveRoleStyle(n._role);
-      n._protocols = n.protocols || [];
+      n._protocols = toArray(n.protocols);
       n._connCount = 0;
       n._edges = [];
+      n._riskFindings = [];
+      n._hasWrites = false;
+      n._searchBlob = '';
       nodeByIp[ip] = n;
     });
+
     edges.forEach(function(e) {
       var src = nodeByIp[e.src];
       var dst = nodeByIp[e.dst];
-      if (src) { src._connCount++; src._edges.push(e); }
-      if (dst) { dst._connCount++; dst._edges.push(e); }
-      e._color = PROTOCOL_COLORS[e.protocol] || PROTOCOL_COLORS['_default'];
+      if (src) {
+        src._connCount++;
+        src._edges.push(e);
+        if (e.includes_writes || e.includes_program_access) src._hasWrites = true;
+      }
+      if (dst) {
+        dst._connCount++;
+        dst._edges.push(e);
+        if (e.includes_writes || e.includes_program_access) dst._hasWrites = true;
+      }
+      e._color = protoColor(e.protocol);
+    });
+
+    (REPORT.risk_findings || []).forEach(function(r) {
+      toArray(r.affected_nodes).forEach(function(ip) {
+        if (nodeByIp[ip] && r.category !== 'NO_AUTH_OBSERVED') {
+          nodeByIp[ip]._riskFindings.push(r);
+        }
+      });
+    });
+
+    nodes.forEach(function(n) {
+      n._riskFindings.sort(function(a, b) { return severityRank(a.severity) - severityRank(b.severity); });
+      n._searchBlob = buildNodeSearchBlob(n);
     });
   }
 
-  function protoColor(proto) { return PROTOCOL_COLORS[proto] || PROTOCOL_COLORS['_default']; }
+  function getFocusCounts() {
+    return {
+      priority: getQueueNodes('priority').length,
+      risk: getQueueNodes('risk').length,
+      authGap: getQueueNodes('auth-gap').length,
+      writes: getQueueNodes('writes').length,
+      unclassified: getQueueNodes('unclassified').length
+    };
+  }
+
+  function getOverviewState() {
+    var risks = REPORT.risk_findings || [];
+    var counts = getFocusCounts();
+    var severity = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 };
+    risks.forEach(function(r) {
+      severity[r.severity] = (severity[r.severity] || 0) + 1;
+    });
+    var classified = nodes.filter(function(n) { return !nodeIsUnclassified(n); }).length;
+    var external = nodes.filter(nodeIsExternal).length;
+    var writeEdges = edges.filter(function(e) { return e.includes_writes || e.includes_program_access; }).length;
+    return {
+      classified: classified,
+      unknown: nodes.length - classified,
+      critHigh: (severity.CRITICAL || 0) + (severity.HIGH || 0),
+      severity: severity,
+      authGap: counts.authGap,
+      writeEdges: writeEdges,
+      writeNodes: counts.writes,
+      priority: counts.priority,
+      external: external
+    };
+  }
+
+  function focusMatches(n, focus) {
+    if (!focus || focus === 'all') return true;
+    if (focus === 'priority') return (n.attack_priority || 0) > 0;
+    if (focus === 'risk') return nodeHasRisk(n);
+    if (focus === 'auth-gap') return nodeHasAuthGap(n);
+    if (focus === 'writes') return nodeHasWritePath(n);
+    if (focus === 'unclassified') return nodeIsUnclassified(n);
+    if (focus === 'ot') return nodeIsOt(n);
+    if (focus === 'external') return nodeIsExternal(n);
+    if (focus === 'level-1') return n._level === 1;
+    if (focus === 'level-2') return n._level === 2;
+    if (focus === 'level-3') return n._level === 3;
+    return true;
+  }
+
+  function queryMatches(n, query) {
+    if (!query) return true;
+    return n._searchBlob.indexOf(query) >= 0;
+  }
+
+  function matchesNodeFilter(n) {
+    return focusMatches(n, filterState.focus) && queryMatches(n, filterState.query);
+  }
+
+  function getFilteredNodes() {
+    return nodes.filter(matchesNodeFilter).sort(compareNodes);
+  }
+
+  function getQueueNodes(focus) {
+    return nodes.filter(function(n) { return focusMatches(n, focus); }).sort(compareNodes);
+  }
+
+  function queueTitle(focus) {
+    return {
+      all: 'Visible Assets',
+      priority: 'Priority Targets',
+      risk: 'Assets With Findings',
+      'auth-gap': 'Auth Gaps',
+      writes: 'Write-Capable Paths',
+      unclassified: 'Needs Classification Review',
+      ot: 'OT Assets',
+      external: 'External / Level 5',
+      'level-1': 'Purdue Level 1',
+      'level-2': 'Purdue Level 2',
+      'level-3': 'Purdue Level 3'
+    }[focus || 'all'] || 'Visible Assets';
+  }
+
+  function describeNodeForFocus(n, focus) {
+    if (focus === 'priority') {
+      var modules = toArray(n.recommended_modules).slice(0, 2).join(', ');
+      return 'Priority ' + (n.attack_priority || 0) + (modules ? ' · ' + modules : ' · review next');
+    }
+    if (focus === 'risk') {
+      var topRisk = nodeRiskFindings(n)[0];
+      return topRisk ? topRisk.severity + ' · ' + topRisk.category : 'Has linked findings';
+    }
+    if (focus === 'auth-gap') {
+      return 'Auth not observed · ' + (n._protocols[0] || 'review services');
+    }
+    if (focus === 'writes') {
+      var writeEdge = n._edges.find(function(e) { return e.includes_writes || e.includes_program_access; });
+      return writeEdge ? writeEdge.protocol + ' write path · ' + writeEdge.src + ' ↔ ' + writeEdge.dst : 'Writable communications present';
+    }
+    if (focus === 'unclassified') {
+      return 'Low identity depth · vendor/product/system naming missing';
+    }
+    if (focus === 'external') {
+      return 'External adjacency · ' + (n._protocols[0] || 'unknown protocol');
+    }
+    return (n.vendor && n.vendor !== 'Unknown' ? n.vendor : 'Unknown vendor') + ' · ' + (n.device_type || 'Unknown device');
+  }
 
   function renderHeader() {
     var ci = REPORT.capture_info || {};
@@ -555,142 +1858,477 @@ var MS = (function() {
     if (ci.duration_seconds) parts.push('<b>' + ci.duration_seconds.toFixed(1) + 's</b> duration');
     parts.push('<b>' + nodes.length + '</b> nodes');
     parts.push('<b>' + edges.length + '</b> edges');
-    var protos = Object.keys(REPORT.protocol_summary || {});
-    parts.push('<b>' + protos.length + '</b> protocols');
+    parts.push('<b>' + Object.keys(REPORT.protocol_summary || {}).length + '</b> protocols');
     stats.innerHTML = parts.join(' &middot; ');
+
+    var state = getOverviewState();
+    var cards = [
+      {
+        cls: 'healthy',
+        label: 'Classified Assets',
+        value: state.classified,
+        detail: state.unknown + ' still need deeper identity review',
+        focus: 'unclassified'
+      },
+      {
+        cls: state.critHigh ? 'danger' : 'healthy',
+        label: 'Critical / High',
+        value: state.critHigh,
+        detail: state.critHigh ? 'Start with findings tied to assets in view' : 'No high-severity findings in report',
+        focus: 'risk'
+      },
+      {
+        cls: state.authGap ? 'warn' : 'healthy',
+        label: 'Auth Gaps',
+        value: state.authGap,
+        detail: 'Assets where auth was not observed on traffic',
+        focus: 'auth-gap'
+      },
+      {
+        cls: state.writeNodes ? 'warn' : 'healthy',
+        label: 'Write Paths',
+        value: state.writeNodes,
+        detail: state.writeEdges + ' write-capable edges across the graph',
+        focus: 'writes'
+      },
+      {
+        cls: state.priority ? 'danger' : 'healthy',
+        label: 'Priority Targets',
+        value: state.priority,
+        detail: 'High-value assets with attack scoring or modules',
+        focus: 'priority'
+      }
+    ];
+    document.getElementById('ms-overview-strip').innerHTML = cards.map(function(card) {
+      return '<button class="ms-kpi-card ' + card.cls + '" onclick="MS.setFocus(\'' + card.focus + '\')">'
+        + '<span class="ms-kpi-value">' + esc(card.value) + '</span>'
+        + '<span class="ms-kpi-label">' + esc(card.label) + '</span>'
+        + '<span class="ms-kpi-detail">' + esc(card.detail) + '</span>'
+        + '</button>';
+    }).join('');
+  }
+
+  function renderToolbarStatus() {
+    var filtered = getFilteredNodes();
+    var focusLabel = queueTitle(filterState.focus);
+    var parts = [];
+    parts.push('<span class="ms-status-pill"><strong>' + filtered.length + '</strong> visible</span>');
+    parts.push('<span class="ms-status-pill">Focus <strong>' + esc(focusLabel) + '</strong></span>');
+    if (filterState.query) {
+      parts.push('<span class="ms-status-pill">Search <strong>' + esc(filterState.query) + '</strong></span>');
+    }
+    if (selectedNode) {
+      parts.push('<span class="ms-status-pill">Selected <strong>' + esc(selectedNode._ip) + '</strong></span>');
+    }
+    parts.push('<span>Use <strong style="font-family:var(--font-mono)">/</strong> to jump to search and <strong style="font-family:var(--font-mono)">Esc</strong> to clear.</span>');
+    document.getElementById('ms-toolbar-status').innerHTML = parts.join('');
+  }
+
+  function renderSelectionPanel() {
+    if (!selectedNode) {
+      return '<div class="ms-sidebar-panel"><h3>Selected Asset</h3><div class="ms-empty-panel"><strong>No asset selected.</strong><br>Select a node, queue item, or finding to pull its classification, services, and connected paths into view.</div></div>';
+    }
+
+    var n = selectedNode;
+    var roleColor = n._style.color;
+    var levelColor = PURDUE_COLORS[n._level] || '#64748b';
+    var risks = nodeRiskFindings(n);
+    var html = '<div class="ms-sidebar-panel">';
+    html += '<h3>Selected Asset</h3>';
+    html += '<div class="ms-selection-header">';
+    html += '<div class="ms-selection-title">';
+    html += '<h2>' + esc(n._ip) + '</h2>';
+    html += '<div class="ms-selection-role">';
+    html += '<span class="ms-role-badge" style="color:' + roleColor + ';border-color:' + roleColor + '44;background:' + roleColor + '18">' + esc(n._role) + '</span>';
+    html += '<span class="ms-level-badge" style="color:' + levelColor + ';border-color:' + levelColor + '44;background:' + levelColor + '18">' + esc(PURDUE_LABELS[n._level] || ('Level ' + n._level)) + '</span>';
+    html += '</div></div>';
+    html += '<div class="ms-selection-actions">';
+    html += '<button class="ms-mini-btn" onclick="MS.centerOnSelected()">Center</button>';
+    html += '<button class="ms-mini-btn" onclick="MS.deselectNode()">Clear</button>';
+    html += '</div></div>';
+
+    html += '<div class="ms-selection-grid">';
+    var fields = [
+      ['Vendor', n.vendor || 'Unknown'],
+      ['Device Type', n.device_type || 'Unknown'],
+      ['Product', n.product_line || '—'],
+      ['System Name', n.system_name || '—'],
+      ['Mgmt IP', n.mgmt_ip || '—'],
+      ['Connections', String(n._connCount)],
+      ['Auth Observed', n.auth_observed ? 'Yes' : 'No'],
+      ['Attack Priority', String(n.attack_priority || 0)]
+    ];
+    fields.forEach(function(field) {
+      html += '<div class="ms-field"><span class="label">' + esc(field[0]) + '</span><span class="value">' + esc(field[1]) + '</span></div>';
+    });
+    html += '</div>';
+
+    if (n.system_desc) {
+      html += '<div class="ms-section-label">Description</div><div class="ms-service-item">' + esc(n.system_desc) + '</div>';
+    }
+
+    if (n._protocols.length) {
+      html += '<div class="ms-section-label">Observed Protocols</div><div class="ms-chip-row">';
+      n._protocols.forEach(function(p) {
+        html += '<span class="ms-chip" style="color:' + protoColor(p) + ';border-color:' + protoColor(p) + '44;background:' + protoColor(p) + '14">' + esc(p) + '</span>';
+      });
+      html += '</div>';
+    }
+
+    if (toArray(n.capabilities).length || toArray(n.vlans).length) {
+      html += '<div class="ms-section-label">Identity Signals</div><div class="ms-chip-row">';
+      toArray(n.capabilities).forEach(function(cap) {
+        html += '<span class="ms-chip">' + esc(cap) + '</span>';
+      });
+      toArray(n.vlans).forEach(function(vlan) {
+        html += '<span class="ms-chip">VLAN ' + esc(vlan) + '</span>';
+      });
+      html += '</div>';
+    }
+
+    if (toArray(n.recommended_modules).length) {
+      html += '<div class="ms-section-label">Suggested Modules</div><div class="ms-chip-row">';
+      n.recommended_modules.forEach(function(mod) {
+        html += '<span class="ms-chip" style="border-color:rgba(91,138,240,0.28);background:rgba(91,138,240,0.12)">' + esc(mod) + '</span>';
+      });
+      html += '</div>';
+    }
+
+    if (toArray(n.service_ports).length) {
+      html += '<div class="ms-section-label">Service Exposure</div><div class="ms-service-list">';
+      n.service_ports.slice(0, 8).forEach(function(sp) {
+        var catColor = sp.category === 'OT' ? 'var(--color-ot)' : sp.category === 'IT' ? 'var(--color-it)' : 'var(--accent-cyan)';
+        html += '<div class="ms-service-item"><code>' + esc(sp.port) + '/' + esc(sp.transport) + '</code> · <span style="color:' + catColor + '">' + esc(sp.protocol) + '</span> · <span style="color:var(--text-dim)">' + esc(sp.category) + '</span> · ' + esc(sp.connections) + ' connections</div>';
+      });
+      html += '</div>';
+    }
+
+    if (n._edges.length) {
+      html += '<div class="ms-section-label">Connected Paths</div><div class="ms-connection-list">';
+      n._edges.slice().sort(function(a, b) {
+        return Number(!!b.includes_writes) - Number(!!a.includes_writes) || (b.conversation_count || 0) - (a.conversation_count || 0);
+      }).slice(0, 8).forEach(function(e) {
+        var peer = e.src === n._ip ? e.dst : e.src;
+        var flags = [];
+        if (e.includes_writes) flags.push('WRITE');
+        if (e.includes_program_access) flags.push('PROGRAM');
+        html += '<div class="ms-connection-item"><span style="color:' + e._color + '">' + esc(e.protocol) + '</span> · <code>' + esc(peer) + '</code> · ' + esc(e.conversation_count || 0) + ' conv · ' + esc(formatBytes(e.bytes_total)) + (flags.length ? ' · <span style="color:var(--color-danger)">' + esc(flags.join(', ')) + '</span>' : '') + '</div>';
+      });
+      html += '</div>';
+    }
+
+    if (risks.length) {
+      html += '<div class="ms-section-label">Linked Findings</div>';
+      risks.slice(0, 4).forEach(function(r) {
+        html += '<div class="ms-risk-item sev-' + esc(r.severity) + '"><div class="ms-risk-sev">' + esc(r.severity) + ' — ' + esc(r.category) + '</div><div>' + esc(r.description) + '</div></div>';
+      });
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  function renderSnapshotPanel(state) {
+    return '<div class="ms-sidebar-panel"><h3>Operator Snapshot</h3>'
+      + '<div class="ms-sidebar-kpis">'
+      + '<div class="ms-sidebar-kpi"><span class="val">' + state.classified + '</span><span class="lbl">Classified assets</span></div>'
+      + '<div class="ms-sidebar-kpi"><span class="val">' + state.unknown + '</span><span class="lbl">Needs review</span></div>'
+      + '<div class="ms-sidebar-kpi"><span class="val">' + state.critHigh + '</span><span class="lbl">Critical / high</span></div>'
+      + '<div class="ms-sidebar-kpi"><span class="val">' + state.authGap + '</span><span class="lbl">Auth gaps</span></div>'
+      + '<div class="ms-sidebar-kpi"><span class="val">' + state.writeNodes + '</span><span class="lbl">Write-capable nodes</span></div>'
+      + '<div class="ms-sidebar-kpi"><span class="val">' + state.external + '</span><span class="lbl">External assets</span></div>'
+      + '</div></div>';
+  }
+
+  function renderFocusPanel(counts) {
+    var buttons = [
+      { key: 'priority', label: 'Priority targets', note: 'Attack-scored assets or module suggestions', count: counts.priority },
+      { key: 'risk', label: 'Findings', note: 'Assets tied to risk records', count: counts.risk },
+      { key: 'auth-gap', label: 'Auth gaps', note: 'Traffic without observed auth', count: counts.authGap },
+      { key: 'writes', label: 'Write paths', note: 'Writable or program-capable edges', count: counts.writes },
+      { key: 'unclassified', label: 'Classification review', note: 'Weak identity or naming depth', count: counts.unclassified },
+      { key: 'ot', label: 'OT levels 0-2', note: 'Stay on the control-side surface', count: getQueueNodes('ot').length }
+    ];
+    return '<div class="ms-sidebar-panel"><h3>Investigation Queues</h3><div class="ms-focus-grid">' + buttons.map(function(btn) {
+      return '<button class="ms-focus-btn' + (filterState.focus === btn.key ? ' active' : '') + '" onclick="MS.setFocus(\'' + btn.key + '\')">'
+        + '<span class="count">' + esc(btn.count) + '</span>'
+        + '<span class="label">' + esc(btn.label) + '</span>'
+        + '<span class="note">' + esc(btn.note) + '</span>'
+        + '</button>';
+    }).join('') + '</div></div>';
+  }
+
+  function renderQueuePanel() {
+    var focus = filterState.focus === 'all' ? 'priority' : filterState.focus;
+    var list = focus === 'all' ? getFilteredNodes() : getQueueNodes(focus);
+    var title = queueTitle(focus);
+    var html = '<div class="ms-sidebar-panel"><h3>' + esc(title) + '</h3>';
+    if (!list.length) {
+      html += '<div class="ms-empty-panel">No assets match the current focus.</div>';
+    } else {
+      list.slice(0, 8).forEach(function(n) {
+        html += '<div class="ms-queue-item" onclick="MS.selectNodeByIp(\'' + escjs(n._ip) + '\', true)">';
+        html += '<div class="ms-queue-copy"><div class="ms-queue-ip">' + esc(n._ip) + '</div><div class="ms-queue-role">' + esc(n._role) + '</div><div class="ms-queue-note">' + esc(describeNodeForFocus(n, focus)) + '</div></div>';
+        html += '<span class="ms-queue-priority">' + esc(n.attack_priority || 0) + '</span></div>';
+      });
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderFindingsPanel() {
+    var risks = (REPORT.risk_findings || []).slice().sort(function(a, b) {
+      return severityRank(a.severity) - severityRank(b.severity);
+    });
+    var html = '<div class="ms-sidebar-panel"><h3>Top Findings</h3>';
+    if (!risks.length) {
+      html += '<div class="ms-empty-panel">No risk findings were produced for this report.</div>';
+    } else {
+      risks.slice(0, 5).forEach(function(r) {
+        var targetIp = toArray(r.affected_nodes)[0] || '';
+        var clickable = targetIp && nodeByIp[targetIp];
+        html += '<div class="ms-risk-item sev-' + esc(r.severity) + '"' + (clickable ? ' style="cursor:pointer"' : '') + (clickable ? ' onclick="MS.selectNodeByIp(\'' + escjs(targetIp) + '\', true)"' : '') + '>';
+        html += '<div class="ms-risk-sev">' + esc(r.severity) + ' — ' + esc(r.category) + '</div>';
+        html += '<div>' + esc(r.description) + '</div>';
+        if (r.remediation) {
+          html += '<div style="margin-top:5px;color:var(--text-muted)">' + esc(r.remediation) + '</div>';
+        }
+        if (toArray(r.affected_nodes).length) {
+          html += '<div style="margin-top:4px;color:var(--text-dim);font-family:var(--font-mono)">' + r.affected_nodes.map(esc).join(', ') + '</div>';
+        }
+        html += '</div>';
+      });
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderProtocolPanel() {
+    var protoSummary = REPORT.protocol_summary || {};
+    var protos = Object.keys(protoSummary).sort(function(a, b) { return protoSummary[b] - protoSummary[a]; });
+    var html = '<div class="ms-sidebar-panel"><h3>Protocol Mix</h3>';
+    if (!protos.length) {
+      html += '<div class="ms-empty-panel">No protocol summary is available.</div>';
+    } else {
+      protos.slice(0, 10).forEach(function(p) {
+        html += '<div class="ms-legend-item"><span class="ms-legend-dot" style="background:' + protoColor(p) + '"></span><span>' + esc(p) + '</span><span class="ms-legend-count">' + esc(protoSummary[p]) + '</span></div>';
+      });
+    }
+    html += '</div>';
+    return html;
   }
 
   function renderSidebar() {
+    var counts = getFocusCounts();
+    var state = getOverviewState();
     var html = '';
-    var protoSummary = REPORT.protocol_summary || {};
-    var protos = Object.keys(protoSummary).sort(function(a, b) { return protoSummary[b] - protoSummary[a]; });
-    html += '<h3>Protocols</h3>';
-    protos.forEach(function(p) {
-      html += '<div class="ms-legend-item"><span class="ms-legend-dot" style="background:' + protoColor(p) + '"></span><span>' + esc(p) + '</span><span class="ms-legend-count">' + protoSummary[p] + '</span></div>';
-    });
-    var risks = REPORT.risk_findings || [];
-    if (risks.length) {
-      html += '<h3>Risk Findings (' + risks.length + ')</h3>';
-      risks.forEach(function(r) {
-        html += '<div class="ms-risk-item sev-' + esc(r.severity) + '"><div class="ms-risk-sev">' + esc(r.severity) + ' \u2014 ' + esc(r.category) + '</div><div>' + esc(r.description) + '</div></div>';
-      });
-    }
-    var targets = (REPORT.attack_targets || []).sort(function(a, b) { return b.priority - a.priority; });
-    if (targets.length) {
-      html += '<h3>Attack Targets (' + targets.length + ')</h3>';
-      targets.forEach(function(t) {
-        html += '<div class="ms-target-item" onclick="MS.selectNodeByIp(\'' + esc(t.ip) + '\')"><div><div class="ms-target-ip">' + esc(t.ip) + '</div><div class="ms-target-role">' + esc(t.role) + '</div></div><span class="ms-target-priority">' + t.priority + '</span></div>';
-      });
-    }
+    html += renderSelectionPanel();
+    html += renderSnapshotPanel(state);
+    html += renderFocusPanel(counts);
+    html += renderQueuePanel();
+    html += renderFindingsPanel();
+    html += renderProtocolPanel();
     document.getElementById('ms-sidebar-content').innerHTML = html;
+    renderToolbarStatus();
   }
 
-  // ── 2D SVG Renderer ──
   var SVG2D = (function() {
     var ns = 'http://www.w3.org/2000/svg';
-    var svg, gPlatforms, gEdges, gNodes, gLabels;
+    var svg;
+    var gPlatforms;
+    var gEdges;
+    var gNodes;
     var nodeEls = {};
     var edgeEls = [];
-    var dragging = false, dragged = false, dragStart = {x:0,y:0}, vbStart = {x:0,y:0};
+    var dragging = false;
+    var dragged = false;
+    var dragStart = { x: 0, y: 0 };
+    var vbStart = { x: 0, y: 0 };
+
+    function connectedToSelected(ip) {
+      if (!selectedNode) return false;
+      if (ip === selectedNode._ip) return true;
+      return edges.some(function(e) {
+        return (e.src === selectedNode._ip && e.dst === ip) || (e.dst === selectedNode._ip && e.src === ip);
+      });
+    }
+
+    function syncState() {
+      Object.keys(nodeEls).forEach(function(ip) {
+        var node = nodeByIp[ip];
+        var selected = selectedNode && selectedNode._ip === ip;
+        var connected = connectedToSelected(ip);
+        var matched = matchesNodeFilter(node);
+        var opacity = matched ? 1 : 0.12;
+        if (selectedNode) {
+          if (selected) opacity = 1;
+          else if (connected && matched) opacity = 0.95;
+          else if (connected) opacity = 0.4;
+          else if (matched) opacity = 0.28;
+          else opacity = 0.08;
+        }
+        nodeEls[ip].g.style.opacity = String(opacity);
+        nodeEls[ip].circle.setAttribute('stroke-width', selected ? '3' : '2');
+        nodeEls[ip].circle.setAttribute('r', String((nodeEls[ip].baseRadius || node._r) + (selected ? 4 : 0)));
+      });
+
+      edgeEls.forEach(function(entry) {
+        var srcMatched = matchesNodeFilter(nodeByIp[entry.src]);
+        var dstMatched = matchesNodeFilter(nodeByIp[entry.dst]);
+        var visible = srcMatched && dstMatched;
+        var selectedEdge = selectedNode && (entry.src === selectedNode._ip || entry.dst === selectedNode._ip);
+        var opacity = visible ? entry.baseOpacity : 0.04;
+        var width = entry.baseWidth;
+        if (selectedNode) {
+          if (selectedEdge) {
+            opacity = 0.95;
+            width = entry.baseWidth + 1;
+          } else if (visible) {
+            opacity = 0.14;
+          } else {
+            opacity = 0.03;
+          }
+        }
+        entry.el.setAttribute('stroke-opacity', String(opacity));
+        entry.el.setAttribute('stroke-width', String(width));
+      });
+    }
 
     function init() {
       var container = document.getElementById('ms-svg-container');
       container.innerHTML = '';
       svg = document.createElementNS(ns, 'svg');
       svg.setAttribute('xmlns', ns);
+
       gPlatforms = document.createElementNS(ns, 'g');
       gEdges = document.createElementNS(ns, 'g');
       gNodes = document.createElementNS(ns, 'g');
-      gLabels = document.createElementNS(ns, 'g');
       svg.appendChild(gPlatforms);
       svg.appendChild(gEdges);
       svg.appendChild(gNodes);
-      svg.appendChild(gLabels);
       container.appendChild(svg);
 
-      var levels = {};
-      nodes.forEach(function(n) { var lvl = n._level; if (!levels[lvl]) levels[lvl] = []; levels[lvl].push(n); });
-      var sortedLevels = Object.keys(levels).map(Number).sort(function(a,b){return b-a;});
-      var margin = 60, maxCols = 8, cellW = 90, rowH = 70, bandPad = 30;
+      nodeEls = {};
+      edgeEls = [];
 
+      var levels = {};
+      nodes.forEach(function(n) {
+        var lvl = n._level;
+        if (!levels[lvl]) levels[lvl] = [];
+        levels[lvl].push(n);
+      });
+      var sortedLevels = Object.keys(levels).map(Number).sort(function(a, b) { return b - a; });
+      var margin = 60;
+      var maxCols = 8;
+      var cellW = 92;
+      var rowH = 72;
+      var bandPad = 32;
       var bandMeta = [];
+
       sortedLevels.forEach(function(lvl) {
         var count = levels[lvl].length;
-        var cols = Math.min(count, maxCols);
-        var rows = Math.ceil(count / cols);
-        bandMeta.push({ lvl: lvl, cols: cols, rows: rows, h: bandPad + rows * rowH + 10, y: 0 });
+        var cols = Math.min(count, maxCols) || 1;
+        var rows = Math.ceil(count / cols) || 1;
+        bandMeta.push({ lvl: lvl, cols: cols, rows: rows, h: bandPad + rows * rowH + 12, y: 0 });
       });
+
       var yOff = 0;
-      bandMeta.forEach(function(b) { b.y = yOff; yOff += b.h + 8; });
+      bandMeta.forEach(function(b) {
+        b.y = yOff;
+        yOff += b.h + 10;
+      });
+
       var totalH = yOff;
       var totalW = maxCols * cellW + margin * 2;
       viewBox = { x: -margin, y: -margin, w: totalW + margin, h: totalH + margin };
-      svg.setAttribute('viewBox', viewBox.x+' '+viewBox.y+' '+viewBox.w+' '+viewBox.h);
+      svg.setAttribute('viewBox', viewBox.x + ' ' + viewBox.y + ' ' + viewBox.w + ' ' + viewBox.h);
 
       bandMeta.forEach(function(b) {
-        var lvl = b.lvl, bandY = b.y, color = PURDUE_COLORS[lvl] || '#64748b';
+        var lvl = b.lvl;
+        var bandY = b.y;
+        var color = PURDUE_COLORS[lvl] || '#64748b';
         var bandNodes = levels[lvl];
         var rect = document.createElementNS(ns, 'rect');
-        rect.setAttribute('x',0); rect.setAttribute('y',bandY);
-        rect.setAttribute('width',totalW-margin); rect.setAttribute('height',b.h);
-        rect.setAttribute('fill',color); rect.setAttribute('fill-opacity','0.04');
-        rect.setAttribute('stroke',color); rect.setAttribute('stroke-opacity','0.15');
-        rect.setAttribute('stroke-width','1'); rect.setAttribute('rx','4');
+        rect.setAttribute('x', 0);
+        rect.setAttribute('y', bandY);
+        rect.setAttribute('width', totalW - margin);
+        rect.setAttribute('height', b.h);
+        rect.setAttribute('fill', color);
+        rect.setAttribute('fill-opacity', '0.04');
+        rect.setAttribute('stroke', color);
+        rect.setAttribute('stroke-opacity', '0.16');
+        rect.setAttribute('stroke-width', '1');
+        rect.setAttribute('rx', '6');
         gPlatforms.appendChild(rect);
+
         var label = document.createElementNS(ns, 'text');
-        label.setAttribute('x',8); label.setAttribute('y',bandY+16);
-        label.setAttribute('fill',color); label.setAttribute('fill-opacity','0.5');
-        label.setAttribute('font-size','11'); label.setAttribute('font-family','Inter, sans-serif');
+        label.setAttribute('x', 10);
+        label.setAttribute('y', bandY + 18);
+        label.setAttribute('fill', color);
+        label.setAttribute('fill-opacity', '0.58');
+        label.setAttribute('font-size', '11');
+        label.setAttribute('font-family', 'Inter, sans-serif');
         label.textContent = PURDUE_LABELS[lvl] || ('Level ' + lvl);
         gPlatforms.appendChild(label);
 
-        var cols = b.cols, gridW = cols * cellW, gridX0 = (totalW - margin - gridW) / 2;
+        var cols = b.cols;
+        var gridW = cols * cellW;
+        var gridX0 = (totalW - margin - gridW) / 2;
         bandNodes.forEach(function(n, i) {
-          var col = i % cols, row = Math.floor(i / cols);
-          var rowCount = (row === b.rows - 1) ? bandNodes.length - row * cols : cols;
+          var col = i % cols;
+          var row = Math.floor(i / cols);
+          var rowCount = row === b.rows - 1 ? bandNodes.length - row * cols : cols;
           var rowOffset = (cols - rowCount) * cellW / 2;
           n._x = gridX0 + col * cellW + cellW / 2 + rowOffset;
           n._y = bandY + bandPad + row * rowH + rowH / 2;
-          n._r = Math.min(22, Math.max(10, 8 + n._connCount * 2));
+          n._r = Math.min(22, Math.max(11, 8 + n._connCount * 2));
         });
       });
 
       edges.forEach(function(e) {
-        var src = nodeByIp[e.src], dst = nodeByIp[e.dst];
+        var src = nodeByIp[e.src];
+        var dst = nodeByIp[e.dst];
         if (!src || !dst || src._x == null || dst._x == null) return;
         var path = document.createElementNS(ns, 'path');
-        var dx = dst._x - src._x, dy = dst._y - src._y;
-        var dist = Math.sqrt(dx*dx + dy*dy);
+        var dx = dst._x - src._x;
+        var dy = dst._y - src._y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
         var arcStr = Math.min(40, dist * 0.15);
         if (Math.abs(dy) < 5) {
-          var mx = (src._x + dst._x) / 2, my = (src._y + dst._y) / 2 - arcStr;
-          path.setAttribute('d', 'M'+src._x+','+src._y+' Q'+mx+','+my+' '+dst._x+','+dst._y);
+          var mx = (src._x + dst._x) / 2;
+          var my = (src._y + dst._y) / 2 - arcStr;
+          path.setAttribute('d', 'M' + src._x + ',' + src._y + ' Q' + mx + ',' + my + ' ' + dst._x + ',' + dst._y);
         } else {
           var nx2 = -dy / (dist || 1);
-          var cx1 = src._x + dx*0.1 + nx2*arcStr*0.3, cy1 = src._y + dy*0.4;
-          var cx2 = dst._x - dx*0.1 + nx2*arcStr*0.3, cy2 = dst._y - dy*0.4;
-          path.setAttribute('d', 'M'+src._x+','+src._y+' C'+cx1+','+cy1+' '+cx2+','+cy2+' '+dst._x+','+dst._y);
+          var cx1 = src._x + dx * 0.1 + nx2 * arcStr * 0.3;
+          var cy1 = src._y + dy * 0.4;
+          var cx2 = dst._x - dx * 0.1 + nx2 * arcStr * 0.3;
+          var cy2 = dst._y - dy * 0.4;
+          path.setAttribute('d', 'M' + src._x + ',' + src._y + ' C' + cx1 + ',' + cy1 + ' ' + cx2 + ',' + cy2 + ' ' + dst._x + ',' + dst._y);
         }
-        path.setAttribute('fill', 'none');
-        path.setAttribute('stroke', e._color);
         var convCount = Math.max(1, Number(e.conversation_count) || 1);
         var strokeW = Math.max(1, Math.min(4, Math.log2(convCount + 1)));
-        var strokeOpacity = e.includes_writes ? '0.7' : '0.5';
-        path.setAttribute('stroke-width', strokeW);
-        path.setAttribute('stroke-opacity', strokeOpacity);
-        if (e.includes_writes) { path.setAttribute('stroke-dasharray', '6,3'); }
-        path.dataset.src = e.src; path.dataset.dst = e.dst;
-        path.dataset.baseStrokeWidth = String(strokeW);
-        path.dataset.baseStrokeOpacity = strokeOpacity;
-        path.addEventListener('mouseenter', function(ev) {
-          var tip = e.protocol;
-          if (e.port_label) tip += ' \u2014 ' + e.port_label;
-          showTooltip(ev, e.src + ' \u2192 ' + e.dst + ' (' + tip + ')');
-        });
-        path.addEventListener('mouseleave', function() { hideTooltip(); });
+        var strokeOpacity = e.includes_writes || e.includes_program_access ? 0.74 : 0.5;
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', e._color);
+        path.setAttribute('stroke-width', String(strokeW));
+        path.setAttribute('stroke-opacity', String(strokeOpacity));
+        if (e.includes_writes || e.includes_program_access) path.setAttribute('stroke-dasharray', '6,3');
         path.style.cursor = 'crosshair';
+        path.addEventListener('mouseenter', function(ev) {
+          var tip = e.protocol || 'Unknown';
+          if (e.port_label) tip += ' — ' + e.port_label;
+          showTooltip(ev, e.src + ' → ' + e.dst + ' (' + tip + ')');
+        });
+        path.addEventListener('mouseleave', hideTooltip);
         gEdges.appendChild(path);
-        edgeEls.push(path);
+        edgeEls.push({
+          el: path,
+          src: e.src,
+          dst: e.dst,
+          baseWidth: strokeW,
+          baseOpacity: strokeOpacity
+        });
       });
 
       nodes.forEach(function(n) {
@@ -698,112 +2336,237 @@ var MS = (function() {
         var g = document.createElementNS(ns, 'g');
         g.setAttribute('class', 'ms-node');
         g.style.cursor = 'pointer';
+
         if (n.attack_priority > 10 && riskOverlay) {
           var glow = document.createElementNS(ns, 'circle');
-          glow.setAttribute('cx',n._x); glow.setAttribute('cy',n._y); glow.setAttribute('r',n._r+6);
-          glow.setAttribute('fill','none'); glow.setAttribute('stroke','#ef4444');
-          glow.setAttribute('stroke-width','2'); glow.setAttribute('stroke-opacity','0.5');
+          glow.setAttribute('cx', n._x);
+          glow.setAttribute('cy', n._y);
+          glow.setAttribute('r', n._r + 6);
+          glow.setAttribute('fill', 'none');
+          glow.setAttribute('stroke', '#ef4444');
+          glow.setAttribute('stroke-width', '2');
+          glow.setAttribute('stroke-opacity', '0.55');
           g.appendChild(glow);
         }
+
         var circle = document.createElementNS(ns, 'circle');
-        circle.setAttribute('cx',n._x); circle.setAttribute('cy',n._y); circle.setAttribute('r',n._r);
-        circle.setAttribute('fill',n._style.color); circle.setAttribute('fill-opacity','0.2');
-        circle.setAttribute('stroke',n._style.color); circle.setAttribute('stroke-width','2');
+        circle.setAttribute('cx', n._x);
+        circle.setAttribute('cy', n._y);
+        circle.setAttribute('r', n._r);
+        circle.setAttribute('fill', n._style.color);
+        circle.setAttribute('fill-opacity', '0.2');
+        circle.setAttribute('stroke', n._style.color);
+        circle.setAttribute('stroke-width', '2');
         g.appendChild(circle);
+
+        if (nodeHasRisk(n)) {
+          var riskRing = document.createElementNS(ns, 'circle');
+          riskRing.setAttribute('cx', n._x);
+          riskRing.setAttribute('cy', n._y);
+          riskRing.setAttribute('r', n._r + 4);
+          riskRing.setAttribute('fill', 'none');
+          riskRing.setAttribute('stroke', nodeRiskFindings(n)[0].severity === 'CRITICAL' ? '#ef4444' : '#f59e0b');
+          riskRing.setAttribute('stroke-opacity', '0.45');
+          riskRing.setAttribute('stroke-width', '1.2');
+          g.appendChild(riskRing);
+        }
+
         var text = document.createElementNS(ns, 'text');
-        text.setAttribute('x',n._x); text.setAttribute('y',n._y+n._r+14);
-        text.setAttribute('text-anchor','middle'); text.setAttribute('fill','#d4dce6');
-        text.setAttribute('font-size','10'); text.setAttribute('font-family','Fira Code, monospace');
+        text.setAttribute('x', n._x);
+        text.setAttribute('y', n._y + n._r + 14);
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('fill', '#d4dce6');
+        text.setAttribute('font-size', '10');
+        text.setAttribute('font-family', 'Fira Code, monospace');
         text.textContent = n._ip;
         g.appendChild(text);
+
         var role = document.createElementNS(ns, 'text');
-        role.setAttribute('x',n._x); role.setAttribute('y',n._y+n._r+25);
-        role.setAttribute('text-anchor','middle'); role.setAttribute('fill',n._style.color);
-        role.setAttribute('fill-opacity','0.7'); role.setAttribute('font-size','9');
-        role.setAttribute('font-family','Inter, sans-serif');
+        role.setAttribute('x', n._x);
+        role.setAttribute('y', n._y + n._r + 25);
+        role.setAttribute('text-anchor', 'middle');
+        role.setAttribute('fill', n._style.color);
+        role.setAttribute('fill-opacity', '0.74');
+        role.setAttribute('font-size', '9');
+        role.setAttribute('font-family', 'Inter, sans-serif');
         role.textContent = n._style.label;
         g.appendChild(role);
-        g.addEventListener('click', function(ev) { ev.stopPropagation(); selectNode(n); });
-        g.addEventListener('mouseenter', function(ev) { circle.setAttribute('r', n._r + 3); showTooltip(ev, n._ip + ' \u2014 ' + n._role); });
-        g.addEventListener('mouseleave', function() { circle.setAttribute('r', n._r); hideTooltip(); });
+
+        g.addEventListener('click', function(ev) {
+          ev.stopPropagation();
+          selectNode(n, false);
+        });
+        g.addEventListener('mouseenter', function(ev) {
+          circle.setAttribute('r', String(n._r + (selectedNode && selectedNode._ip === n._ip ? 4 : 2)));
+          showTooltip(ev, n._ip + ' — ' + n._role);
+        });
+        g.addEventListener('mouseleave', function() {
+          if (!selectedNode || selectedNode._ip !== n._ip) {
+            circle.setAttribute('r', String(n._r));
+          }
+          hideTooltip();
+        });
         gNodes.appendChild(g);
-        nodeEls[n._ip] = { g: g, circle: circle };
+        nodeEls[n._ip] = { g: g, circle: circle, baseRadius: n._r };
       });
 
-      svg.addEventListener('mousedown', function(ev) { if (ev.target.closest('.ms-node')) return; dragging = true; dragged = false; dragStart = {x:ev.clientX, y:ev.clientY}; vbStart = {x:viewBox.x, y:viewBox.y}; });
-      svg.addEventListener('mousemove', function(ev) { if (!dragging) return; dragged = true; var scale = viewBox.w / svg.clientWidth; viewBox.x = vbStart.x - (ev.clientX - dragStart.x) * scale; viewBox.y = vbStart.y - (ev.clientY - dragStart.y) * scale; svg.setAttribute('viewBox', viewBox.x+' '+viewBox.y+' '+viewBox.w+' '+viewBox.h); });
+      svg.addEventListener('mousedown', function(ev) {
+        if (ev.target.closest && ev.target.closest('.ms-node')) return;
+        dragging = true;
+        dragged = false;
+        dragStart = { x: ev.clientX, y: ev.clientY };
+        vbStart = { x: viewBox.x, y: viewBox.y };
+      });
+      svg.addEventListener('mousemove', function(ev) {
+        if (!dragging) return;
+        dragged = true;
+        var scale = viewBox.w / svg.clientWidth;
+        viewBox.x = vbStart.x - (ev.clientX - dragStart.x) * scale;
+        viewBox.y = vbStart.y - (ev.clientY - dragStart.y) * scale;
+        svg.setAttribute('viewBox', viewBox.x + ' ' + viewBox.y + ' ' + viewBox.w + ' ' + viewBox.h);
+      });
       svg.addEventListener('mouseup', function() { dragging = false; });
       svg.addEventListener('mouseleave', function() { dragging = false; });
-      svg.addEventListener('wheel', function(ev) { ev.preventDefault(); var factor = ev.deltaY > 0 ? 1.1 : 0.9; var rect = svg.getBoundingClientRect(); var mx = (ev.clientX - rect.left) / rect.width; var my = (ev.clientY - rect.top) / rect.height; var nw = viewBox.w * factor, nh = viewBox.h * factor; viewBox.x += (viewBox.w - nw) * mx; viewBox.y += (viewBox.h - nh) * my; viewBox.w = nw; viewBox.h = nh; svg.setAttribute('viewBox', viewBox.x+' '+viewBox.y+' '+viewBox.w+' '+viewBox.h); }, {passive:false});
-      svg.addEventListener('click', function(ev) { if (dragged) return; if (!ev.target.closest('.ms-node')) deselectNode(); });
+      svg.addEventListener('wheel', function(ev) {
+        ev.preventDefault();
+        var factor = ev.deltaY > 0 ? 1.1 : 0.9;
+        var rect = svg.getBoundingClientRect();
+        var mx = (ev.clientX - rect.left) / rect.width;
+        var my = (ev.clientY - rect.top) / rect.height;
+        var nw = viewBox.w * factor;
+        var nh = viewBox.h * factor;
+        viewBox.x += (viewBox.w - nw) * mx;
+        viewBox.y += (viewBox.h - nh) * my;
+        viewBox.w = nw;
+        viewBox.h = nh;
+        svg.setAttribute('viewBox', viewBox.x + ' ' + viewBox.y + ' ' + viewBox.w + ' ' + viewBox.h);
+      }, { passive: false });
+      svg.addEventListener('click', function(ev) {
+        if (dragged) return;
+        if (!ev.target.closest || !ev.target.closest('.ms-node')) deselectNode();
+      });
+
       svgEl = svg;
+      syncState();
     }
 
-    function highlightNode(ip) {
-      edgeEls.forEach(function(el) {
-        if (el.dataset.src === ip || el.dataset.dst === ip) {
-          var baseStrokeW = parseFloat(el.dataset.baseStrokeWidth || '1');
-          el.setAttribute('stroke-opacity','0.9');
-          el.setAttribute('stroke-width', String(baseStrokeW + 1));
-        }
-        else { el.setAttribute('stroke-opacity','0.12'); }
-      });
-      Object.keys(nodeEls).forEach(function(nip) {
-        var connected = nip === ip || edges.some(function(e) { return (e.src === ip && e.dst === nip) || (e.dst === ip && e.src === nip); });
-        nodeEls[nip].g.style.opacity = connected ? '1' : '0.25';
-      });
+    function focusNode(node) {
+      if (!svg || !node || node._x == null) return;
+      var w = Math.max(240, svg.clientWidth * 0.42);
+      var h = Math.max(180, svg.clientHeight * 0.34);
+      viewBox = {
+        x: node._x - w / 2,
+        y: node._y - h / 2,
+        w: w,
+        h: h
+      };
+      svg.setAttribute('viewBox', viewBox.x + ' ' + viewBox.y + ' ' + viewBox.w + ' ' + viewBox.h);
     }
 
-    function clearHighlight() {
-      edgeEls.forEach(function(el) {
-        el.setAttribute('stroke-width', el.dataset.baseStrokeWidth || '1');
-        el.setAttribute('stroke-opacity', el.dataset.baseStrokeOpacity || '0.5');
-      });
-      Object.keys(nodeEls).forEach(function(nip) { nodeEls[nip].g.style.opacity = '1'; });
-    }
-
-    return { init: init, highlightNode: highlightNode, clearHighlight: clearHighlight };
+    return {
+      init: init,
+      syncState: syncState,
+      focusNode: focusNode
+    };
   })();
 
-
-  function selectNode(n){if(!n)return;selectedNode=n;SVG2D.clearHighlight();SVG2D.highlightNode(n._ip);showNodeDetail(n);}
-  function deselectNode(){selectedNode=null;SVG2D.clearHighlight();document.getElementById('ms-detail').style.display='none';}
-
-  function showNodeDetail(n) {
-    var el=document.getElementById('ms-detail');
-    var html='<span class="ms-detail-close" onclick="MS.deselectNode()">&times;</span>';
-    html+='<h2>'+esc(n._ip)+'</h2>';
-    var rows=[['Role',n._role],['Purdue Level',PURDUE_LABELS[n._level]||('Level '+n._level)],['Vendor',n.vendor||'Unknown'],['Device Type',n.device_type||'Unknown']];
-    if(n.product_line)rows.push(['Product',n.product_line]);
-    rows.push(['Connections',n._connCount]);
-    if(n.attack_priority>0)rows.push(['Attack Priority',n.attack_priority]);
-    rows.push(['Auth Observed',n.auth_observed?'Yes':'No']);
-    rows.forEach(function(r){html+='<div class="ms-detail-row"><span class="ms-detail-label">'+esc(r[0])+'</span><span class="ms-detail-val">'+esc(String(r[1]))+'</span></div>';});
-    if(n._protocols.length){html+='<div class="ms-detail-section">Protocols</div><div>';n._protocols.forEach(function(p){html+='<span class="ms-detail-tag" style="border-color:'+protoColor(p)+'">'+esc(p)+'</span>';});html+='</div>';}
-    if(n.service_ports&&n.service_ports.length){html+='<div class="ms-detail-section">Service Ports ('+n.service_ports.length+')</div>';n.service_ports.forEach(function(sp){var catColor=sp.category==='OT'?'var(--color-ot)':sp.category==='IT'?'var(--color-it)':'var(--text-dim)';html+='<div class="ms-detail-conn"><span style="font-family:var(--font-mono)">'+sp.port+'/'+esc(sp.transport)+'</span> <span style="color:'+catColor+'">'+esc(sp.protocol)+'</span> <span style="font-size:0.78em;padding:1px 4px;border-radius:2px;background:'+catColor+'15;color:'+catColor+'">'+esc(sp.category)+'</span> <span style="color:var(--text-muted)">'+sp.connections+' conn</span></div>';});}
-    if(n._edges.length){html+='<div class="ms-detail-section">Connections ('+n._edges.length+')</div>';n._edges.forEach(function(e){var peer=(e.src===n._ip)?e.dst:e.src;var dir=(e.src===n._ip)?'&#8594;':'&#8592;';var portInfo=e.port_label?' <span style="color:var(--text-muted);font-size:0.82em">'+esc(e.port_label)+'</span>':'';html+='<div class="ms-detail-conn"><span style="color:'+e._color+'">'+esc(e.protocol)+'</span> '+dir+' <span style="font-family:var(--font-mono)">'+esc(peer)+'</span>'+portInfo+(e.includes_writes?' <span style="color:var(--color-vor-accent);font-size:0.8em">[WRITE]</span>':'')+'</div>';});}
-    var risks=(REPORT.risk_findings||[]).filter(function(r){return r.category!=='NO_AUTH_OBSERVED'&&(r.affected_nodes||[]).indexOf(n._ip)>=0;});
-    if(risks.length){html+='<div class="ms-detail-section">Risk Findings</div>';risks.forEach(function(r){html+='<div class="ms-risk-item sev-'+esc(r.severity)+'" style="margin:3px 0"><div class="ms-risk-sev">'+esc(r.severity)+'</div><div>'+esc(r.description)+'</div></div>';});}
-    if(n.recommended_modules&&n.recommended_modules.length){html+='<div class="ms-detail-section">Recommended Modules</div><div>';n.recommended_modules.forEach(function(m){html+='<span class="ms-detail-tag">'+esc(m)+'</span>';});html+='</div>';}
-    el.innerHTML=html;el.style.display='block';
+  function setFocus(focus) {
+    filterState.focus = focus || 'all';
+    var focusEl = document.getElementById('ms-focus');
+    if (focusEl && focusEl.value !== filterState.focus) focusEl.value = filterState.focus;
+    renderSidebar();
+    if (svgEl) SVG2D.syncState();
   }
 
-  function toggleRisk(){
+  function setSearch(query) {
+    filterState.query = String(query || '').trim().toLowerCase();
+    renderSidebar();
+    if (svgEl) SVG2D.syncState();
+  }
+
+  function clearFilters() {
+    filterState.query = '';
+    filterState.focus = 'all';
+    var searchEl = document.getElementById('ms-search');
+    var focusEl = document.getElementById('ms-focus');
+    if (searchEl) searchEl.value = '';
+    if (focusEl) focusEl.value = 'all';
+    renderSidebar();
+    if (svgEl) SVG2D.syncState();
+  }
+
+  function selectNode(n, center) {
+    if (!n) return;
+    selectedNode = n;
+    renderSidebar();
+    if (svgEl) {
+      SVG2D.syncState();
+      if (center) SVG2D.focusNode(n);
+    }
+  }
+
+  function selectNodeByIp(ip, center) {
+    var n = nodeByIp[ip];
+    if (n) selectNode(n, !!center);
+  }
+
+  function centerOnSelected() {
+    if (selectedNode && svgEl) SVG2D.focusNode(selectedNode);
+  }
+
+  function deselectNode() {
+    selectedNode = null;
+    renderSidebar();
+    if (svgEl) SVG2D.syncState();
+  }
+
+  function toggleRisk() {
     var selectedIp = selectedNode ? selectedNode._ip : null;
-    riskOverlay=!riskOverlay;
-    document.getElementById('ms-btn-risk').classList.toggle('active',riskOverlay);
+    riskOverlay = !riskOverlay;
+    document.getElementById('ms-btn-risk').classList.toggle('active', riskOverlay);
     SVG2D.init();
-    if (selectedIp && nodeByIp[selectedIp]) selectNode(nodeByIp[selectedIp]);
+    if (selectedIp && nodeByIp[selectedIp]) {
+      selectedNode = nodeByIp[selectedIp];
+      renderSidebar();
+      SVG2D.syncState();
+    }
   }
-  function printReport(){window.print();}
-  function exportPng(){var svgData=document.getElementById('ms-svg-container').innerHTML;var svgBlob=new Blob([svgData],{type:'image/svg+xml;charset=utf-8'});var url2=URL.createObjectURL(svgBlob);var img=new Image();img.onload=function(){var canvas=document.createElement('canvas');canvas.width=2000;canvas.height=1200;var ctx=canvas.getContext('2d');ctx.fillStyle='#0b1420';ctx.fillRect(0,0,2000,1200);ctx.drawImage(img,0,0,2000,1200);URL.revokeObjectURL(url2);var a=document.createElement('a');a.href=canvas.toDataURL('image/png');a.download='marlinspike-2d.png';a.click();};img.src=url2;}
-  function selectNodeByIp(ip){var n=nodeByIp[ip];if(n)selectNode(n);}
-  function showTooltip(ev,text){var tip=document.getElementById('ms-tooltip');tip.textContent=text;tip.style.display='block';tip.style.left=(ev.clientX+12)+'px';tip.style.top=(ev.clientY-8)+'px';}
-  function hideTooltip(){document.getElementById('ms-tooltip').style.display='none';}
-  function esc(s){if(s==null)return'';var d=document.createElement('div');d.textContent=String(s);return d.innerHTML;}
 
-  // ── Report Pane ──
-  var reportOpen = false;
+  function printReport() { window.print(); }
+
+  function exportPng() {
+    var svgData = document.getElementById('ms-svg-container').innerHTML;
+    var svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    var url = URL.createObjectURL(svgBlob);
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      canvas.width = 2000;
+      canvas.height = 1200;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#0b1420';
+      ctx.fillRect(0, 0, 2000, 1200);
+      ctx.drawImage(img, 0, 0, 2000, 1200);
+      URL.revokeObjectURL(url);
+      var a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = 'marlinspike-2d.png';
+      a.click();
+    };
+    img.src = url;
+  }
+
+  function showTooltip(ev, text) {
+    var tip = document.getElementById('ms-tooltip');
+    tip.textContent = text;
+    tip.style.display = 'block';
+    tip.style.left = ev.clientX + 12 + 'px';
+    tip.style.top = ev.clientY - 8 + 'px';
+  }
+
+  function hideTooltip() {
+    document.getElementById('ms-tooltip').style.display = 'none';
+  }
 
   function toggleReport() {
     reportOpen = !reportOpen;
@@ -813,7 +2576,7 @@ var MS = (function() {
   }
 
   function sectionHtml(id, title, count, body) {
-    var badge = (count != null) ? ' (' + count + ')' : '';
+    var badge = count != null ? ' (' + count + ')' : '';
     return '<button class="ms-section-toggle" onclick="MS.toggleSection(\'' + id + '\')"><span class="chevron">&#9654;</span>' + esc(title) + badge + '</button><div class="ms-section-body">' + body + '</div>';
   }
 
@@ -823,7 +2586,6 @@ var MS = (function() {
   }
 
   function renderReport() {
-    // ── Executive summary ──
     var ci = REPORT.capture_info || {};
     var sumHtml = '<div class="ms-summary-grid">';
     sumHtml += '<div class="ms-summary-card"><div class="val">' + nodes.length + '</div><div class="lbl">Assets</div></div>';
@@ -835,33 +2597,33 @@ var MS = (function() {
     var risks = REPORT.risk_findings || [];
     var sevCounts = {};
     risks.forEach(function(r) { sevCounts[r.severity] = (sevCounts[r.severity] || 0) + 1; });
-    var critHigh = (sevCounts['CRITICAL'] || 0) + (sevCounts['HIGH'] || 0);
+    var critHigh = (sevCounts.CRITICAL || 0) + (sevCounts.HIGH || 0);
     sumHtml += '<div class="ms-summary-card"><div class="val" style="color:' + (critHigh > 0 ? 'var(--color-danger)' : 'var(--accent-green)') + '">' + critHigh + '</div><div class="lbl">Critical/High</div></div>';
     sumHtml += '</div>';
-    // Timestamps
     if (REPORT.timestamp_start) {
       sumHtml += '<div style="font-size:0.82em;color:var(--text-dim);margin-top:4px;">Scan: ' + esc(REPORT.timestamp_start);
-      if (REPORT.timestamp_end) sumHtml += ' &mdash; ' + esc(REPORT.timestamp_end);
+      if (REPORT.timestamp_end) sumHtml += ' — ' + esc(REPORT.timestamp_end);
       sumHtml += '</div>';
     }
-    if (ci.pcap_path) { var pcapBasename = ci.pcap_path.split('/').pop(); sumHtml += '<div style="font-size:0.82em;color:var(--text-dim);">Source: <span style="font-family:var(--font-mono)">' + esc(pcapBasename) + '</span></div>'; }
+    if (ci.pcap_path) {
+      var pcapBasename = ci.pcap_path.split('/').pop();
+      sumHtml += '<div style="font-size:0.82em;color:var(--text-dim);">Source: <span style="font-family:var(--font-mono)">' + esc(pcapBasename) + '</span></div>';
+    }
     document.getElementById('ms-rpt-summary').innerHTML = sectionHtml('ms-rpt-summary', 'Executive Summary', null, sumHtml);
 
-    // ── Risk Findings & Recommendations ──
     var findHtml = '';
     if (risks.length === 0) {
       findHtml = '<div style="color:var(--text-dim);padding:8px 0;">No risk findings.</div>';
     } else {
-      var sevOrder = ['CRITICAL','HIGH','MEDIUM','LOW','INFO'];
-      var sorted = risks.slice().sort(function(a,b) { return sevOrder.indexOf(a.severity) - sevOrder.indexOf(b.severity); });
-      sorted.forEach(function(r) {
+      var sortedFindings = risks.slice().sort(function(a, b) { return severityRank(a.severity) - severityRank(b.severity); });
+      sortedFindings.forEach(function(r) {
         findHtml += '<div class="ms-finding-card sev-' + esc(r.severity) + '">';
         findHtml += '<div class="ms-finding-head"><span class="ms-finding-sev">' + esc(r.severity) + '</span><span class="ms-finding-cat">' + esc(r.category) + '</span></div>';
         findHtml += '<div class="ms-finding-desc">' + esc(r.description) + '</div>';
         if (r.remediation) {
           findHtml += '<div class="ms-finding-remediation"><strong>Recommendation:</strong> ' + esc(r.remediation) + '</div>';
         }
-        if (r.affected_nodes && r.affected_nodes.length) {
+        if (toArray(r.affected_nodes).length) {
           findHtml += '<div class="ms-finding-nodes">Affected: ' + r.affected_nodes.map(esc).join(', ') + '</div>';
         }
         findHtml += '</div>';
@@ -869,7 +2631,6 @@ var MS = (function() {
     }
     document.getElementById('ms-rpt-findings').innerHTML = sectionHtml('ms-rpt-findings', 'Risk Findings & Recommendations', risks.length, findHtml);
 
-    // ── Purdue Violations ──
     var pvs = REPORT.purdue_violations || [];
     var pvHtml = '';
     if (pvs.length === 0) {
@@ -881,171 +2642,138 @@ var MS = (function() {
     }
     document.getElementById('ms-rpt-purdue').innerHTML = sectionHtml('ms-rpt-purdue', 'Purdue Model Violations', pvs.length, pvHtml);
 
-    // ── Asset Inventory (detailed) ──
     var assetHtml = '';
-    var sortedNodes = nodes.slice().sort(function(a,b) { return (b.attack_priority || 0) - (a.attack_priority || 0); });
-    sortedNodes.forEach(function(n, idx) {
+    nodes.slice().sort(compareNodes).forEach(function(n, idx) {
       var style = n._style;
       var lvl = n._level;
       var lvlColor = PURDUE_COLORS[lvl] || '#64748b';
       var pri = n.attack_priority || 0;
       var priColor = pri >= 20 ? 'var(--color-danger)' : pri >= 10 ? 'var(--color-warning)' : 'var(--text-dim)';
-
       assetHtml += '<div class="ms-asset-card" style="background:var(--panel-alt);border:1px solid var(--border-dim);border-radius:4px;padding:12px;margin-bottom:8px;border-left:3px solid ' + style.color + '">';
-
-      // Row 1: IP + role + priority badge
       assetHtml += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">';
       assetHtml += '<span style="font-family:var(--font-mono);font-size:1.05em;font-weight:600">' + esc(n._ip) + '</span>';
       assetHtml += '<span class="role-tag" style="background:' + style.color + '22;color:' + style.color + ';border:1px solid ' + style.color + '44;padding:2px 8px;border-radius:3px;font-size:0.82em">' + esc(style.label) + '</span>';
-      assetHtml += '<span style="color:' + lvlColor + ';font-size:0.82em;font-weight:600">' + (PURDUE_LABELS[lvl] || 'Level ' + lvl) + '</span>';
-      if (pri > 0) assetHtml += '<span style="margin-left:auto;font-family:var(--font-mono);font-size:0.82em;padding:2px 8px;border-radius:3px;background:rgba(239,68,68,0.1);color:' + priColor + '">Priority ' + pri + '</span>';
+      assetHtml += '<span style="color:' + lvlColor + ';font-size:0.82em;font-weight:600">' + esc(PURDUE_LABELS[lvl] || ('Level ' + lvl)) + '</span>';
+      if (pri > 0) assetHtml += '<span style="margin-left:auto;font-family:var(--font-mono);font-size:0.82em;padding:2px 8px;border-radius:3px;background:rgba(239,68,68,0.1);color:' + priColor + '">Priority ' + esc(pri) + '</span>';
       assetHtml += '</div>';
-
-      // Row 2: Identity info grid
       assetHtml += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:4px 16px;font-size:0.85em;margin-bottom:6px">';
       var fields = [
         ['Vendor', n.vendor || 'Unknown'],
         ['Device Type', n.device_type || 'Unknown'],
-        ['MAC', n.mac || '-'],
+        ['MAC', n.mac || '—']
       ];
       if (n.product_line) fields.push(['Product', n.product_line]);
       if (n.system_name) fields.push(['System Name', n.system_name]);
       if (n.system_desc) fields.push(['Description', n.system_desc]);
       if (n.mgmt_ip) fields.push(['Mgmt IP', n.mgmt_ip]);
       fields.push(['Auth Observed', n.auth_observed ? 'Yes' : 'No']);
-      var netRole = (n.initiates && n.responds) ? 'Initiator + Responder' : n.initiates ? 'Initiator' : n.responds ? 'Responder' : 'Passive';
-      fields.push(['Network Role', netRole]);
-      if (n.vlans && n.vlans.length) fields.push(['VLANs', n.vlans.join(', ')]);
-      if (n.capabilities && n.capabilities.length) fields.push(['Capabilities', n.capabilities.join(', ')]);
-      if (n.ports && n.ports.length) fields.push(['Discovered Ports', n.ports.join(', ')]);
       fields.forEach(function(f) {
-        var valColor = (f[0] === 'Auth Observed') ? (n.auth_observed ? 'var(--accent-green)' : 'var(--color-warning)') : 'var(--text)';
+        var valColor = f[0] === 'Auth Observed' ? (n.auth_observed ? 'var(--accent-green)' : 'var(--color-warning)') : 'var(--text)';
         assetHtml += '<div><span style="color:var(--text-dim)">' + esc(f[0]) + ':</span> <span style="font-family:var(--font-mono);color:' + valColor + '">' + esc(f[1]) + '</span></div>';
       });
       assetHtml += '</div>';
-
-      // Row 3: Protocols
-      if (n._protocols && n._protocols.length) {
+      if (n._protocols.length) {
         assetHtml += '<div style="margin-bottom:6px">';
         n._protocols.forEach(function(p) {
           assetHtml += '<span style="display:inline-block;padding:2px 6px;margin:2px;border-radius:3px;font-size:0.8em;font-family:var(--font-mono);background:' + protoColor(p) + '15;color:' + protoColor(p) + ';border:1px solid ' + protoColor(p) + '33">' + esc(p) + '</span>';
         });
         assetHtml += '</div>';
       }
-
-      // Row 4: Recommended modules
-      if (n.recommended_modules && n.recommended_modules.length) {
+      if (toArray(n.recommended_modules).length) {
         assetHtml += '<div style="margin-bottom:6px;font-size:0.82em"><span style="color:var(--text-dim)">Recommended Modules:</span> ';
         n.recommended_modules.forEach(function(m) {
           assetHtml += '<span style="display:inline-block;padding:2px 6px;margin:2px;border-radius:3px;background:rgba(91,138,240,0.08);border:1px solid var(--border);font-family:var(--font-mono);font-size:0.95em">' + esc(m) + '</span>';
         });
         assetHtml += '</div>';
       }
-
-      // Row 5: Connections (expandable)
-      if (n._edges && n._edges.length) {
-        var connId = 'ms-asset-conns-' + idx;
+      if (n._edges.length) {
         assetHtml += '<details style="font-size:0.82em;margin-top:4px">';
         assetHtml += '<summary style="cursor:pointer;color:var(--text-dim);user-select:none">Connections (' + n._edges.length + ')</summary>';
         assetHtml += '<div style="margin-top:4px;padding-left:8px;border-left:1px solid var(--border-dim)">';
         n._edges.forEach(function(e) {
-          var peer = (e.src === n._ip) ? e.dst : e.src;
-          var dir = (e.src === n._ip) ? '\u2192' : '\u2190';
-          var bytes = e.bytes_total;
-          var bytesStr = bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + ' MB' : bytes >= 1024 ? (bytes / 1024).toFixed(1) + ' KB' : bytes + ' B';
+          var peer = e.src === n._ip ? e.dst : e.src;
+          var dir = e.src === n._ip ? '→' : '←';
           assetHtml += '<div style="padding:2px 0;border-bottom:1px solid var(--border-dim)">';
-          assetHtml += '<span style="color:' + e._color + '">' + esc(e.protocol) + '</span> ';
-          assetHtml += dir + ' <span style="font-family:var(--font-mono)">' + esc(peer) + '</span>';
-          assetHtml += ' <span style="color:var(--text-muted)">' + e.conversation_count + ' conv, ' + bytesStr + '</span>';
+          assetHtml += '<span style="color:' + e._color + '">' + esc(e.protocol) + '</span> ' + dir + ' <span style="font-family:var(--font-mono)">' + esc(peer) + '</span>';
+          assetHtml += ' <span style="color:var(--text-muted)">' + esc(e.conversation_count || 0) + ' conv, ' + esc(formatBytes(e.bytes_total)) + '</span>';
           if (e.includes_writes) assetHtml += ' <span style="color:var(--color-danger);font-weight:600">[WRITE]</span>';
           if (e.includes_program_access) assetHtml += ' <span style="color:var(--color-danger);font-weight:600">[PROGRAM]</span>';
           assetHtml += '</div>';
         });
         assetHtml += '</div></details>';
       }
-
-      // Row 6: Per-node risk findings
-      var nodeRisks = (REPORT.risk_findings || []).filter(function(r) { return r.category !== 'NO_AUTH_OBSERVED' && (r.affected_nodes || []).indexOf(n._ip) >= 0; });
-      if (nodeRisks.length) {
+      if (nodeRiskFindings(n).length) {
         assetHtml += '<details style="font-size:0.82em;margin-top:4px">';
-        assetHtml += '<summary style="cursor:pointer;color:var(--color-danger);user-select:none">Risk Findings (' + nodeRisks.length + ')</summary>';
+        assetHtml += '<summary style="cursor:pointer;color:var(--color-danger);user-select:none">Risk Findings (' + nodeRiskFindings(n).length + ')</summary>';
         assetHtml += '<div style="margin-top:4px">';
-        nodeRisks.forEach(function(r) {
+        nodeRiskFindings(n).forEach(function(r) {
           assetHtml += '<div style="padding:4px 0;border-bottom:1px solid var(--border-dim)"><span style="font-weight:600;color:' + (r.severity === 'CRITICAL' ? '#ef4444' : r.severity === 'HIGH' ? '#f59e0b' : 'var(--text-dim)') + '">' + esc(r.severity) + '</span> ' + esc(r.description) + '</div>';
         });
         assetHtml += '</div></details>';
       }
-
-      assetHtml += '</div>'; // close ms-asset-card
+      assetHtml += '</div>';
     });
     document.getElementById('ms-rpt-assets').innerHTML = sectionHtml('ms-rpt-assets', 'Asset Inventory', nodes.length, assetHtml);
 
-    // ── Protocol Summary ──
     var ps = REPORT.protocol_summary || {};
-    var pKeys = Object.keys(ps).sort(function(a,b) { return ps[b] - ps[a]; });
+    var pKeys = Object.keys(ps).sort(function(a, b) { return ps[b] - ps[a]; });
     var protoHtml = '';
     if (pKeys.length === 0) {
       protoHtml = '<div style="color:var(--text-dim);padding:8px 0;">No protocols.</div>';
     } else {
-      var totalConvs = pKeys.reduce(function(s,k){return s+ps[k];},0);
+      var totalConvs = pKeys.reduce(function(sum, key) { return sum + ps[key]; }, 0);
       protoHtml += '<table class="ms-asset-table"><thead><tr><th>Protocol</th><th>Conversations</th><th>Share</th></tr></thead><tbody>';
       pKeys.forEach(function(p) {
         var pct = totalConvs > 0 ? ((ps[p] / totalConvs) * 100).toFixed(1) : '0';
-        protoHtml += '<tr><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + protoColor(p) + ';margin-right:6px"></span>' + esc(p) + '</td><td>' + ps[p] + '</td><td>' + pct + '%</td></tr>';
+        protoHtml += '<tr><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + protoColor(p) + ';margin-right:6px"></span>' + esc(p) + '</td><td>' + esc(ps[p]) + '</td><td>' + esc(pct) + '%</td></tr>';
       });
       protoHtml += '</tbody></table>';
     }
     document.getElementById('ms-rpt-protocols').innerHTML = sectionHtml('ms-rpt-protocols', 'Protocol Breakdown', pKeys.length, protoHtml);
 
-    // ── Port Analysis ──
     var portSum = REPORT.port_summary || {};
-    var portKeys = Object.keys(portSum).sort(function(a,b) { return (portSum[b].connections||0) - (portSum[a].connections||0); });
+    var portKeys = Object.keys(portSum).sort(function(a, b) {
+      return (portSum[b].connections || 0) - (portSum[a].connections || 0);
+    });
     var portHtml = '';
     if (portKeys.length === 0) {
       portHtml = '<div style="color:var(--text-dim);padding:8px 0;">No port data.</div>';
     } else {
-      var catColors = {'OT':'var(--color-ot)','IT':'var(--color-it)','IT/OT':'var(--accent-cyan)','Ephemeral':'var(--text-muted)','Unknown':'var(--color-warning)'};
+      var catColors = { OT: 'var(--color-ot)', IT: 'var(--color-it)', 'IT/OT': 'var(--accent-cyan)', Ephemeral: 'var(--text-muted)', Unknown: 'var(--color-warning)' };
       portHtml += '<table class="ms-asset-table"><thead><tr><th>Port</th><th>Protocol</th><th>Category</th><th>Conns</th><th>Peers</th></tr></thead><tbody>';
       portKeys.forEach(function(k) {
         var p = portSum[k];
         var cc = catColors[p.category] || 'var(--text-dim)';
         portHtml += '<tr><td>' + esc(k) + '</td><td>' + esc(p.protocol) + '</td>';
         portHtml += '<td><span style="font-size:0.78em;padding:1px 6px;border-radius:3px;background:' + cc + '15;color:' + cc + ';border:1px solid ' + cc + '33">' + esc(p.category) + '</span></td>';
-        portHtml += '<td>' + (p.connections||0) + '</td><td>' + (p.unique_peers||0) + '</td></tr>';
+        portHtml += '<td>' + esc(p.connections || 0) + '</td><td>' + esc(p.unique_peers || 0) + '</td></tr>';
       });
       portHtml += '</tbody></table>';
     }
     document.getElementById('ms-rpt-ports').innerHTML = sectionHtml('ms-rpt-ports', 'Port Analysis', portKeys.length, portHtml);
 
-    // ── C2 Indicators ──
     var c2 = REPORT.c2_indicators || [];
     var c2Html = '';
     if (c2.length === 0) {
       c2Html = '<div style="color:var(--accent-green);padding:8px 0;">No C2 indicators detected.</div>';
     } else {
-      var c2SevOrder = ['CRITICAL','HIGH','MEDIUM','LOW','INFO'];
-      c2.sort(function(a,b) { return c2SevOrder.indexOf(a.severity) - c2SevOrder.indexOf(b.severity); });
-      c2.forEach(function(ind) {
+      c2.slice().sort(function(a, b) { return severityRank(a.severity) - severityRank(b.severity); }).forEach(function(ind) {
         var sc = ind.severity === 'CRITICAL' ? '#ef4444' : ind.severity === 'HIGH' ? '#f59e0b' : '#3b82f6';
         c2Html += '<div class="ms-finding-card sev-' + esc(ind.severity) + '">';
         c2Html += '<div class="ms-finding-head"><span class="ms-finding-sev">' + esc(ind.severity) + '</span><span class="ms-finding-cat">' + esc(ind.type) + '</span></div>';
         c2Html += '<div class="ms-finding-desc">' + esc(ind.description) + '</div>';
-        // Beaconing details
         if (ind.beacon_score != null) {
           var pct = Math.round(ind.beacon_score * 100);
-          c2Html += '<div style="margin-top:6px">';
-          c2Html += '<div style="font-size:0.78em;color:var(--text-dim);margin-bottom:2px">Beacon Confidence</div>';
+          c2Html += '<div style="margin-top:6px"><div style="font-size:0.78em;color:var(--text-dim);margin-bottom:2px">Beacon Confidence</div>';
           c2Html += '<div style="background:var(--border-dim);border-radius:3px;height:8px;overflow:hidden"><div style="height:100%;width:' + pct + '%;background:' + sc + ';border-radius:3px"></div></div>';
-          c2Html += '<div style="font-size:0.78em;color:var(--text-dim);margin-top:2px">' + pct + '% confidence &middot; ~' + (ind.interval||0) + 's interval &middot; ' + Math.round((ind.jitter||0)*100) + '% jitter</div>';
-          c2Html += '</div>';
+          c2Html += '<div style="font-size:0.78em;color:var(--text-dim);margin-top:2px">' + pct + '% confidence · ~' + esc(ind.interval || 0) + 's interval · ' + Math.round((ind.jitter || 0) * 100) + '% jitter</div></div>';
         }
-        // DNS details
         if (ind.entropy != null) {
-          c2Html += '<div style="margin-top:4px;font-size:0.85em;color:var(--text-dim)">Entropy: <span style="font-family:var(--font-mono);color:' + (ind.entropy > 4.0 ? '#ef4444' : ind.entropy > 3.5 ? '#f59e0b' : 'var(--text)') + '">' + ind.entropy + '</span>';
-          if (ind.base_domain) c2Html += ' &middot; Domain: <span style="font-family:var(--font-mono)">' + esc(ind.base_domain) + '</span>';
-          if (ind.unique_subdomains) c2Html += ' &middot; ' + ind.unique_subdomains + ' subdomains';
+          c2Html += '<div style="margin-top:4px;font-size:0.85em;color:var(--text-dim)">Entropy: <span style="font-family:var(--font-mono);color:' + (ind.entropy > 4.0 ? '#ef4444' : ind.entropy > 3.5 ? '#f59e0b' : 'var(--text)') + '">' + esc(ind.entropy) + '</span>';
+          if (ind.base_domain) c2Html += ' · Domain: <span style="font-family:var(--font-mono)">' + esc(ind.base_domain) + '</span>';
+          if (ind.unique_subdomains) c2Html += ' · ' + esc(ind.unique_subdomains) + ' subdomains';
           c2Html += '</div>';
-          if (ind.sample_queries && ind.sample_queries.length) {
+          if (toArray(ind.sample_queries).length) {
             c2Html += '<div style="margin-top:4px;font-size:0.78em;color:var(--text-muted);font-family:var(--font-mono);word-break:break-all">' + ind.sample_queries.map(esc).join('<br>') + '</div>';
           }
         }
@@ -1055,8 +2783,6 @@ var MS = (function() {
     document.getElementById('ms-rpt-c2').innerHTML = sectionHtml('ms-rpt-c2', 'C2 Indicators', c2.length, c2Html);
   }
 
-  var macTableRendered = false;
-
   function switchReportTab(tab) {
     var tabs = document.querySelectorAll('.ms-report-tab');
     var contents = document.querySelectorAll('.ms-report-tab-content');
@@ -1064,7 +2790,9 @@ var MS = (function() {
       var tabIds = ['report', 'mac-table'];
       t.classList.toggle('active', tabIds[i] === tab);
     });
-    contents.forEach(function(c) { c.classList.toggle('active', c.id === 'ms-tab-' + tab); });
+    contents.forEach(function(c) {
+      c.classList.toggle('active', c.id === 'ms-tab-' + tab);
+    });
     if (tab === 'mac-table' && !macTableRendered) {
       renderMacTable();
       macTableRendered = true;
@@ -1077,17 +2805,15 @@ var MS = (function() {
     if (mt.length === 0) {
       html = '<div style="color:var(--text-dim);padding:16px 0;">No MAC address data available.</div>';
     } else {
-      html += '<table class="ms-asset-table"><thead><tr>';
-      html += '<th>MAC Address</th><th>IP Address</th><th>Vendor</th><th>System Name</th><th>Capabilities</th><th>Source</th>';
-      html += '</tr></thead><tbody>';
+      html += '<table class="ms-asset-table"><thead><tr><th>MAC Address</th><th>IP Address</th><th>Vendor</th><th>System Name</th><th>Capabilities</th><th>Source</th></tr></thead><tbody>';
       mt.forEach(function(entry) {
-        var caps = (entry.capabilities || []).join(', ') || '\u2014';
-        var srcColor = {'lldp':'var(--accent-cyan)','cdp':'var(--accent-cyan)','stp':'var(--accent-amber)','arp':'var(--accent-green)','traffic':'var(--text-dim)'}[entry.source] || 'var(--text-dim)';
+        var caps = toArray(entry.capabilities).join(', ') || '—';
+        var srcColor = { lldp: 'var(--accent-cyan)', cdp: 'var(--accent-cyan)', stp: 'var(--accent-amber)', arp: 'var(--accent-green)', traffic: 'var(--text-dim)' }[entry.source] || 'var(--text-dim)';
         html += '<tr>';
         html += '<td style="font-family:var(--font-mono)">' + esc(entry.mac) + '</td>';
-        html += '<td style="font-family:var(--font-mono)">' + esc(entry.ip || '\u2014') + '</td>';
+        html += '<td style="font-family:var(--font-mono)">' + esc(entry.ip || '—') + '</td>';
         html += '<td>' + esc(entry.vendor || 'Unknown') + '</td>';
-        html += '<td>' + esc(entry.system_name || '\u2014') + '</td>';
+        html += '<td>' + esc(entry.system_name || '—') + '</td>';
         html += '<td>' + esc(caps) + '</td>';
         html += '<td><span style="font-size:0.82em;padding:1px 6px;border-radius:3px;background:' + srcColor + '15;color:' + srcColor + ';border:1px solid ' + srcColor + '33">' + esc(entry.source || 'unknown') + '</span></td>';
         html += '</tr>';
@@ -1097,10 +2823,71 @@ var MS = (function() {
     document.getElementById('ms-rpt-mac-table').innerHTML = html;
   }
 
-  function start(){initData();if(nodes.length===0){document.getElementById('ms-empty').style.display='block';document.getElementById('ms-svg-container').style.display='none';renderHeader();renderSidebar();return;}renderHeader();renderSidebar();SVG2D.init();}
+  function bindControls() {
+    var searchEl = document.getElementById('ms-search');
+    var focusEl = document.getElementById('ms-focus');
+    searchEl.addEventListener('input', function(ev) {
+      setSearch(ev.target.value);
+    });
+    searchEl.addEventListener('keydown', function(ev) {
+      if (ev.key === 'Enter') {
+        var list = getFilteredNodes();
+        if (list.length) selectNode(list[0], true);
+      }
+    });
+    focusEl.addEventListener('change', function(ev) {
+      setFocus(ev.target.value);
+    });
+    document.addEventListener('keydown', function(ev) {
+      var target = ev.target;
+      var tag = target && target.tagName ? target.tagName.toLowerCase() : '';
+      var typing = tag === 'input' || tag === 'textarea' || tag === 'select';
+      if (ev.key === '/' && !typing) {
+        ev.preventDefault();
+        searchEl.focus();
+        searchEl.select();
+      }
+      if (ev.key === 'Escape') {
+        if (selectedNode) {
+          deselectNode();
+          return;
+        }
+        if (filterState.query || filterState.focus !== 'all') {
+          clearFilters();
+        }
+      }
+    });
+  }
 
-  return{toggleRisk:toggleRisk,toggleReport:toggleReport,toggleSection:toggleSection,switchReportTab:switchReportTab,printReport:printReport,exportPng:exportPng,selectNodeByIp:selectNodeByIp,deselectNode:deselectNode,start:start};
+  function start() {
+    initData();
+    renderHeader();
+    renderSidebar();
+    bindControls();
+    if (nodes.length === 0) {
+      document.getElementById('ms-empty').style.display = 'block';
+      document.getElementById('ms-svg-container').style.display = 'none';
+      return;
+    }
+    SVG2D.init();
+  }
+
+  return {
+    toggleRisk: toggleRisk,
+    toggleReport: toggleReport,
+    toggleSection: toggleSection,
+    switchReportTab: switchReportTab,
+    printReport: printReport,
+    exportPng: exportPng,
+    selectNodeByIp: selectNodeByIp,
+    centerOnSelected: centerOnSelected,
+    deselectNode: deselectNode,
+    setFocus: setFocus,
+    clearFilters: clearFilters,
+    start: start
+  };
 })();
+
 document.addEventListener('DOMContentLoaded', MS.start);
 </script>
 </body>

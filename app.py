@@ -16,6 +16,7 @@ import subprocess
 import threading
 import time
 import uuid
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -157,6 +158,173 @@ def _sanitize_report(report: dict) -> dict:
             ci["pcap_path"] = os.path.basename(ci["pcap_path"])
         ci.pop("tshark_path", None)
     return r
+
+
+def _viewer_anchor(value: str) -> str:
+    value = str(value or "").strip()
+    return re.sub(r"[^a-zA-Z0-9_-]+", "-", value).strip("-") or "asset"
+
+
+def _severity_rank(severity: str) -> int:
+    return {
+        "CRITICAL": 0,
+        "HIGH": 1,
+        "MEDIUM": 2,
+        "LOW": 3,
+        "INFO": 4,
+    }.get((severity or "").upper(), 5)
+
+
+def _build_viewer_context(report: dict) -> dict:
+    """Prepare server-rendered triage context for the viewer."""
+    nodes = list(report.get("nodes") or [])
+    edges = list(report.get("edges") or [])
+    risk_findings = list(report.get("risk_findings") or [])
+    c2_indicators = sorted(
+        list(report.get("c2_indicators") or []),
+        key=lambda item: (_severity_rank(item.get("severity")), item.get("type", ""), item.get("src", "")),
+    )
+    protocol_summary = dict(report.get("protocol_summary") or {})
+    port_summary = dict(report.get("port_summary") or {})
+    purdue_violations = list(report.get("purdue_violations") or [])
+    mac_table = list(report.get("mac_table") or [])
+
+    node_risks = defaultdict(list)
+    for finding in risk_findings:
+        if finding.get("category") == "NO_AUTH_OBSERVED":
+            continue
+        for ip in finding.get("affected_nodes") or []:
+            node_risks[str(ip)].append(finding)
+    for items in node_risks.values():
+        items.sort(key=lambda item: (_severity_rank(item.get("severity")), item.get("category", "")))
+
+    def classify_score(node: dict) -> int:
+        score = 0
+        if node.get("vendor") and node.get("vendor") != "Unknown":
+            score += 1
+        if node.get("device_type") and node.get("device_type") != "Unknown":
+            score += 1
+        if node.get("product_line"):
+            score += 1
+        if node.get("system_name") or node.get("system_desc"):
+            score += 1
+        return score
+
+    def node_priority_key(node: dict):
+        ip = str(node.get("ip") or node.get("address") or "")
+        risk_count = len(node_risks.get(ip, []))
+        service_count = len(node.get("service_ports") or [])
+        protocol_count = len(node.get("protocols") or [])
+        return (
+            int(node.get("attack_priority") or 0),
+            risk_count,
+            service_count,
+            protocol_count,
+            ip,
+        )
+
+    assets_sorted = []
+    write_nodes = set()
+    for edge in edges:
+        if edge.get("includes_writes") or edge.get("includes_program_access"):
+            if edge.get("src"):
+                write_nodes.add(str(edge["src"]))
+            if edge.get("dst"):
+                write_nodes.add(str(edge["dst"]))
+
+    for node in sorted(nodes, key=node_priority_key, reverse=True):
+        ip = str(node.get("ip") or node.get("address") or "")
+        related_risks = node_risks.get(ip, [])
+        assets_sorted.append({
+            **node,
+            "_ip": ip,
+            "_anchor": _viewer_anchor(ip),
+            "_risk_count": len(related_risks),
+            "_top_risk": related_risks[0] if related_risks else None,
+            "_risk_findings": related_risks,
+            "_classification_score": classify_score(node),
+            "_has_writes": ip in write_nodes,
+        })
+
+    priority_nodes = [node for node in assets_sorted if int(node.get("attack_priority") or 0) > 0][:8]
+    auth_gap_nodes = [node for node in assets_sorted if not node.get("auth_observed", False)][:8]
+    unclassified_nodes = [node for node in assets_sorted if node["_classification_score"] == 0][:8]
+    write_paths = [
+        {
+            **edge,
+            "_anchor_src": _viewer_anchor(edge.get("src", "")),
+            "_anchor_dst": _viewer_anchor(edge.get("dst", "")),
+        }
+        for edge in edges
+        if edge.get("includes_writes") or edge.get("includes_program_access")
+    ]
+    write_paths.sort(key=lambda edge: (int(bool(edge.get("includes_program_access"))), int(bool(edge.get("includes_writes"))), int(edge.get("conversation_count") or 0)), reverse=True)
+
+    external_types = {
+        "C2_BEACONING",
+        "C2_DNS_EXFIL",
+        "C2_DNS_TUNNEL_SUSPECT",
+        "C2_DNS_HIGH_ENTROPY",
+        "C2_SUSPECT_CHANNEL",
+        "C2_DATA_EXFIL",
+        "C2_PERSISTENCE",
+    }
+    external_indicators = [item for item in c2_indicators if item.get("type") in external_types][:8]
+    top_findings = sorted(
+        risk_findings,
+        key=lambda item: (_severity_rank(item.get("severity")), item.get("category", ""), item.get("description", "")),
+    )[:8]
+
+    protocol_items = [
+        {"name": name, "count": count}
+        for name, count in sorted(protocol_summary.items(), key=lambda item: (-int(item[1]), item[0]))
+    ]
+    port_items = [
+        {"label": label, **details}
+        for label, details in sorted(
+            port_summary.items(),
+            key=lambda item: (-int((item[1] or {}).get("connections") or 0), item[0]),
+        )
+    ]
+
+    severity_counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0, "INFO": 0}
+    for finding in risk_findings:
+        sev = str(finding.get("severity") or "").upper()
+        if sev in severity_counts:
+            severity_counts[sev] += 1
+
+    summary = {
+        "asset_count": len(nodes),
+        "edge_count": len(edges),
+        "protocol_count": len(protocol_items),
+        "classified_count": sum(1 for node in assets_sorted if node["_classification_score"] > 0),
+        "auth_gap_count": sum(1 for node in assets_sorted if not node.get("auth_observed", False)),
+        "write_node_count": len(write_nodes),
+        "write_edge_count": len(write_paths),
+        "priority_count": len([node for node in assets_sorted if int(node.get("attack_priority") or 0) > 0]),
+        "external_count": len([node for node in assets_sorted if node.get("purdue_level") == 5 or node.get("role") == "External Host"]),
+        "critical_high_count": severity_counts["CRITICAL"] + severity_counts["HIGH"],
+        "severity_counts": severity_counts,
+        "packet_count": (report.get("capture_info") or {}).get("total_packets"),
+        "duration_seconds": (report.get("capture_info") or {}).get("duration_seconds"),
+    }
+    summary["unclassified_count"] = max(0, summary["asset_count"] - summary["classified_count"])
+
+    return {
+        "summary": summary,
+        "assets_sorted": assets_sorted,
+        "priority_nodes": priority_nodes,
+        "auth_gap_nodes": auth_gap_nodes,
+        "unclassified_nodes": unclassified_nodes,
+        "write_paths": write_paths[:10],
+        "top_findings": top_findings,
+        "external_indicators": external_indicators,
+        "protocol_items": protocol_items[:10],
+        "port_items": port_items[:12],
+        "purdue_violations": purdue_violations,
+        "c2_indicators": c2_indicators,
+        "mac_table": mac_table,
+    }
 
 
 def create_app():
@@ -910,6 +1078,7 @@ def create_app():
             "finished_at": None,
             "return_code": None,
             "artifacts_produced": {},
+            "project_id": project_id,
         }
 
         with _runs_lock:
@@ -1042,6 +1211,7 @@ def create_app():
             "return_code": run["return_code"],
             "output_lines": len(run["output"]),
             "report_filename": run["report_filename"],
+            "project_id": run.get("project_id"),
         })
 
     @app.route("/api/runs/<run_id>/output")
@@ -1300,10 +1470,12 @@ def create_app():
             return "Report not found", 404
         with open(path) as f:
             report = json.load(f)
+        sanitized_report = _sanitize_report(report)
         return render_template(
             "viewer.html",
-            report=report,
-            report_json=_sanitize_report(report),
+            report=sanitized_report,
+            report_json=sanitized_report,
+            viewer_context=_build_viewer_context(sanitized_report),
             filename=safe_name,
         )
 

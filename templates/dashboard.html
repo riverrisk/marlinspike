@@ -3,6 +3,175 @@
 
 {% block head %}
 <style>
+.workspace-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 24px;
+  margin-bottom: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(91,138,240,0.16), transparent 32%),
+    linear-gradient(135deg, rgba(50,184,198,0.08), rgba(91,138,240,0.02) 45%, rgba(239,68,68,0.08));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+.workspace-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 45%);
+  pointer-events: none;
+}
+.workspace-copy,
+.workspace-actions {
+  position: relative;
+  z-index: 1;
+}
+.workspace-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 760px;
+}
+.workspace-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72em;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  font-weight: 700;
+}
+.workspace-eyebrow .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--color-success);
+  box-shadow: 0 0 10px rgba(34,197,94,0.45);
+}
+.workspace-title {
+  font-size: 1.7em;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.workspace-title span { color: var(--color-danger); }
+.workspace-subtitle {
+  max-width: 68ch;
+  color: var(--text-dim);
+  font-size: 0.96em;
+  line-height: 1.55;
+}
+.workspace-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.context-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(11,20,32,0.72);
+  border: 1px solid rgba(91,138,240,0.2);
+  color: var(--text-dim);
+  font-size: 0.8em;
+}
+.context-pill b {
+  color: var(--text);
+  font-weight: 600;
+}
+.workspace-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  min-width: 240px;
+}
+.workspace-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.workspace-kpi {
+  padding: 14px 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.015), transparent 45%), var(--panel);
+  border: 1px solid var(--border-dim);
+  border-radius: 8px;
+  min-width: 0;
+}
+.workspace-kpi-label {
+  font-size: 0.72em;
+  text-transform: uppercase;
+  letter-spacing: 0.55px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.workspace-kpi-value {
+  margin-top: 8px;
+  font-size: 1.28em;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.workspace-kpi-detail {
+  margin-top: 4px;
+  font-size: 0.82em;
+  color: var(--text-dim);
+  line-height: 1.35;
+  min-height: 2.2em;
+}
+.workspace-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.workspace-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.84em;
+  background: var(--panel);
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.workspace-link:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  background: rgba(91,138,240,0.06);
+}
+.workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr);
+  gap: 16px;
+  align-items: start;
+}
+.workspace-span-2 {
+  grid-column: 1 / -1;
+}
+.panel-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.panel-subtitle {
+  color: var(--text-dim);
+  font-size: 0.82em;
+  font-weight: 400;
+}
+
 /* Scan controls */
 .scan-controls {
   display: flex;
@@ -345,16 +514,114 @@
   font-weight: 500;
 }
 .empty-hint .hint-action:hover { text-decoration: underline; }
+
+@media (max-width: 1120px) {
+  .workspace-kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+  .workspace-span-2 {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 820px) {
+  .workspace-hero {
+    flex-direction: column;
+    padding: 18px;
+  }
+  .workspace-actions {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+  .workspace-title {
+    font-size: 1.38em;
+  }
+  .workspace-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .workspace-kpis {
+    grid-template-columns: 1fr;
+  }
+}
 </style>
 {% endblock %}
 
 {% block body %}
 <div class="ms-content">
 
+  <section class="workspace-hero">
+    <div class="workspace-copy">
+      <div class="workspace-eyebrow"><span class="dot"></span> Analyst Workspace</div>
+      <h1 class="workspace-title"><span>MarlinSpike</span> keeps capture intake, live execution, and assessment outputs in one operating view.</h1>
+      <p class="workspace-subtitle">
+        Use this page as the working surface for project-scoped scanning, recent output review, and active-run follow-through.
+        The goal is fast orientation first, then smooth movement into topology and report analysis.
+      </p>
+      <div class="workspace-context">
+        <div class="context-pill">Project <b id="ws-context-project">Loading...</b></div>
+        <div class="context-pill">Source <b id="ws-context-source">PCAP File</b></div>
+        <div class="context-pill">Recent activity <b id="ws-context-activity">Loading...</b></div>
+      </div>
+    </div>
+    <div class="workspace-actions">
+      <a class="btn btn-primary" href="#scan-workspace">Run Scan</a>
+      <a class="btn" href="#reports-section">Recent Reports</a>
+      <a class="btn" href="#history-section">Scan History</a>
+      <a class="btn" href="/projects">Projects</a>
+    </div>
+  </section>
+
+  <section class="workspace-kpis" aria-label="Workspace overview">
+    <div class="workspace-kpi">
+      <div class="workspace-kpi-label">Project Focus</div>
+      <div class="workspace-kpi-value" id="ws-project-name">Loading...</div>
+      <div class="workspace-kpi-detail" id="ws-project-detail">Preparing workspace context...</div>
+    </div>
+    <div class="workspace-kpi">
+      <div class="workspace-kpi-label">Capture Inventory</div>
+      <div class="workspace-kpi-value" id="ws-file-count">--</div>
+      <div class="workspace-kpi-detail" id="ws-file-detail">PCAPs ready in the selected project.</div>
+    </div>
+    <div class="workspace-kpi">
+      <div class="workspace-kpi-label">Report Outputs</div>
+      <div class="workspace-kpi-value" id="ws-report-count">--</div>
+      <div class="workspace-kpi-detail" id="ws-report-detail">Recent assessment artifacts available for review.</div>
+    </div>
+    <div class="workspace-kpi">
+      <div class="workspace-kpi-label">Recent Scans</div>
+      <div class="workspace-kpi-value" id="ws-scan-count">--</div>
+      <div class="workspace-kpi-detail" id="ws-scan-detail">Latest execution state is loading.</div>
+    </div>
+    <div class="workspace-kpi">
+      <div class="workspace-kpi-label">Attached Runs</div>
+      <div class="workspace-kpi-value" id="ws-run-count">0</div>
+      <div class="workspace-kpi-detail" id="ws-run-detail">No active run panels attached.</div>
+    </div>
+  </section>
+
+  <nav class="workspace-rail" aria-label="Workspace sections">
+    <a class="workspace-link" href="#scan-workspace">Capture Intake</a>
+    <a class="workspace-link" href="#reports-section">Assessment Outputs</a>
+    <a class="workspace-link" href="#history-section">Execution History</a>
+    <a class="workspace-link" href="/reports">Report Library</a>
+    <a class="workspace-link" href="/scans">Full Scan Ledger</a>
+  </nav>
+
+  <div class="workspace-grid">
+
   <!-- Scan Controls -->
-  <div class="panel">
+  <div class="panel workspace-span-2" id="scan-workspace">
     <div class="panel-header">
-      <h2>New Scan</h2>
+      <div class="panel-title-wrap">
+        <h2>Scan Workspace</h2>
+        <div class="panel-subtitle">Choose capture source, execution mode, and project scope before launching a run.</div>
+      </div>
       <button class="btn btn-success" id="btn-start" onclick="MS.startScan()">Start Scan</button>
     </div>
     <div class="panel-body">
@@ -458,12 +725,15 @@
   </div>
 
   <!-- Active Runs (dynamically populated) -->
-  <div id="runs-container"></div>
+  <div id="runs-container" class="workspace-span-2"></div>
 
   <!-- Reports -->
-  <div class="panel">
+  <div class="panel" id="reports-section">
     <div class="panel-header">
-      <h2>Reports</h2>
+      <div class="panel-title-wrap">
+        <h2>Recent Reports</h2>
+        <div class="panel-subtitle">Open, compare, or remove the latest generated assessment outputs for the active project.</div>
+      </div>
       <button class="btn btn-sm" onclick="MS.loadReports()">Refresh</button>
     </div>
     <div class="panel-body">
@@ -490,9 +760,12 @@
   </div>
 
   <!-- Scan History -->
-  <div class="panel">
+  <div class="panel" id="history-section">
     <div class="panel-header">
-      <h2>Scan History</h2>
+      <div class="panel-title-wrap">
+        <h2>Recent Scan History</h2>
+        <div class="panel-subtitle">Track recent execution state, re-attach to live work, and retry failed file-based runs.</div>
+      </div>
     </div>
     <div class="panel-body">
       <table class="ms-table" id="history-table">
@@ -516,6 +789,7 @@
   </div>
 
 </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -530,8 +804,20 @@ var MS = (function() {
   var uploadedFile = null;
   var compareA = null, compareB = null;
   var currentProjectId = null;
+  var workspaceState = {
+    projectName: 'Loading...',
+    projectCount: 0,
+    fileCount: 0,
+    reportCount: 0,
+    reportModified: '',
+    scanCount: 0,
+    latestScanStatus: '',
+    latestScanTime: '',
+    sourceLabel: 'PCAP File'
+  };
 
   function init() {
+    renderWorkspaceState();
     loadProjects(function() {
       loadReports();
       loadHistory();
@@ -540,6 +826,67 @@ var MS = (function() {
     });
     if (document.getElementById('src-live')) loadInterfaces();
     setupUpload();
+    renderRunSummary();
+  }
+
+  function setWorkspaceState(patch) {
+    Object.keys(patch || {}).forEach(function(key) {
+      workspaceState[key] = patch[key];
+    });
+    renderWorkspaceState();
+  }
+
+  function renderWorkspaceState() {
+    setText('ws-project-name', workspaceState.projectName || 'No project selected');
+    setText(
+      'ws-project-detail',
+      (workspaceState.projectCount || 0) + ' project' + ((workspaceState.projectCount || 0) === 1 ? '' : 's') + ' available in this workspace.'
+    );
+    setText('ws-file-count', String(workspaceState.fileCount || 0));
+    setText(
+      'ws-file-detail',
+      (workspaceState.fileCount || 0) === 0
+        ? 'No PCAPs loaded for the selected project yet.'
+        : 'PCAPs ready for intake in the active project.'
+    );
+    setText('ws-report-count', String(workspaceState.reportCount || 0));
+    setText(
+      'ws-report-detail',
+      workspaceState.reportModified
+        ? 'Latest output updated ' + formatRelativeTime(workspaceState.reportModified) + '. Open the viewer when you are ready to work it.'
+        : 'No reports generated for the selected project yet.'
+    );
+    setText('ws-scan-count', String(workspaceState.scanCount || 0));
+    setText(
+      'ws-scan-detail',
+      workspaceState.latestScanStatus
+        ? 'Latest run is ' + workspaceState.latestScanStatus.toLowerCase() + (workspaceState.latestScanTime ? ' from ' + formatRelativeTime(workspaceState.latestScanTime) + '.' : '.')
+        : 'No recent scan activity loaded yet.'
+    );
+    setText('ws-context-project', workspaceState.projectName || 'No project');
+    setText('ws-context-source', workspaceState.sourceLabel || 'PCAP File');
+    setText(
+      'ws-context-activity',
+      workspaceState.reportModified
+        ? 'Report ' + formatRelativeTime(workspaceState.reportModified)
+        : (workspaceState.latestScanTime ? 'Scan ' + formatRelativeTime(workspaceState.latestScanTime) : 'No recent activity')
+    );
+  }
+
+  function renderRunSummary() {
+    var count = Object.keys(attachedRuns).length;
+    setText('ws-run-count', String(count));
+    setText(
+      'ws-run-detail',
+      count === 0
+        ? 'No active run panels attached.'
+        : count + ' live run' + (count === 1 ? '' : 's') + ' currently attached for follow-through.'
+    );
+  }
+
+  function setText(id, value) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = value;
   }
 
   // ── Projects ──
@@ -563,6 +910,10 @@ var MS = (function() {
         sel.value = d.projects[0].id;
         currentProjectId = d.projects[0].id;
       }
+      setWorkspaceState({
+        projectCount: (d.projects || []).length,
+        projectName: getSelectedProjectName()
+      });
       if (callback) callback();
     }).catch(function() {
       if (callback) callback();
@@ -578,8 +929,10 @@ var MS = (function() {
     }
     document.getElementById('new-project-field').style.display = 'none';
     currentProjectId = parseInt(sel.value) || null;
+    setWorkspaceState({ projectName: getSelectedProjectName() });
     loadFiles();
     loadReports();
+    loadHistory();
   }
 
   function createNewProject() {
@@ -596,8 +949,10 @@ var MS = (function() {
         currentProjectId = d.id;
         loadProjects(function() {
           document.getElementById('scan-project').value = d.id;
+          setWorkspaceState({ projectName: getSelectedProjectName() });
           loadFiles();
           loadReports();
+          loadHistory();
         });
         msToast('Project created');
       } else {
@@ -626,6 +981,7 @@ var MS = (function() {
     // Hide command selector for live capture (not applicable)
     var cmdRow = document.getElementById('scan-command-row');
     if (cmdRow) cmdRow.style.display = (s === 'live') ? 'none' : '';
+    setWorkspaceState({ sourceLabel: formatSourceLabel(s) });
     // Lazy-load presets on first open
     if (s === 'library' && !presetsLoaded) loadPresets();
   }
@@ -810,6 +1166,7 @@ var MS = (function() {
       if (!d.files || d.files.length === 0) {
         sel.innerHTML = '<option value="">-- No uploaded PCAPs --</option>';
       }
+      setWorkspaceState({ fileCount: (d.files || []).length });
     }).catch(function() {
       var sel = document.getElementById('pcap-select');
       sel.innerHTML = '<option value="">-- Failed to load files --</option>';
@@ -867,6 +1224,7 @@ var MS = (function() {
     delete attachedRuns[runId];
     var panel = document.getElementById('run-panel-' + runId);
     if (panel) panel.remove();
+    renderRunSummary();
   }
 
   function attachRun(runId) {
@@ -874,6 +1232,7 @@ var MS = (function() {
     attachedRuns[runId] = { cursor: 0, pollTimer: null };
     createRunPanel(runId);
     startPolling(runId);
+    renderRunSummary();
     msToast('Attached to run ' + runId.substring(0, 8));
   }
 
@@ -902,6 +1261,7 @@ var MS = (function() {
       + '<div class="live-output collapsed" id="run-output-' + runId + '"></div>'
       + '<div style="margin-top:8px;font-size:0.82em;color:var(--text-dim);" id="run-info-' + runId + '"></div>'
       + '<div style="margin-top:8px;">'
+      + '<a href="#" id="run-report-link-' + runId + '" style="display:none;color:var(--accent);font-size:0.88em;margin-right:12px;" target="_blank">Open Report Workbench</a>'
       + '<a href="/api/runs/' + runId + '/live" id="run-live-link-' + runId + '" style="color:var(--accent-cyan);font-size:0.88em;" target="_blank">Open Live Topology Viewer</a>'
       + '</div></div>';
     container.appendChild(panel);
@@ -915,6 +1275,7 @@ var MS = (function() {
           attachRun(run.run_id);
         });
       }
+      renderRunSummary();
     });
   }
 
@@ -1035,6 +1396,18 @@ var MS = (function() {
     if (stopBtn && d.status !== 'running' && d.status !== 'pending') {
       stopBtn.style.display = 'none';
     }
+
+    var reportLink = document.getElementById('run-report-link-' + runId);
+    if (reportLink) {
+      if (d.status === 'completed' && d.report_filename) {
+        var href = '/api/reports/' + encodeURIComponent(d.report_filename) + '/viewer';
+        if (d.project_id) href += '?project_id=' + d.project_id;
+        reportLink.href = href;
+        reportLink.style.display = '';
+      } else {
+        reportLink.style.display = 'none';
+      }
+    }
   }
 
   // ── Reports ──
@@ -1043,6 +1416,10 @@ var MS = (function() {
     if (currentProjectId) url += '&project_id=' + currentProjectId;
     fetch(url).then(function(r) { return r.json(); }).then(function(d) {
       var tbody = document.getElementById('reports-body');
+      setWorkspaceState({
+        reportCount: d.total || (d.reports || []).length || 0,
+        reportModified: (d.reports && d.reports.length) ? d.reports[0].modified : ''
+      });
       if (!d.reports || d.reports.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5"><div class="empty-hint"><p>No reports yet.</p><p style="font-size:0.88em;">Upload a PCAP and run a scan to generate your first topology report.</p></div></td></tr>';
         return;
@@ -1124,8 +1501,15 @@ var MS = (function() {
 
   // ── History ──
   function loadHistory() {
-    fetch('/api/history?limit=10').then(function(r) { return r.json(); }).then(function(d) {
+    var url = '/api/history?limit=10';
+    if (currentProjectId) url += '&project_id=' + currentProjectId;
+    fetch(url).then(function(r) { return r.json(); }).then(function(d) {
       var tbody = document.getElementById('history-body');
+      setWorkspaceState({
+        scanCount: d.total || (d.scans || []).length || 0,
+        latestScanStatus: (d.scans && d.scans.length) ? d.scans[0].status : '',
+        latestScanTime: (d.scans && d.scans.length) ? d.scans[0].started_at : ''
+      });
       if (!d.scans || d.scans.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8"><div class="empty-hint"><p>No scan history yet.</p></div></td></tr>';
         return;
@@ -1206,6 +1590,7 @@ var MS = (function() {
 
   function retryScan(pcapSource, command) {
     var body = { command: command, pcap_file: pcapSource };
+    if (currentProjectId) body.project_id = currentProjectId;
     fetch('/api/scans/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1243,6 +1628,38 @@ var MS = (function() {
       return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
         + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
     } catch(e) { return iso; }
+  }
+
+  function formatRelativeTime(iso) {
+    if (!iso) return 'recently';
+    try {
+      var deltaMs = Date.now() - new Date(iso).getTime();
+      if (!isFinite(deltaMs)) return 'recently';
+      var mins = Math.max(0, Math.floor(deltaMs / 60000));
+      if (mins < 1) return 'just now';
+      if (mins < 60) return mins + 'm ago';
+      var hours = Math.floor(mins / 60);
+      if (hours < 24) return hours + 'h ago';
+      var days = Math.floor(hours / 24);
+      return days + 'd ago';
+    } catch (e) {
+      return 'recently';
+    }
+  }
+
+  function getSelectedProjectName() {
+    var sel = document.getElementById('scan-project');
+    if (!sel || sel.selectedIndex < 0) return 'No project selected';
+    var opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.textContent) return 'No project selected';
+    return opt.textContent.replace(/\s+\(\d+\s+PCAPs?\)\s*$/, '');
+  }
+
+  function formatSourceLabel(src) {
+    if (src === 'library') return 'Sample Library';
+    if (src === 'upload') return 'Upload';
+    if (src === 'live') return 'Live Capture';
+    return 'PCAP File';
   }
 
   // ── Init ──

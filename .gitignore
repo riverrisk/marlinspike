@@ -14,10 +14,13 @@ venv/
 Screenshot*.png
 CLAUDE.md
 AGENTS.md
+.smoke/
 backups/
 data/reports/
 data/uploads/
 data/submissions/
+data/presets/
 presets/**/*.pcap
 presets/**/*.pcapng
 presets/**/*.cap
+docs/kusanagi-competitive-gap.md

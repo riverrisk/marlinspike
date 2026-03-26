@@ -140,6 +140,8 @@ import argparse
 import re
 import hashlib
 import time
+import shutil
+import tempfile
 from collections import defaultdict
 from dataclasses import dataclass, field, asdict
 from typing import Optional
@@ -198,6 +200,665 @@ def _find_recent_artifact(reports_dir, module_id, command):
         return None
     matches.sort(key=lambda p: os.path.getmtime(p), reverse=True)
     return matches[0]
+
+
+# ---------------------------------------------------------------------------
+# External DPI support (marlinspike-dpi)
+# ---------------------------------------------------------------------------
+
+RUST_PROTOCOL_DISPLAY_NAMES = {
+    "arp": "ARP",
+    "cdp": "CDP",
+    "dhcp": "DHCP",
+    "dns": "DNS",
+    "dnp3": "DNP3",
+    "ethernet_ip": "EtherNet/IP",
+    "http": "HTTP",
+    "lldp": "LLDP",
+    "modbus": "Modbus TCP",
+    "opc_ua": "OPC-UA",
+    "profinet": "PROFINET",
+    "s7comm": "S7comm",
+    "snmp": "SNMP",
+    "stp": "STP",
+    "tls": "TLS",
+}
+
+RUST_PROTOCOL_SERVICE_PORTS = {
+    "dhcp": {67, 68},
+    "dns": {53, 5353},
+    "dnp3": {20000},
+    "ethernet_ip": {44818},
+    "http": {80, 8080},
+    "modbus": {502},
+    "opc_ua": {4840},
+    "profinet": {34964},
+    "s7comm": {102},
+    "snmp": {161, 162},
+}
+
+RUST_S7_PROGRAM_OPERATIONS = {
+    "request_download",
+    "download_block",
+    "download_ended",
+    "start_upload",
+    "upload",
+    "end_upload",
+    "plc_stop",
+}
+
+
+def _looks_like_ip(value: str) -> bool:
+    """Return True when the string is a valid IP address."""
+    if not value:
+        return False
+    try:
+        ipaddress.ip_address(value)
+        return True
+    except ValueError:
+        return False
+
+
+def _parse_iso_timestamp(value: str) -> Optional[float]:
+    """Parse RFC3339/ISO timestamps to epoch seconds."""
+    if not value:
+        return None
+    normalized = value.replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(normalized).timestamp()
+    except ValueError:
+        return None
+
+
+def _compute_beacon_score_from_timestamps(timestamps):
+    """Jitter-resistant beacon detection via IAT histogram clustering."""
+    if len(timestamps) < 10:
+        return 0.0, 0.0, 0.0
+    ts = sorted(timestamps)
+    deltas = [ts[i + 1] - ts[i] for i in range(len(ts) - 1)]
+    deltas = [d for d in deltas if d > 0.01]
+    if len(deltas) < 5:
+        return 0.0, 0.0, 0.0
+
+    median_d = sorted(deltas)[len(deltas) // 2]
+    if median_d < 0.1:
+        return 0.0, 0.0, 0.0
+
+    bin_width = max(median_d * 0.1, 0.5)
+    bins = defaultdict(int)
+    for delta in deltas:
+        bin_key = round(delta / bin_width) * bin_width
+        bins[bin_key] += 1
+
+    peak_bin = max(bins, key=bins.get)
+    cluster_count = sum(
+        count for bk, count in bins.items() if abs(bk - peak_bin) <= bin_width
+    )
+    cluster_fraction = cluster_count / len(deltas)
+    interval = peak_bin
+    cluster_deltas = [d for d in deltas if abs(d - peak_bin) <= bin_width]
+    jitter = (
+        (max(cluster_deltas) - min(cluster_deltas)) / interval
+        if interval > 0 and cluster_deltas
+        else 1.0
+    )
+    score = max(0.0, min(1.0, cluster_fraction * (1 - min(jitter, 1.0))))
+    return score, interval, jitter
+
+
+def _compute_dns_entropy_from_queries(query_names):
+    """Average Shannon entropy of subdomain labels."""
+    import math
+
+    if not query_names:
+        return 0.0
+
+    entropies = []
+    for qname in query_names:
+        parts = qname.rstrip(".").split(".")
+        if len(parts) <= 2:
+            continue
+        subdomain = ".".join(parts[:-2])
+        if len(subdomain) < 4:
+            continue
+        freq = {}
+        for char in subdomain.lower():
+            freq[char] = freq.get(char, 0) + 1
+        entropy = -sum(
+            (count / len(subdomain)) * math.log2(count / len(subdomain))
+            for count in freq.values()
+        )
+        entropies.append(entropy)
+
+    return sum(entropies) / len(entropies) if entropies else 0.0
+
+
+def _extract_bronze_family(event: dict):
+    """Return the serde externally tagged Bronze family name and payload."""
+    family = event.get("family")
+    if not isinstance(family, dict) or len(family) != 1:
+        return "", {}
+    family_name, payload = next(iter(family.items()))
+    return family_name, payload if isinstance(payload, dict) else {}
+
+
+def _protocol_display_name(protocol_key: str) -> str:
+    """Map Rust Bronze protocol keys to MarlinSpike display names."""
+    if not protocol_key:
+        return "Unknown"
+    return RUST_PROTOCOL_DISPLAY_NAMES.get(protocol_key, protocol_key.replace("_", " ").title())
+
+
+def _protocol_service_port(protocol_key: str, src_port: int, dst_port: int) -> int:
+    """Choose the stable service port for a Bronze event."""
+    service_ports = RUST_PROTOCOL_SERVICE_PORTS.get(protocol_key, set())
+    if dst_port in service_ports:
+        return dst_port
+    if src_port in service_ports:
+        return src_port
+    if dst_port and dst_port < EPHEMERAL_PORT_MIN:
+        return dst_port
+    if src_port and src_port < EPHEMERAL_PORT_MIN:
+        return src_port
+    return dst_port or src_port or 0
+
+
+def _normalize_bronze_flow(envelope: dict, tx: dict):
+    """Normalize Bronze request/response events to initiator -> responder."""
+    protocol_key = (envelope.get("protocol") or "").lower()
+    src_port = int(envelope.get("src_port") or 0)
+    dst_port = int(envelope.get("dst_port") or 0)
+    service_port = _protocol_service_port(protocol_key, src_port, dst_port)
+    status = (tx.get("status") or "").lower()
+
+    reverse = False
+    if status == "response":
+        reverse = service_port and src_port == service_port and dst_port != service_port
+    elif status == "request":
+        reverse = service_port and src_port == service_port and dst_port != service_port
+    elif service_port and src_port == service_port and dst_port != service_port:
+        reverse = True
+
+    if reverse:
+        return {
+            "src_ip": envelope.get("dst_ip") or "",
+            "dst_ip": envelope.get("src_ip") or "",
+            "src_mac": envelope.get("dst_mac") or "",
+            "dst_mac": envelope.get("src_mac") or "",
+            "src_port": dst_port,
+            "dst_port": src_port,
+            "service_port": service_port,
+            "transport": (envelope.get("transport") or "").lower(),
+            "protocol_key": protocol_key,
+        }
+
+    return {
+        "src_ip": envelope.get("src_ip") or "",
+        "dst_ip": envelope.get("dst_ip") or "",
+        "src_mac": envelope.get("src_mac") or "",
+        "dst_mac": envelope.get("dst_mac") or "",
+        "src_port": src_port,
+        "dst_port": dst_port,
+        "service_port": service_port,
+        "transport": (envelope.get("transport") or "").lower(),
+        "protocol_key": protocol_key,
+    }
+
+
+def _register_asset_observation(asset_state: dict, l2_asset_state: dict, event: dict, asset: dict):
+    """Capture asset observations from Bronze for later conversation enrichment."""
+    envelope = event.get("envelope", {})
+    identifiers = asset.get("identifiers") or {}
+    protocols = set(asset.get("protocols") or [])
+    asset_key = asset.get("asset_key") or ""
+    ip_key = identifiers.get("ip") or (asset_key if _looks_like_ip(asset_key) else "")
+
+    if "ethernet_ip" in protocols or "cip" in protocols:
+        if ip_key:
+            asset_state.setdefault(ip_key, {})["cip_identity"] = {
+                "vendor_id": identifiers.get("cip_vendor_id", ""),
+                "device_type": identifiers.get("cip_device_type", ""),
+                "product_code": identifiers.get("cip_product_code", ""),
+                "serial_number": identifiers.get("cip_serial_number", ""),
+                "revision": identifiers.get("cip_revision", ""),
+                "product_name": asset.get("model", "") or "",
+                "vendor_name": asset.get("vendor", "") or "",
+            }
+
+    if "modbus" in protocols:
+        if ip_key:
+            asset_state.setdefault(ip_key, {})["modbus_identity"] = dict(identifiers)
+
+    if protocols & {"lldp", "cdp", "stp"}:
+        mac_key = identifiers.get("mac") or envelope.get("src_mac") or ""
+        if mac_key:
+            existing = l2_asset_state.setdefault(mac_key, {})
+            if "lldp" in protocols:
+                existing.update(
+                    {
+                        "source": "lldp",
+                        "system_name": asset.get("vendor", "") or "",
+                        "system_desc": asset.get("model", "") or "",
+                    }
+                )
+            elif "cdp" in protocols:
+                hostnames = asset.get("hostnames") or []
+                existing.update(
+                    {
+                        "source": "cdp",
+                        "system_name": hostnames[0] if hostnames else asset.get("asset_key", ""),
+                        "system_desc": asset.get("model", "") or "",
+                        "software_version": asset.get("firmware", "") or "",
+                    }
+                )
+            elif "stp" in protocols:
+                existing.update({"source": "stp"})
+
+
+def _apply_topology_observation(conversation_state: dict, l2_asset_state: dict, event: dict, observation: dict):
+    """Convert Bronze topology observations into L2 discovery conversations."""
+    envelope = event.get("envelope", {})
+    protocol_key = (envelope.get("protocol") or "").lower()
+    protocol = _protocol_display_name(protocol_key)
+    src_mac = envelope.get("src_mac") or observation.get("local_id") or ""
+    dst_mac = envelope.get("dst_mac") or observation.get("remote_id") or ""
+    key = ("l2", protocol_key, src_mac, dst_mac)
+    aggregate = conversation_state.setdefault(
+        key,
+        {
+            "src_ip": "",
+            "dst_ip": "",
+            "src_mac": src_mac,
+            "dst_mac": dst_mac,
+            "protocol": protocol,
+            "port": 0,
+            "packet_count": 0,
+            "bytes_total": 0,
+            "first_seen": envelope.get("timestamp") or "",
+            "last_seen": envelope.get("timestamp") or "",
+            "modbus_functions": set(),
+            "modbus_writes": 0,
+            "cip_identity": {},
+            "pn_identity": {},
+            "s7_functions": set(),
+            "s7_program_access": False,
+            "dnp3_objects": set(),
+            "opc_sessions": [],
+            "opc_no_security": False,
+            "bacnet_identity": {},
+            "iec104_typeids": set(),
+            "iec104_causes": set(),
+            "omron_identity": {},
+            "mms_identity": {},
+            "goose_identity": {},
+            "src_port": 0,
+            "transport": (envelope.get("transport") or "").lower(),
+            "src_ports_seen": set(),
+            "timestamps": [],
+            "dns_queries": set(),
+            "dns_query_types": set(),
+            "dns_entropy": 0.0,
+            "l2_discovery": {},
+        },
+    )
+
+    aggregate["packet_count"] += int(envelope.get("packet_count") or 1)
+    aggregate["bytes_total"] += int(envelope.get("bytes_count") or 0)
+    aggregate["first_seen"] = min(aggregate["first_seen"], envelope.get("timestamp") or aggregate["first_seen"])
+    aggregate["last_seen"] = max(aggregate["last_seen"], envelope.get("timestamp") or aggregate["last_seen"])
+    ts = _parse_iso_timestamp(envelope.get("timestamp") or "")
+    if ts is not None:
+        aggregate["timestamps"].append(ts)
+
+    l2_data = aggregate["l2_discovery"]
+    l2_data.update(l2_asset_state.get(src_mac, {}))
+    obs_type = observation.get("observation_type")
+    if obs_type == "lldp_neighbor":
+        l2_data.setdefault("source", "lldp")
+        if observation.get("remote_id"):
+            l2_data["chassis_id"] = observation["remote_id"]
+        if observation.get("description"):
+            ports = l2_data.setdefault("ports", [])
+            port_entry = {"id": observation["description"], "desc": ""}
+            if port_entry not in ports:
+                ports.append(port_entry)
+        if observation.get("capabilities"):
+            l2_data["capabilities"] = list(observation["capabilities"])
+    elif obs_type == "cdp_neighbor":
+        l2_data.setdefault("source", "cdp")
+        if observation.get("remote_id") and not l2_data.get("system_name"):
+            l2_data["system_name"] = observation["remote_id"]
+        if observation.get("description"):
+            ports = l2_data.setdefault("ports", [])
+            port_entry = {"id": observation["description"], "desc": ""}
+            if port_entry not in ports:
+                ports.append(port_entry)
+        if observation.get("metadata", {}).get("native_vlan"):
+            vlans = l2_data.setdefault("vlans", [])
+            native_vlan = observation["metadata"]["native_vlan"]
+            if native_vlan not in vlans:
+                vlans.append(native_vlan)
+    elif obs_type == "stp_topology":
+        l2_data.setdefault("source", "stp")
+        if observation.get("remote_id"):
+            l2_data["stp_root"] = observation["remote_id"]
+        if observation.get("local_id"):
+            l2_data["stp_bridge"] = observation["local_id"]
+        metadata = observation.get("metadata") or {}
+        if metadata.get("root_path_cost"):
+            l2_data["stp_root_cost"] = metadata["root_path_cost"]
+        if metadata.get("port_id"):
+            l2_data["stp_port"] = metadata["port_id"]
+        if observation.get("description"):
+            l2_data["stp_type"] = observation["description"]
+
+
+def _apply_protocol_transaction(aggregate: dict, tx: dict, flow: dict):
+    """Map Bronze protocol transactions onto MarlinSpike conversation fields."""
+    operation = tx.get("operation") or ""
+    protocol_key = flow["protocol_key"]
+    protocol = aggregate["protocol"]
+    aggregate["src_ports_seen"].add(flow["src_port"])
+    if aggregate["src_port"] == 0 and flow["src_port"]:
+        aggregate["src_port"] = flow["src_port"]
+
+    if protocol == "Modbus TCP":
+        if operation:
+            aggregate["modbus_functions"].add(operation)
+        if operation.startswith("write_"):
+            aggregate["modbus_writes"] += 1
+
+    elif protocol == "S7comm":
+        if operation:
+            aggregate["s7_functions"].add(operation)
+        if operation in RUST_S7_PROGRAM_OPERATIONS:
+            aggregate["s7_program_access"] = True
+
+    elif protocol == "DNP3":
+        if operation:
+            aggregate["dnp3_objects"].add(operation)
+
+    elif protocol == "OPC-UA":
+        attributes = tx.get("attributes") or {}
+        service_type = attributes.get("service_type") or operation
+        if service_type:
+            aggregate["opc_sessions"].append(service_type)
+
+    elif protocol == "DNS":
+        for query in tx.get("object_refs") or []:
+            if query:
+                aggregate["dns_queries"].add(query)
+
+    elif protocol_key == "profinet":
+        attributes = tx.get("attributes") or {}
+        if attributes:
+            aggregate["pn_identity"].update(
+                {
+                    "service_type": attributes.get("service_type", ""),
+                    "frame_id": attributes.get("frame_id", ""),
+                }
+            )
+
+
+def _build_port_summary_from_conversations(conversations: list) -> dict:
+    """Build port summary compatible with the existing viewer/report surface."""
+    summary = {}
+    bucket = defaultdict(
+        lambda: {
+            "port": 0,
+            "transport": "",
+            "protocol": "",
+            "category": "",
+            "connections": 0,
+            "bytes": 0,
+            "peers": set(),
+        }
+    )
+    for conv in conversations:
+        if conv.port <= 0:
+            continue
+        key = (conv.port, conv.transport)
+        item = bucket[key]
+        item["port"] = conv.port
+        item["transport"] = conv.transport
+        item["protocol"] = conv.protocol
+        if conv.port in OT_PROTOCOLS:
+            item["category"] = "OT"
+        elif conv.port in WELL_KNOWN_PORTS:
+            item["category"] = WELL_KNOWN_PORTS[conv.port][1]
+        elif conv.port >= EPHEMERAL_PORT_MIN:
+            item["category"] = "Ephemeral"
+        else:
+            item["category"] = "Unknown"
+        item["connections"] += 1
+        item["bytes"] += conv.bytes_total
+        if conv.dst_ip:
+            item["peers"].add(conv.dst_ip)
+
+    for (port, transport), item in bucket.items():
+        key = f"{port}/{transport}" if transport else str(port)
+        summary[key] = {
+            "port": item["port"],
+            "transport": item["transport"],
+            "protocol": item["protocol"],
+            "category": item["category"],
+            "connections": item["connections"],
+            "bytes": item["bytes"],
+            "unique_peers": len(item["peers"]),
+        }
+    return summary
+
+
+def _build_conversations_from_bronze(output: dict) -> list:
+    """Adapt Bronze JSON emitted by marlinspike-dpi to MarlinSpike conversations."""
+    payload = output.get("output") or {}
+    events = payload.get("events") or []
+    aggregates = {}
+    asset_state = {}
+    l2_asset_state = {}
+
+    for event in events:
+        family_name, family_payload = _extract_bronze_family(event)
+        if family_name == "asset_observation":
+            _register_asset_observation(asset_state, l2_asset_state, event, family_payload)
+            continue
+        if family_name == "topology_observation":
+            _apply_topology_observation(aggregates, l2_asset_state, event, family_payload)
+            continue
+        if family_name != "protocol_transaction":
+            continue
+
+        envelope = event.get("envelope", {})
+        flow = _normalize_bronze_flow(envelope, family_payload)
+        key = (
+            flow["src_ip"],
+            flow["dst_ip"],
+            flow["src_mac"],
+            flow["dst_mac"],
+            flow["protocol_key"],
+            flow["service_port"],
+            flow["transport"],
+        )
+        aggregate = aggregates.setdefault(
+            key,
+            {
+                "src_ip": flow["src_ip"],
+                "dst_ip": flow["dst_ip"],
+                "src_mac": flow["src_mac"],
+                "dst_mac": flow["dst_mac"],
+                "protocol": _protocol_display_name(flow["protocol_key"]),
+                "port": flow["service_port"],
+                "packet_count": 0,
+                "bytes_total": 0,
+                "first_seen": envelope.get("timestamp") or "",
+                "last_seen": envelope.get("timestamp") or "",
+                "modbus_functions": set(),
+                "modbus_writes": 0,
+                "cip_identity": {},
+                "pn_identity": {},
+                "s7_functions": set(),
+                "s7_program_access": False,
+                "dnp3_objects": set(),
+                "opc_sessions": [],
+                "opc_no_security": False,
+                "bacnet_identity": {},
+                "iec104_typeids": set(),
+                "iec104_causes": set(),
+                "omron_identity": {},
+                "mms_identity": {},
+                "goose_identity": {},
+                "src_port": flow["src_port"],
+                "transport": flow["transport"],
+                "src_ports_seen": set(),
+                "timestamps": [],
+                "dns_queries": set(),
+                "dns_query_types": set(),
+                "dns_entropy": 0.0,
+                "l2_discovery": {},
+            },
+        )
+
+        aggregate["packet_count"] += int(envelope.get("packet_count") or 1)
+        aggregate["bytes_total"] += int(envelope.get("bytes_count") or 0)
+        aggregate["first_seen"] = min(aggregate["first_seen"], envelope.get("timestamp") or aggregate["first_seen"])
+        aggregate["last_seen"] = max(aggregate["last_seen"], envelope.get("timestamp") or aggregate["last_seen"])
+        ts = _parse_iso_timestamp(envelope.get("timestamp") or "")
+        if ts is not None:
+            aggregate["timestamps"].append(ts)
+
+        _apply_protocol_transaction(aggregate, family_payload, flow)
+
+    conversations = []
+    for aggregate in aggregates.values():
+        for ip_key in (aggregate["dst_ip"], aggregate["src_ip"]):
+            identity = asset_state.get(ip_key, {})
+            if identity.get("cip_identity") and not aggregate["cip_identity"]:
+                aggregate["cip_identity"] = identity["cip_identity"]
+            if identity.get("modbus_identity") and aggregate["protocol"] == "Modbus TCP":
+                modbus_identity = identity["modbus_identity"]
+                if modbus_identity and not aggregate["modbus_functions"]:
+                    aggregate["modbus_functions"].add("read_device_identification")
+
+        beacon_score, beacon_interval, beacon_jitter = _compute_beacon_score_from_timestamps(aggregate["timestamps"])
+        dns_queries = sorted(aggregate["dns_queries"])
+        dns_entropy = _compute_dns_entropy_from_queries(dns_queries)
+
+        conversations.append(
+            Conversation(
+                src_ip=aggregate["src_ip"],
+                dst_ip=aggregate["dst_ip"],
+                src_mac=aggregate["src_mac"],
+                dst_mac=aggregate["dst_mac"],
+                protocol=aggregate["protocol"],
+                port=aggregate["port"],
+                packet_count=aggregate["packet_count"],
+                bytes_total=aggregate["bytes_total"],
+                first_seen=aggregate["first_seen"],
+                last_seen=aggregate["last_seen"],
+                modbus_functions=sorted(aggregate["modbus_functions"]),
+                modbus_writes=aggregate["modbus_writes"],
+                cip_identity=aggregate["cip_identity"],
+                pn_identity=aggregate["pn_identity"],
+                s7_functions=sorted(aggregate["s7_functions"]),
+                s7_program_access=aggregate["s7_program_access"],
+                dnp3_objects=sorted(aggregate["dnp3_objects"]),
+                opc_sessions=aggregate["opc_sessions"],
+                opc_no_security=aggregate["opc_no_security"],
+                bacnet_identity=aggregate["bacnet_identity"],
+                iec104_typeids=sorted(aggregate["iec104_typeids"]),
+                iec104_causes=sorted(aggregate["iec104_causes"]),
+                omron_identity=aggregate["omron_identity"],
+                mms_identity=aggregate["mms_identity"],
+                goose_identity=aggregate["goose_identity"],
+                src_port=aggregate["src_port"],
+                transport=aggregate["transport"],
+                src_ports_seen=sorted(p for p in aggregate["src_ports_seen"] if p),
+                beacon_score=beacon_score,
+                beacon_interval=beacon_interval,
+                beacon_jitter=beacon_jitter,
+                dns_queries=dns_queries[:200],
+                dns_query_types=sorted(aggregate["dns_query_types"]),
+                dns_entropy=dns_entropy,
+                l2_discovery=aggregate["l2_discovery"],
+            )
+        )
+
+    return conversations
+
+
+def _run_marlinspike_dpi(binary_path: str, pcap_path: str, capture_id: str) -> dict:
+    """Run the external marlinspike-dpi CLI and return its Bronze JSON."""
+    resolved = shutil.which(binary_path) or binary_path
+    if not resolved or not os.path.exists(resolved):
+        raise FileNotFoundError(f"marlinspike-dpi binary not found: {binary_path}")
+
+    with tempfile.NamedTemporaryFile(prefix="marlinspike-dpi-", suffix=".json", delete=False) as tmp:
+        output_path = tmp.name
+
+    cmd = [
+        resolved,
+        "--input",
+        pcap_path,
+        "--capture-id",
+        capture_id,
+        "--output",
+        output_path,
+        "--pretty",
+    ]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        if result.returncode != 0:
+            stderr = (result.stderr or "").strip()
+            stdout = (result.stdout or "").strip()
+            detail = stderr or stdout or f"exit code {result.returncode}"
+            raise RuntimeError(f"marlinspike-dpi failed: {detail}")
+        with open(output_path) as f:
+            return json.load(f)
+    finally:
+        try:
+            os.unlink(output_path)
+        except FileNotFoundError:
+            pass
+
+
+def _dissect_with_selected_engine(pcap_path: str, args, capture_id: str):
+    """Dispatch Stage 2 to the selected DPI engine with safe fallback."""
+    requested_engine = getattr(args, "dpi_engine", "auto") or "auto"
+    binary_path = getattr(args, "dpi_binary", "") or os.environ.get("MARLINSPIKE_DPI_BIN", "marlinspike-dpi")
+    wants_rust = requested_engine in {"auto", "marlinspike-dpi"}
+    rust_binary_ok = bool(shutil.which(binary_path) or os.path.exists(binary_path))
+
+    if wants_rust:
+        if not rust_binary_ok:
+            if requested_engine == "marlinspike-dpi":
+                raise FileNotFoundError(f"marlinspike-dpi binary not found: {binary_path}")
+            print("[*] marlinspike-dpi not found — falling back to built-in parser")
+        else:
+            try:
+                dpi_output = _run_marlinspike_dpi(binary_path, pcap_path, capture_id)
+                conversations = _build_conversations_from_bronze(dpi_output)
+                port_summary = _build_port_summary_from_conversations(conversations)
+                metadata = {
+                    "engine": "marlinspike-dpi",
+                    "version": dpi_output.get("version", ""),
+                    "input": dpi_output.get("input", {}),
+                    "checkpoint": (dpi_output.get("output") or {}).get("checkpoint", {}),
+                }
+                print(f"[*] marlinspike-dpi parsed {len(conversations):,} conversations")
+                return conversations, port_summary, metadata
+            except Exception as exc:
+                if requested_engine == "marlinspike-dpi":
+                    raise
+                print(f"[*] marlinspike-dpi failed ({exc}) — falling back to built-in parser")
+
+    dissector = OTProtocolDissector(
+        pcap_path,
+        chunk_size=getattr(args, "chunk_size", 0),
+        collapse_threshold=getattr(args, "collapse_threshold", 50),
+    )
+    conversations = dissector.dissect()
+    return conversations, getattr(dissector, "port_summary", {}), {"engine": "python", "version": ""}
 
 
 # ---------------------------------------------------------------------------
@@ -740,6 +1401,8 @@ class MarlinSpikeReport:
 
     # Metadata
     grassmarlin_used: bool = False
+    dpi_engine: str = "python"
+    dpi_engine_version: str = ""
     tshark_version: str = ""
     interrupted: bool = False
     completed_stages: list = field(default_factory=list)
@@ -929,13 +1592,23 @@ class CaptureIngestor:
             if self.no_reassembly:
                 stat_cmd.extend(["-o", "tcp.desegment_tcp_streams:FALSE",
                                  "-o", "ip.defragment:FALSE"])
-            result = subprocess.run(stat_cmd, capture_output=True, text=True, timeout=30)
-            match = re.search(r"(\d+)\s+frames", result.stdout)
-            packet_count = int(match.group(1)) if match else 0
-            duration = 0.0
-            start_ts = ""
-            end_ts = ""
-            link_type = "Unknown"
+            try:
+                result = subprocess.run(stat_cmd, capture_output=True, text=True, timeout=30)
+                match = re.search(r"(\d+)\s+frames", result.stdout)
+                packet_count = int(match.group(1)) if match else 0
+                duration = 0.0
+                start_ts = ""
+                end_ts = ""
+                link_type = "Unknown"
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                # Minimal fallback for environments that rely on marlinspike-dpi
+                # and do not have Wireshark tooling installed.
+                packet_count = 0
+                duration = 0.0
+                start_ts = ""
+                end_ts = ""
+                link_type = "Unknown"
+                print("  [*] capinfos/tshark unavailable — using minimal file validation only")
 
         # Unique addresses and protocols are deferred to Stage 2 (dissection)
         # to avoid a second full tshark pass. Stage 2 extracts every MAC, IP,
@@ -3825,13 +4498,15 @@ def run_chain(args):
             report.grassmarlin_used = False
 
     if not report.grassmarlin_used:
-        dissector = OTProtocolDissector(
+        capture_id = os.path.splitext(os.path.basename(capture_info.pcap_path))[0] or "capture"
+        conversations, port_summary, dpi_metadata = _dissect_with_selected_engine(
             capture_info.pcap_path,
-            chunk_size=getattr(args, 'chunk_size', 0),
-            collapse_threshold=getattr(args, 'collapse_threshold', 50),
+            args,
+            capture_id,
         )
-        conversations = dissector.dissect()
         report.conversations = [asdict(c) for c in conversations]
+        report.dpi_engine = dpi_metadata.get("engine", "python")
+        report.dpi_engine_version = dpi_metadata.get("version", "")
 
         proto_counts = defaultdict(int)
         for conv in conversations:
@@ -3851,6 +4526,7 @@ def run_chain(args):
         capture_info.unique_ips = len(all_ips)
         capture_info.protocols_seen = dict(proto_counts)
         report.capture_info = asdict(capture_info)
+        report.port_summary = port_summary
 
     _save_intermediate(report, args.output, "Protocol Dissection")
 
@@ -3891,9 +4567,6 @@ def run_chain(args):
     report.c2_indicators = risk_report.get("c2_indicators", [])
 
     # Port summary from dissector
-    if not report.grassmarlin_used and hasattr(dissector, 'port_summary'):
-        report.port_summary = dissector.port_summary
-
     _save_intermediate(report, args.output, "Risk Surface Report")
 
     report.timestamp_end = datetime.now(timezone.utc).isoformat()
@@ -3979,17 +4652,25 @@ def run_dissect(args):
             print("[!] No ingest artifact found and no --pcap provided")
             sys.exit(1)
 
-    dissector = OTProtocolDissector(
+    capture_id = os.path.splitext(os.path.basename(pcap_path))[0] or "capture"
+    conversations, port_summary, dpi_metadata = _dissect_with_selected_engine(
         pcap_path,
-        chunk_size=getattr(args, 'chunk_size', 0),
-        collapse_threshold=getattr(args, 'collapse_threshold', 50),
+        args,
+        capture_id,
     )
-    conversations = dissector.dissect()
 
     report = MarlinSpikeReport(
         timestamp_start=datetime.now(timezone.utc).isoformat(),
         conversations=[asdict(c) for c in conversations],
+        protocol_summary=dict(defaultdict(int)),
+        port_summary=port_summary,
+        dpi_engine=dpi_metadata.get("engine", "python"),
+        dpi_engine_version=dpi_metadata.get("version", ""),
     )
+    proto_counts = defaultdict(int)
+    for conv in conversations:
+        proto_counts[conv.protocol] += 1
+    report.protocol_summary = dict(proto_counts)
     report.timestamp_end = datetime.now(timezone.utc).isoformat()
     report.save(args.output)
 
@@ -4002,8 +4683,12 @@ def run_dissect(args):
         "module_id": MODULE_META["id"],
         "command": "dissect",
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "engine": report.dpi_engine,
+        "engine_version": report.dpi_engine_version,
         "data": {
             "conversations": [asdict(c) for c in conversations],
+            "protocol_summary": report.protocol_summary,
+            "port_summary": port_summary,
         },
     }
     with open(artifact_path, "w") as f:
@@ -4369,6 +5054,11 @@ def main():
                        help="Collapse port scan conversations when MAC pair has >N unique dest ports (0 = disabled, default: 50)")
     parser.add_argument("--reassembly", action="store_true", default=False,
                        help="Enable TCP reassembly (default: disabled for lower memory usage)")
+    parser.add_argument("--dpi-engine", default="auto",
+                       choices=["auto", "python", "marlinspike-dpi"],
+                       help="Stage 2 DPI engine to use (default: auto)")
+    parser.add_argument("--dpi-binary", default="",
+                       help="Path to marlinspike-dpi binary (default: PATH or MARLINSPIKE_DPI_BIN)")
 
     # Subcommands
     sub = parser.add_subparsers(dest="command")
@@ -4393,6 +5083,8 @@ def main():
     args.grassmarlin = args.grassmarlin or ""
     args.conversations = args.conversations or ""
     args.topology = args.topology or ""
+    args.dpi_engine = args.dpi_engine or "auto"
+    args.dpi_binary = args.dpi_binary or ""
     if not hasattr(args, "yaml_map"):
         args.yaml_map = ""
 
