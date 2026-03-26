@@ -566,6 +566,14 @@ OMRON_SIGNATURES = (
     "sysmac", "cp1", "cp1l", "cp1h", "cj", "cs1", "nj", "nx", "omron",
 )
 
+IEC61850_IED_HINTS = (
+    "ied_", "relay", "pdis", "protection", "distance", "line diff", "trip",
+)
+
+IEC61850_BAY_CONTROLLER_HINTS = (
+    "ctrl", "bay", "control",
+)
+
 HISTORIAN_SIGNATURES = (
     "historian", "factorytalk historian", "aveva historian",
     "wonderware historian", "proficy historian", "pi server", "pi-system",
@@ -628,6 +636,8 @@ class Conversation:
     iec104_typeids: list = field(default_factory=list)
     iec104_causes: list = field(default_factory=list)
     omron_identity: dict = field(default_factory=dict)
+    mms_identity: dict = field(default_factory=dict)
+    goose_identity: dict = field(default_factory=dict)
     # Five-tuple port analysis
     src_port: int = 0
     transport: str = ""  # "tcp" or "udp"
@@ -1049,6 +1059,12 @@ class OTProtocolDissector:
         "dnp3.al.func", "dnp3.al.obj",
         # IEC 60870-5-104
         "iec60870_asdu.typeid", "iec60870_asdu.causetx",
+        # IEC 61850 MMS / GOOSE
+        "mms.confirmedServiceRequest", "mms.unconfirmedService",
+        "mms.domain", "mms.domainId", "mms.domainName", "mms.namedToken",
+        "mms.iec61850.datset", "mms.iec61850.rptid", "mms.iec61850.ctlmodel",
+        "goose.gocbRef", "goose.goID", "goose.datSet", "goose.confRev",
+        "goose.simulation", "goose.ndsCom",
         # BACnet/IP
         "bacapp.object_name", "bacapp.vendor_identifier",
         "bacapp.objectType", "bacapp.instance_number",
@@ -1272,6 +1288,50 @@ class OTProtocolDissector:
                         conv["iec104_typeids"].add(typeid)
                     if cause:
                         conv["iec104_causes"].add(cause)
+                elif "MMS (IEC 61850)" in protocol:
+                    confirmed = pkt.get("mms.confirmedServiceRequest", [""])[0]
+                    unconfirmed = pkt.get("mms.unconfirmedService", [""])[0]
+                    if confirmed:
+                        conv["mms_identity"]["service_requests"].add(confirmed)
+                    if unconfirmed:
+                        conv["mms_identity"]["unconfirmed_services"].add(unconfirmed)
+                    for field_name in (
+                        "mms.domain", "mms.domainId", "mms.domainName",
+                        "mms.namedToken", "mms.iec61850.datset", "mms.iec61850.rptid",
+                    ):
+                        raw = pkt.get(field_name, [""])[0]
+                        if raw:
+                            for token in raw.split(","):
+                                token = token.strip()
+                                if token:
+                                    if field_name == "mms.iec61850.datset":
+                                        conv["mms_identity"]["datasets"].add(token)
+                                    elif field_name == "mms.iec61850.rptid":
+                                        conv["mms_identity"]["report_ids"].add(token)
+                                    else:
+                                        conv["mms_identity"]["names"].add(token)
+                    ctl_model = pkt.get("mms.iec61850.ctlmodel", [""])[0]
+                    if ctl_model:
+                        conv["mms_identity"]["ctl_models"].add(ctl_model)
+                elif "IEC 61850 GOOSE" in protocol or "R-GOOSE" in protocol:
+                    for field_name, bucket in (
+                        ("goose.gocbRef", "gocb_refs"),
+                        ("goose.goID", "go_ids"),
+                        ("goose.datSet", "datasets"),
+                        ("goose.confRev", "conf_revs"),
+                    ):
+                        raw = pkt.get(field_name, [""])[0]
+                        if raw:
+                            for token in raw.split(","):
+                                token = token.strip()
+                                if token:
+                                    conv["goose_identity"][bucket].add(token)
+                    simulation = pkt.get("goose.simulation", [""])[0]
+                    nds_com = pkt.get("goose.ndsCom", [""])[0]
+                    if simulation and simulation.lower() in ("1", "true"):
+                        conv["goose_identity"]["simulation"] = True
+                    if nds_com and nds_com.lower() in ("1", "true"):
+                        conv["goose_identity"]["nds_com"] = True
                 elif "BACnet" in protocol:
                     obj_name = pkt.get("bacapp.object_name", [""])[0]
                     vendor_id = pkt.get("bacapp.vendor_identifier", [""])[0]
@@ -1356,6 +1416,22 @@ class OTProtocolDissector:
             "iec104_typeids": set(),
             "iec104_causes": set(),
             "omron_identity": {"commands": set(), "model": "", "version": ""},
+            "mms_identity": {
+                "service_requests": set(),
+                "unconfirmed_services": set(),
+                "names": set(),
+                "datasets": set(),
+                "report_ids": set(),
+                "ctl_models": set(),
+            },
+            "goose_identity": {
+                "gocb_refs": set(),
+                "go_ids": set(),
+                "datasets": set(),
+                "conf_revs": set(),
+                "simulation": False,
+                "nds_com": False,
+            },
             "l2_discovery": {},
             "src_ports": set(),
             "transport": "",
@@ -1462,6 +1538,22 @@ class OTProtocolDissector:
                     "commands": sorted(d["omron_identity"]["commands"]),
                     "model": d["omron_identity"]["model"],
                     "version": d["omron_identity"]["version"],
+                },
+                mms_identity={
+                    "service_requests": sorted(d["mms_identity"]["service_requests"]),
+                    "unconfirmed_services": sorted(d["mms_identity"]["unconfirmed_services"]),
+                    "names": sorted(d["mms_identity"]["names"]),
+                    "datasets": sorted(d["mms_identity"]["datasets"]),
+                    "report_ids": sorted(d["mms_identity"]["report_ids"]),
+                    "ctl_models": sorted(d["mms_identity"]["ctl_models"]),
+                },
+                goose_identity={
+                    "gocb_refs": sorted(d["goose_identity"]["gocb_refs"]),
+                    "go_ids": sorted(d["goose_identity"]["go_ids"]),
+                    "datasets": sorted(d["goose_identity"]["datasets"]),
+                    "conf_revs": sorted(d["goose_identity"]["conf_revs"]),
+                    "simulation": d["goose_identity"]["simulation"],
+                    "nds_com": d["goose_identity"]["nds_com"],
                 },
                 src_port=rep_src_port,
                 transport=d["transport"],
@@ -2439,6 +2531,29 @@ class TopologyBuilder:
                         if any(hint in station_lower for hint in PROFINET_SWITCH_HINTS):
                             node.device_type = "Network Switch"
 
+            # IEC 61850 MMS / GOOSE often exposes stable IED names even when the
+            # workstation and IED share generic NIC OUIs.
+            iec61850_identity = self._collect_iec61850_identity(ip)
+            if iec61850_identity["names"] or iec61850_identity["goose_refs"] or iec61850_identity["goose_ids"]:
+                serves_iec61850 = any(sp.get("port") == 102 for sp in node.service_ports) or any(
+                    "goose" in str(proto).lower() for proto in node.protocols
+                )
+                iec_names = sorted(
+                    set(iec61850_identity["names"])
+                    | set(iec61850_identity["goose_refs"])
+                    | set(iec61850_identity["goose_ids"])
+                )
+                primary_iec_name = min(iec_names, key=len) if iec_names else ""
+                if serves_iec61850 and primary_iec_name and not node.system_name:
+                    node.system_name = primary_iec_name
+                if serves_iec61850 and primary_iec_name and not node.product_line:
+                    node.product_line = primary_iec_name
+                iec_text = primary_iec_name.lower()
+                if serves_iec61850 and any(hint in iec_text for hint in IEC61850_BAY_CONTROLLER_HINTS) and node.device_type == "Unknown":
+                    node.device_type = "Bay Controller"
+                elif serves_iec61850 and any(hint in iec_text for hint in IEC61850_IED_HINTS) and node.device_type == "Unknown":
+                    node.device_type = "Protection IED"
+
             # Enrich from LLDP/CDP system description (often contains vendor/model)
             if node.system_desc and node.vendor == "Unknown":
                 desc_lower = node.system_desc.lower()
@@ -2516,6 +2631,28 @@ class TopologyBuilder:
             if conv.s7_program_access or conv.modbus_writes > 5:
                 return True
         return False
+
+    def _collect_iec61850_identity(self, ip: str) -> dict:
+        identity = {
+            "names": set(),
+            "datasets": set(),
+            "report_ids": set(),
+            "ctl_models": set(),
+            "goose_refs": set(),
+            "goose_ids": set(),
+            "goose_datasets": set(),
+        }
+        for conv in self._conv_by_src.get(ip, []) + self._conv_by_dst.get(ip, []):
+            if conv.mms_identity:
+                identity["names"].update(conv.mms_identity.get("names", []))
+                identity["datasets"].update(conv.mms_identity.get("datasets", []))
+                identity["report_ids"].update(conv.mms_identity.get("report_ids", []))
+                identity["ctl_models"].update(conv.mms_identity.get("ctl_models", []))
+            if conv.goose_identity:
+                identity["goose_refs"].update(conv.goose_identity.get("gocb_refs", []))
+                identity["goose_ids"].update(conv.goose_identity.get("go_ids", []))
+                identity["goose_datasets"].update(conv.goose_identity.get("datasets", []))
+        return identity
 
     def _assign_roles(self):
         """Assign device roles based on protocols, L2 discovery, and communication patterns."""
@@ -2609,6 +2746,9 @@ class TopologyBuilder:
                 sp.get("port") == 4840 or "opc-ua" in str(sp.get("protocol", "")).lower()
                 for sp in node.service_ports
             )
+            has_mms_service = any(sp.get("port") == 102 for sp in node.service_ports)
+            iec61850_name_hint = any(token in text for token in IEC61850_IED_HINTS)
+            iec61850_ctrl_hint = any(token in text for token in IEC61850_BAY_CONTROLLER_HINTS)
             camera_hint = any(
                 token in text for token in (
                     "axis", "hikvision", "dahua", "avigilon", "mobotix",
@@ -2636,6 +2776,12 @@ class TopologyBuilder:
             if node.device_type == "Human-Machine Interface":
                 node.role = "HMI/SCADA"
                 continue
+            if node.device_type == "Bay Controller":
+                node.role = "Supervisory Controller"
+                continue
+            if node.device_type == "Protection IED":
+                node.role = "Protective Relay"
+                continue
             if node.device_type == "IO Controller":
                 node.role = "Supervisory Controller"
                 continue
@@ -2651,6 +2797,21 @@ class TopologyBuilder:
                 node.role = "RTU"
                 if node.device_type == "Unknown":
                     node.device_type = "Telemetry RTU"
+                continue
+            if iec61850_hint and has_mms_service:
+                if iec61850_ctrl_hint:
+                    node.role = "Supervisory Controller"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Bay Controller"
+                else:
+                    node.role = "Protective Relay"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Protection IED"
+                continue
+            if iec61850_hint and not has_mms_service and node.initiates:
+                node.role = "Supervisory Controller"
+                if node.device_type == "Unknown":
+                    node.device_type = "IEC 61850 Client"
                 continue
             if has_opcua_service and node.responds:
                 node.role = "Application Server" if node.purdue_level == 3 else "Supervisory Controller"
@@ -2685,9 +2846,9 @@ class TopologyBuilder:
                     if node.device_type == "Unknown":
                         node.device_type = "Programmable Logic Controller"
                 elif iec61850_hint:
-                    node.role = "Protective Relay"
+                    node.role = "Supervisory Controller" if iec61850_ctrl_hint else "Protective Relay"
                     if node.device_type == "Unknown":
-                        node.device_type = "Protection IED"
+                        node.device_type = "Bay Controller" if iec61850_ctrl_hint else "Protection IED"
                 elif bacnet_hint:
                     node.role = "Building Controller"
                     if node.device_type == "Unknown":
@@ -2710,10 +2871,14 @@ class TopologyBuilder:
                     node.role = "Supervisory Controller"
                     if node.device_type == "Unknown":
                         node.device_type = "Building Controller"
-                elif iec61850_hint and node.responds:
-                    node.role = "Protective Relay"
+                elif iec61850_hint and node.responds and has_mms_service:
+                    node.role = "Supervisory Controller" if iec61850_ctrl_hint else "Protective Relay"
                     if node.device_type == "Unknown":
-                        node.device_type = "Protection IED"
+                        node.device_type = "Bay Controller" if iec61850_ctrl_hint else "Protection IED"
+                elif iec61850_hint and node.initiates and not has_mms_service:
+                    node.role = "Supervisory Controller"
+                    if node.device_type == "Unknown":
+                        node.device_type = "IEC 61850 Client"
                 elif omron_hint and has_omron_service:
                     node.role = "PLC"
                     if node.device_type == "Unknown":
