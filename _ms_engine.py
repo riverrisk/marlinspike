@@ -518,6 +518,37 @@ ICS_OUI_DB = {
     "00:a0:45": {"vendor": "Phoenix Contact", "product_lines": ["ILC", "RFC"]},
 }
 
+# Publicly documented CIP Identity Object device-profile values that are
+# useful for OT role inference. These are intentionally conservative and can
+# be extended as we validate more captures.
+CIP_VENDOR_ID_MAP = {
+    1: "Allen-Bradley",
+    42: "Schneider Electric",
+    283: "Hilscher",
+}
+
+CIP_DEVICE_TYPE_MAP = {
+    0x0C: "Communications Adapter",
+    0x0E: "Programmable Logic Controller",
+    0x18: "Human-Machine Interface",
+    0x2B: "Generic Device",
+}
+
+HISTORIAN_SIGNATURES = (
+    "historian", "factorytalk historian", "aveva historian",
+    "wonderware historian", "proficy historian", "pi server", "pi-system",
+)
+
+HMI_SIGNATURES = (
+    "wincc", "factorytalk view", "panelview", "intouch",
+    "wonderware intouch", "aveva intouch", "ifix", "citect", "zenon",
+)
+
+ENGINEERING_SIGNATURES = (
+    "studio 5000", "rslogix", "step 7", "tia portal",
+    "logix designer", "ccw", "connected components workbench",
+)
+
 
 # ---------------------------------------------------------------------------
 # Data Classes
@@ -2223,10 +2254,23 @@ class TopologyBuilder:
                     product_name = conv.cip_identity.get("product_name", "")
                     if product_name:
                         node.product_line = product_name
-                    # Vendor ID mapping (simplified)
+                    # Vendor and device-profile mappings from CIP Identity Object
                     vendor_id = conv.cip_identity.get("vendor_id", "")
-                    if vendor_id == "1": node.vendor = "Allen-Bradley"
-                    elif vendor_id == "42": node.vendor = "Schneider Electric"
+                    if vendor_id:
+                        try:
+                            vid = int(vendor_id, 0) if str(vendor_id).startswith("0x") else int(vendor_id)
+                        except (TypeError, ValueError):
+                            vid = None
+                        if vid in CIP_VENDOR_ID_MAP:
+                            node.vendor = CIP_VENDOR_ID_MAP[vid]
+                    device_type = conv.cip_identity.get("device_type", "")
+                    if device_type and node.device_type == "Unknown":
+                        try:
+                            dt = int(device_type, 0) if str(device_type).startswith("0x") else int(device_type)
+                        except (TypeError, ValueError):
+                            dt = None
+                        if dt in CIP_DEVICE_TYPE_MAP:
+                            node.device_type = CIP_DEVICE_TYPE_MAP[dt]
 
             # Check PROFINET DCP Identity for device info (src or dst)
             _pn_conv = None
@@ -2411,11 +2455,12 @@ class TopologyBuilder:
             )
             has_remote_admin = any(p in names for p in ("ssh", "rdp", "vnc", "telnet"))
             historian_hint = any(
-                token in text for token in (
-                    "historian", "mes", "factorytalk", "proficy", "wonderware",
-                    "ifix", "wincc", "ignition", "pi server", "pi-system",
+                token in text for token in HISTORIAN_SIGNATURES + (
+                    "mes", "ignition", "factorytalk", "proficy",
                 )
             )
+            hmi_hint = any(token in text for token in HMI_SIGNATURES)
+            engineering_signature = any(token in text for token in ENGINEERING_SIGNATURES)
             camera_hint = any(
                 token in text for token in (
                     "axis", "hikvision", "dahua", "avigilon", "mobotix",
@@ -2459,10 +2504,14 @@ class TopologyBuilder:
                         node.device_type = "Field Device"
 
             elif node.purdue_level == 2:
-                if engineering:
+                if engineering or engineering_signature:
                     node.role = "Engineering Workstation"
                     if node.device_type == "Unknown":
                         node.device_type = "Engineering Workstation"
+                elif hmi_hint:
+                    node.role = "HMI/SCADA"
+                    if node.device_type == "Unknown":
+                        node.device_type = "HMI Platform"
                 elif node.initiates and not node.responds:
                     node.role = "HMI/SCADA"
                     if node.device_type == "Unknown":
@@ -2494,6 +2543,10 @@ class TopologyBuilder:
                     node.role = "Historian/MES"
                     if node.device_type == "Unknown":
                         node.device_type = "Historian Server"
+                elif hmi_hint:
+                    node.role = "HMI/SCADA"
+                    if node.device_type == "Unknown":
+                        node.device_type = "HMI Platform"
                 elif camera_hint:
                     node.role = "Security Appliance"
                     if node.device_type == "Unknown":
@@ -2502,7 +2555,7 @@ class TopologyBuilder:
                     node.role = "Industrial Appliance"
                     if node.device_type == "Unknown":
                         node.device_type = "Gateway/Appliance"
-                elif engineering:
+                elif engineering or engineering_signature:
                     node.role = "Engineering Workstation"
                     if node.device_type == "Unknown":
                         node.device_type = "Engineering Workstation"
@@ -2527,7 +2580,7 @@ class TopologyBuilder:
             else:
                 node.role = "Unknown"
 
-            if engineering and node.role not in ("PLC", "RTU", "RTU/PLC"):
+            if (engineering or engineering_signature) and node.role not in ("PLC", "RTU", "RTU/PLC"):
                 node.role = "Engineering Workstation"
                 if node.device_type in ("Unknown", "Workstation", "Endpoint"):
                     node.device_type = "Engineering Workstation"
