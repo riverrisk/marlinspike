@@ -534,6 +534,38 @@ CIP_DEVICE_TYPE_MAP = {
     0x2B: "Generic Device",
 }
 
+# Public BACnet vendor identifiers from the BACnet Committee assigned-vendor
+# list. Keep this focused on commonly observed OT/BMS manufacturers first.
+BACNET_VENDOR_ID_MAP = {
+    2: "Trane",
+    5: "Johnson Controls",
+    7: "Siemens",
+    8: "Delta Controls",
+    10: "Schneider Electric",
+    17: "Honeywell",
+    18: "Alerton / Honeywell",
+    24: "Automated Logic",
+    36: "Tridium",
+    42: "Acuity Brands",
+    61: "Multistack",
+}
+
+PROFINET_VENDOR_ID_MAP = {
+    0x002A: "Siemens",
+    0x00A0: "Wago",
+    0x0119: "Phoenix Contact",
+    0x011E: "Turck",
+    0x0134: "Beckhoff",
+}
+
+PROFINET_SWITCH_HINTS = (
+    "switch", "scalance", "x208", "x200", "swln",
+)
+
+OMRON_SIGNATURES = (
+    "sysmac", "cp1", "cp1l", "cp1h", "cj", "cs1", "nj", "nx", "omron",
+)
+
 HISTORIAN_SIGNATURES = (
     "historian", "factorytalk historian", "aveva historian",
     "wonderware historian", "proficy historian", "pi server", "pi-system",
@@ -592,6 +624,10 @@ class Conversation:
     dnp3_objects: list = field(default_factory=list)
     opc_sessions: list = field(default_factory=list)
     opc_no_security: bool = False
+    bacnet_identity: dict = field(default_factory=dict)
+    iec104_typeids: list = field(default_factory=list)
+    iec104_causes: list = field(default_factory=list)
+    omron_identity: dict = field(default_factory=dict)
     # Five-tuple port analysis
     src_port: int = 0
     transport: str = ""  # "tcp" or "udp"
@@ -998,7 +1034,8 @@ class OTProtocolDissector:
         # EtherNet/IP / CIP
         "enip.cpf.cai.connid", "cip.sc", "cip.class",
         "cip.instance", "cip.id.vendor_id", "cip.id.device_type",
-        "cip.id.product_name", "cip.id.serial_number", "cip.class_revision",
+        "cip.id.product_name", "cip.id.product_code",
+        "cip.id.serial_number", "cip.class_revision",
         # PROFINET DCP
         "pn_dcp.suboption_device_nameofstation",
         "pn_dcp.suboption_vendor_id",
@@ -1010,8 +1047,15 @@ class OTProtocolDissector:
         "s7comm.header.rosctr",
         # DNP3
         "dnp3.al.func", "dnp3.al.obj",
+        # IEC 60870-5-104
+        "iec60870_asdu.typeid", "iec60870_asdu.causetx",
+        # BACnet/IP
+        "bacapp.object_name", "bacapp.vendor_identifier",
+        "bacapp.objectType", "bacapp.instance_number",
         # OPC-UA
         "opcua.servicenodeid.numeric", "opcua.security.spu",
+        # OMRON FINS
+        "omron.command", "omron.controller.model", "omron.controller.version",
         # LLDP
         "lldp.chassis.id", "lldp.chassis.subtype",
         "lldp.port.id", "lldp.port.subtype", "lldp.port.desc",
@@ -1188,12 +1232,14 @@ class OTProtocolDissector:
                     vendor = pkt.get("cip.id.vendor_id", [""])[0]
                     device_type = pkt.get("cip.id.device_type", [""])[0]
                     product_name = pkt.get("cip.id.product_name", [""])[0]
+                    product_code = pkt.get("cip.id.product_code", [""])[0]
                     serial = pkt.get("cip.id.serial_number", [""])[0]
                     revision = pkt.get("cip.class_revision", [""])[0]
                     if vendor or device_type or product_name:
                         conv["cip_identity"] = {
                             "vendor_id": vendor, "device_type": device_type,
-                            "product_name": product_name, "serial_number": serial,
+                            "product_name": product_name, "product_code": product_code,
+                            "serial_number": serial,
                             "revision": revision,
                         }
                 elif "PROFINET" in protocol:
@@ -1219,6 +1265,23 @@ class OTProtocolDissector:
                     obj = pkt.get("dnp3.al.obj", [""])[0]
                     if obj:
                         conv["dnp3_objects"].add(obj)
+                elif "IEC 60870-5-104" in protocol:
+                    typeid = pkt.get("iec60870_asdu.typeid", [""])[0]
+                    cause = pkt.get("iec60870_asdu.causetx", [""])[0]
+                    if typeid:
+                        conv["iec104_typeids"].add(typeid)
+                    if cause:
+                        conv["iec104_causes"].add(cause)
+                elif "BACnet" in protocol:
+                    obj_name = pkt.get("bacapp.object_name", [""])[0]
+                    vendor_id = pkt.get("bacapp.vendor_identifier", [""])[0]
+                    object_type = pkt.get("bacapp.objectType", [""])[0]
+                    if vendor_id:
+                        conv["bacnet_identity"]["vendor_ids"].add(vendor_id)
+                    if obj_name:
+                        conv["bacnet_identity"]["object_names"].add(obj_name)
+                    if object_type:
+                        conv["bacnet_identity"]["object_types"].add(object_type)
                 elif "OPC-UA" in protocol:
                     svc = pkt.get("opcua.servicenodeid.numeric", [""])[0]
                     sec = pkt.get("opcua.security.spu", [""])[0]
@@ -1226,6 +1289,16 @@ class OTProtocolDissector:
                         conv["opc_sessions"].append(svc)
                     if sec and "none" in sec.lower():
                         conv["opc_no_security"] = True
+                elif "OMRON" in protocol:
+                    cmd = pkt.get("omron.command", [""])[0]
+                    model = pkt.get("omron.controller.model", [""])[0]
+                    version = pkt.get("omron.controller.version", [""])[0]
+                    if cmd:
+                        conv["omron_identity"]["commands"].add(cmd)
+                    if model and not conv["omron_identity"]["model"]:
+                        conv["omron_identity"]["model"] = model
+                    if version and not conv["omron_identity"]["version"]:
+                        conv["omron_identity"]["version"] = version
                 elif protocol == "LLDP":
                     self._parse_lldp_inline(pkt, conv["l2_discovery"])
                 elif protocol == "CDP":
@@ -1279,6 +1352,10 @@ class OTProtocolDissector:
             "dnp3_objects": set(),
             "opc_sessions": [],
             "opc_no_security": False,
+            "bacnet_identity": {"vendor_ids": set(), "object_names": set(), "object_types": set()},
+            "iec104_typeids": set(),
+            "iec104_causes": set(),
+            "omron_identity": {"commands": set(), "model": "", "version": ""},
             "l2_discovery": {},
             "src_ports": set(),
             "transport": "",
@@ -1374,6 +1451,18 @@ class OTProtocolDissector:
                 dnp3_objects=list(d["dnp3_objects"]),
                 opc_sessions=d["opc_sessions"],
                 opc_no_security=d["opc_no_security"],
+                bacnet_identity={
+                    "vendor_ids": sorted(d["bacnet_identity"]["vendor_ids"]),
+                    "object_names": sorted(d["bacnet_identity"]["object_names"]),
+                    "object_types": sorted(d["bacnet_identity"]["object_types"]),
+                },
+                iec104_typeids=sorted(d["iec104_typeids"]),
+                iec104_causes=sorted(d["iec104_causes"]),
+                omron_identity={
+                    "commands": sorted(d["omron_identity"]["commands"]),
+                    "model": d["omron_identity"]["model"],
+                    "version": d["omron_identity"]["version"],
+                },
                 src_port=rep_src_port,
                 transport=d["transport"],
                 src_ports_seen=src_port_list[:50],
@@ -2272,6 +2361,46 @@ class TopologyBuilder:
                         if dt in CIP_DEVICE_TYPE_MAP:
                             node.device_type = CIP_DEVICE_TYPE_MAP[dt]
 
+            # BACnet metadata often exposes the vendor identifier and device object
+            # name in discovery or I-Am traffic. Use that to enrich BMS assets.
+            for conv in self._conv_by_src.get(ip, []) + self._conv_by_dst.get(ip, []):
+                if not conv.bacnet_identity:
+                    continue
+                for vendor_id in conv.bacnet_identity.get("vendor_ids", []):
+                    try:
+                        vid = int(vendor_id, 0)
+                    except (TypeError, ValueError):
+                        continue
+                    if vid in BACNET_VENDOR_ID_MAP and node.vendor == "Unknown":
+                        node.vendor = BACNET_VENDOR_ID_MAP[vid]
+                        break
+                if node.product_line:
+                    break
+                object_names = conv.bacnet_identity.get("object_names", [])
+                if object_names:
+                    node.product_line = object_names[0]
+                    if not node.system_name:
+                        node.system_name = object_names[0]
+
+            # OMRON FINS can expose controller model/version directly.
+            for conv in self._conv_by_dst.get(ip, []) + self._conv_by_src.get(ip, []):
+                if not conv.omron_identity:
+                    continue
+                is_omron_service = any(
+                    sp.get("port") == 9600 or "omron" in str(sp.get("protocol", "")).lower()
+                    for sp in node.service_ports
+                )
+                if not is_omron_service:
+                    continue
+                model = conv.omron_identity.get("model", "")
+                version = conv.omron_identity.get("version", "")
+                if model:
+                    node.vendor = "Omron"
+                    node.product_line = model if not version else f"{model} {version}".strip()
+                    if node.device_type == "Unknown":
+                        node.device_type = "Programmable Logic Controller"
+                    break
+
             # Check PROFINET DCP Identity for device info (src or dst)
             _pn_conv = None
             for conv in self._conv_by_src.get(ip, []):
@@ -2292,18 +2421,9 @@ class TopologyBuilder:
                         node.system_name = station
                     pn_vendor = pn.get("vendor_id", "")
                     if pn_vendor:
-                        # PROFINET vendor IDs: 0x002A = Siemens, 0x0119 = Phoenix Contact, etc.
                         pn_vid = int(pn_vendor, 0) if pn_vendor.startswith("0x") else int(pn_vendor) if pn_vendor.isdigit() else 0
-                        if pn_vid == 0x002A:
-                            node.vendor = "Siemens"
-                        elif pn_vid == 0x0119:
-                            node.vendor = "Phoenix Contact"
-                        elif pn_vid == 0x00A0:
-                            node.vendor = "Wago"
-                        elif pn_vid == 0x0134:
-                            node.vendor = "Beckhoff"
-                        elif pn_vid == 0x011E:
-                            node.vendor = "Turck"
+                        if pn_vid in PROFINET_VENDOR_ID_MAP:
+                            node.vendor = PROFINET_VENDOR_ID_MAP[pn_vid]
                         elif pn_vid and node.vendor == "Unknown":
                             node.vendor = f"PROFINET Vendor 0x{pn_vid:04X}"
                     pn_role = pn.get("device_role", "")
@@ -2314,6 +2434,10 @@ class TopologyBuilder:
                             node.device_type = "IO Device"
                         elif "supervisor" in pn_role.lower() or pn_role == "4":
                             node.device_type = "IO Supervisor"
+                    if station and node.device_type == "Unknown":
+                        station_lower = station.lower()
+                        if any(hint in station_lower for hint in PROFINET_SWITCH_HINTS):
+                            node.device_type = "Network Switch"
 
             # Enrich from LLDP/CDP system description (often contains vendor/model)
             if node.system_desc and node.vendor == "Unknown":
@@ -2402,6 +2526,13 @@ class TopologyBuilder:
             if self._is_broadcast_or_multicast(ip):
                 continue
 
+            system_name_lower = (node.system_name or "").strip().lower()
+            if node.device_type == "Unknown" and system_name_lower:
+                if any(system_name_lower.startswith(prefix) for prefix in ("switch", "sw")):
+                    node.device_type = "Network Switch"
+                elif any(hint in system_name_lower for hint in PROFINET_SWITCH_HINTS):
+                    node.device_type = "Network Switch"
+
             # L2 infrastructure — identified via LLDP/CDP/STP capabilities
             if node.device_type == "Network Switch" or "Bridge" in node.capabilities:
                 node.role = "Network Switch"
@@ -2461,6 +2592,23 @@ class TopologyBuilder:
             )
             hmi_hint = any(token in text for token in HMI_SIGNATURES)
             engineering_signature = any(token in text for token in ENGINEERING_SIGNATURES)
+            bacnet_hint = "bacnet" in text
+            iec104_hint = "iec 60870-5-104" in text or "iec 60870-5 asdu" in text
+            iec61850_hint = "iec 61850" in text or "mms (iec 61850)" in text or "goose" in text
+            omron_hint = any(token in text for token in OMRON_SIGNATURES) or "omron fins" in text
+            opcua_hint = "opc-ua" in text or "opc ua" in text
+            has_omron_service = any(
+                sp.get("port") == 9600 or "omron" in str(sp.get("protocol", "")).lower()
+                for sp in node.service_ports
+            )
+            has_iec104_service = any(
+                sp.get("port") == 2404 or "iec 60870-5-104" in str(sp.get("protocol", "")).lower()
+                for sp in node.service_ports
+            )
+            has_opcua_service = any(
+                sp.get("port") == 4840 or "opc-ua" in str(sp.get("protocol", "")).lower()
+                for sp in node.service_ports
+            )
             camera_hint = any(
                 token in text for token in (
                     "axis", "hikvision", "dahua", "avigilon", "mobotix",
@@ -2480,6 +2628,36 @@ class TopologyBuilder:
                 )
             )
 
+            # Strong protocol-native identity beats Purdue heuristics when we have
+            # explicit controller/server metadata from the capture itself.
+            if node.device_type in ("Programmable Logic Controller", "PLC"):
+                node.role = "PLC"
+                continue
+            if node.device_type == "Human-Machine Interface":
+                node.role = "HMI/SCADA"
+                continue
+            if node.device_type == "IO Controller":
+                node.role = "Supervisory Controller"
+                continue
+            if node.device_type == "IO Device":
+                node.role = "Field Device"
+                continue
+            if has_omron_service:
+                node.role = "PLC"
+                if node.device_type == "Unknown":
+                    node.device_type = "Programmable Logic Controller"
+                continue
+            if iec104_hint and has_iec104_service:
+                node.role = "RTU"
+                if node.device_type == "Unknown":
+                    node.device_type = "Telemetry RTU"
+                continue
+            if has_opcua_service and node.responds:
+                node.role = "Application Server" if node.purdue_level == 3 else "Supervisory Controller"
+                if node.device_type == "Unknown":
+                    node.device_type = "OPC UA Server"
+                continue
+
             # Default role based on Purdue level and protocols
             if node.purdue_level in (0, 1):
                 if "Modbus" in " ".join(node.protocols):
@@ -2498,6 +2676,22 @@ class TopologyBuilder:
                     node.role = "RTU"
                     if node.device_type == "Unknown":
                         node.device_type = "RTU"
+                elif iec104_hint:
+                    node.role = "RTU"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Telemetry RTU"
+                elif omron_hint and has_omron_service:
+                    node.role = "PLC"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Programmable Logic Controller"
+                elif iec61850_hint:
+                    node.role = "Protective Relay"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Protection IED"
+                elif bacnet_hint:
+                    node.role = "Building Controller"
+                    if node.device_type == "Unknown":
+                        node.device_type = "BACnet Controller"
                 else:
                     node.role = "Field Device"
                     if node.device_type == "Unknown":
@@ -2508,6 +2702,26 @@ class TopologyBuilder:
                     node.role = "Engineering Workstation"
                     if node.device_type == "Unknown":
                         node.device_type = "Engineering Workstation"
+                elif bacnet_hint and node.initiates and not node.responds:
+                    node.role = "HMI/SCADA"
+                    if node.device_type == "Unknown":
+                        node.device_type = "BMS Workstation"
+                elif bacnet_hint and node.responds:
+                    node.role = "Supervisory Controller"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Building Controller"
+                elif iec61850_hint and node.responds:
+                    node.role = "Protective Relay"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Protection IED"
+                elif omron_hint and has_omron_service:
+                    node.role = "PLC"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Programmable Logic Controller"
+                elif opcua_hint and node.responds and not node.initiates:
+                    node.role = "Supervisory Controller"
+                    if node.device_type == "Unknown":
+                        node.device_type = "OPC UA Server"
                 elif hmi_hint:
                     node.role = "HMI/SCADA"
                     if node.device_type == "Unknown":
@@ -2543,6 +2757,14 @@ class TopologyBuilder:
                     node.role = "Historian/MES"
                     if node.device_type == "Unknown":
                         node.device_type = "Historian Server"
+                elif opcua_hint and node.responds:
+                    node.role = "Application Server"
+                    if node.device_type == "Unknown":
+                        node.device_type = "OPC UA Server"
+                elif bacnet_hint and (node.responds or has_server_stack):
+                    node.role = "Application Server"
+                    if node.device_type == "Unknown":
+                        node.device_type = "BMS Server"
                 elif hmi_hint:
                     node.role = "HMI/SCADA"
                     if node.device_type == "Unknown":
@@ -2559,6 +2781,10 @@ class TopologyBuilder:
                     node.role = "Engineering Workstation"
                     if node.device_type == "Unknown":
                         node.device_type = "Engineering Workstation"
+                elif iec104_hint and node.responds:
+                    node.role = "Application Server"
+                    if node.device_type == "Unknown":
+                        node.device_type = "Telemetry Server"
                 elif workstation_hint or (node.initiates and not node.responds):
                     node.role = "Operations Workstation"
                     if node.device_type == "Unknown":
