@@ -452,19 +452,47 @@ var MS = (function() {
   var REPORT = {{ report_json | tojson }};
 
   var ROLE_STYLES = {
-    'PLC':        { color: '#d4943a', label: 'PLC',        geo: 'box',      level: 1 },
-    'RTU':        { color: '#f59e0b', label: 'RTU',        geo: 'box',      level: 1 },
-    'HMI':        { color: '#3b82f6', label: 'HMI',        geo: 'box',      level: 2 },
-    'SCADA':      { color: '#32b8c6', label: 'SCADA',      geo: 'icosa',    level: 2 },
-    'Historian':  { color: '#a855f7', label: 'Historian',  geo: 'cylinder', level: 3 },
-    'Engineering Workstation': { color: '#ef4444', label: 'Eng WS', geo: 'box', level: 2 },
-    'Server':     { color: '#8b5cf6', label: 'Server',     geo: 'cylinder', level: 3 },
-    'Gateway':    { color: '#06b6d4', label: 'Gateway',    geo: 'box',      level: 2 },
-    'Network Switch': { color: '#64748b', label: 'Switch', geo: 'box', level: -1 },
-    'Router':     { color: '#06b6d4', label: 'Router',     geo: 'box',      level: -1 },
+    'PLC':                    { color: '#d4943a', label: 'PLC',        geo: 'box',      level: 1 },
+    'RTU':                    { color: '#f59e0b', label: 'RTU',        geo: 'box',      level: 1 },
+    'RTU/PLC':                { color: '#f59e0b', label: 'RTU/PLC',    geo: 'box',      level: 1 },
+    'Field Device':           { color: '#22c55e', label: 'Field',      geo: 'sphere',   level: 1 },
+    'HMI':                    { color: '#3b82f6', label: 'HMI',        geo: 'box',      level: 2 },
+    'HMI/SCADA':              { color: '#3b82f6', label: 'HMI',        geo: 'box',      level: 2 },
+    'SCADA':                  { color: '#32b8c6', label: 'SCADA',      geo: 'icosa',    level: 2 },
+    'Supervisory Controller': { color: '#32b8c6', label: 'SCADA',      geo: 'icosa',    level: 2 },
+    'Building Controller':    { color: '#0ea5e9', label: 'BMS',        geo: 'box',      level: 2 },
+    'Protective Relay':       { color: '#f97316', label: 'Relay',      geo: 'box',      level: 1 },
+    'Historian':              { color: '#a855f7', label: 'Historian',  geo: 'cylinder', level: 3 },
+    'Historian/MES':          { color: '#a855f7', label: 'Historian',  geo: 'cylinder', level: 3 },
+    'Engineering Workstation':{ color: '#ef4444', label: 'Eng WS',     geo: 'box',      level: 2 },
+    'Operations Workstation': { color: '#60a5fa', label: 'Ops WS',     geo: 'box',      level: 3 },
+    'Operations Host':        { color: '#94a3b8', label: 'Host',       geo: 'sphere',   level: 3 },
+    'Application Server':     { color: '#8b5cf6', label: 'Server',     geo: 'cylinder', level: 3 },
+    'Server':                 { color: '#8b5cf6', label: 'Server',     geo: 'cylinder', level: 3 },
+    'Security Appliance':     { color: '#ec4899', label: 'Security',   geo: 'box',      level: 2 },
+    'Industrial Appliance':   { color: '#06b6d4', label: 'Appliance',  geo: 'box',      level: 2 },
+    'Gateway':                { color: '#06b6d4', label: 'Gateway',    geo: 'box',      level: 2 },
+    'External Host':          { color: '#94a3b8', label: 'External',   geo: 'sphere',   level: 4 },
+    'Broadcast/Multicast':    { color: '#64748b', label: 'Broadcast',  geo: 'sphere',   level: -1 },
+    'Network Switch':         { color: '#64748b', label: 'Switch',     geo: 'box',      level: -1 },
+    'Router':                 { color: '#06b6d4', label: 'Router',     geo: 'box',      level: -1 },
     'Network Infrastructure': { color: '#64748b', label: 'Infrastructure', geo: 'box', level: -1 },
-    'Unknown':    { color: '#7a8a9e', label: 'Unknown',    geo: 'sphere',   level: -1 },
+    'Unknown':                { color: '#7a8a9e', label: 'Unknown',    geo: 'sphere',   level: -1 }
   };
+
+  function resolveRoleStyle(role) {
+    if (!role) return ROLE_STYLES['Unknown'];
+    if (ROLE_STYLES[role]) return ROLE_STYLES[role];
+    for (var k in ROLE_STYLES) {
+      if (role.indexOf(k) === 0) return ROLE_STYLES[k];
+    }
+    if (role.indexOf('Server') >= 0) return ROLE_STYLES['Application Server'];
+    if (role.indexOf('Workstation') >= 0) return ROLE_STYLES['Operations Workstation'];
+    if (role.indexOf('Relay') >= 0 || role.indexOf('IED') >= 0) return ROLE_STYLES['Protective Relay'];
+    if (role.indexOf('Controller') >= 0) return ROLE_STYLES['Supervisory Controller'];
+    if (role.indexOf('Appliance') >= 0 || role.indexOf('Gateway') >= 0) return ROLE_STYLES['Industrial Appliance'];
+    return { color: '#7a8a9e', label: role, geo: 'sphere', level: -1 };
+  }
 
   var PROTOCOL_COLORS = {
     'Modbus': '#22c55e', 'Modbus/TCP': '#22c55e', 'DNP3': '#3aad6b',
@@ -502,10 +530,7 @@ var MS = (function() {
       n._ip = ip;
       n._role = n.role || 'Unknown';
       n._level = (n.purdue_level != null) ? n.purdue_level : -1;
-      n._style = ROLE_STYLES[n._role] || (function(r) {
-        for (var k in ROLE_STYLES) { if (r.indexOf(k) === 0) return ROLE_STYLES[k]; }
-        return ROLE_STYLES['Unknown'];
-      })(n._role);
+      n._style = resolveRoleStyle(n._role);
       n._protocols = n.protocols || [];
       n._connCount = 0;
       n._edges = [];

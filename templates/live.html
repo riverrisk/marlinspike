@@ -137,7 +137,45 @@ var LIVE = (function() {
   var dragging = false, dragged = false, dragStart = {x:0,y:0}, vbStart = {x:0,y:0};
   var serverData = null;
 
-  var ROLE_STYLES = { 'PLC':{color:'#d4943a',label:'PLC'}, 'RTU':{color:'#f59e0b',label:'RTU'}, 'HMI':{color:'#3b82f6',label:'HMI'}, 'SCADA':{color:'#32b8c6',label:'SCADA'}, 'Historian':{color:'#a855f7',label:'Historian'}, 'Engineering Workstation':{color:'#ef4444',label:'Eng WS'}, 'Server':{color:'#8b5cf6',label:'Server'}, 'Gateway':{color:'#06b6d4',label:'Gateway'}, 'Unknown':{color:'#7a8a9e',label:'Unknown'} };
+  var ROLE_STYLES = {
+    'PLC':{color:'#d4943a',label:'PLC'},
+    'RTU':{color:'#f59e0b',label:'RTU'},
+    'RTU/PLC':{color:'#f59e0b',label:'RTU/PLC'},
+    'Field Device':{color:'#22c55e',label:'Field'},
+    'HMI':{color:'#3b82f6',label:'HMI'},
+    'HMI/SCADA':{color:'#3b82f6',label:'HMI'},
+    'SCADA':{color:'#32b8c6',label:'SCADA'},
+    'Supervisory Controller':{color:'#32b8c6',label:'SCADA'},
+    'Building Controller':{color:'#0ea5e9',label:'BMS'},
+    'Protective Relay':{color:'#f97316',label:'Relay'},
+    'Historian':{color:'#a855f7',label:'Historian'},
+    'Historian/MES':{color:'#a855f7',label:'Historian'},
+    'Engineering Workstation':{color:'#ef4444',label:'Eng WS'},
+    'Operations Workstation':{color:'#60a5fa',label:'Ops WS'},
+    'Operations Host':{color:'#94a3b8',label:'Host'},
+    'Application Server':{color:'#8b5cf6',label:'Server'},
+    'Server':{color:'#8b5cf6',label:'Server'},
+    'Security Appliance':{color:'#ec4899',label:'Security'},
+    'Industrial Appliance':{color:'#06b6d4',label:'Appliance'},
+    'Gateway':{color:'#06b6d4',label:'Gateway'},
+    'External Host':{color:'#94a3b8',label:'External'},
+    'Broadcast/Multicast':{color:'#64748b',label:'Broadcast'},
+    'Network Switch':{color:'#64748b',label:'Switch'},
+    'Router':{color:'#06b6d4',label:'Router'},
+    'Network Infrastructure':{color:'#64748b',label:'Infrastructure'},
+    'Unknown':{color:'#7a8a9e',label:'Unknown'}
+  };
+  function resolveRoleStyle(role){
+    if(!role)return ROLE_STYLES['Unknown'];
+    if(ROLE_STYLES[role])return ROLE_STYLES[role];
+    for(var k in ROLE_STYLES){if(role.indexOf(k)===0)return ROLE_STYLES[k];}
+    if(role.indexOf('Server')>=0)return ROLE_STYLES['Application Server'];
+    if(role.indexOf('Workstation')>=0)return ROLE_STYLES['Operations Workstation'];
+    if(role.indexOf('Relay')>=0||role.indexOf('IED')>=0)return ROLE_STYLES['Protective Relay'];
+    if(role.indexOf('Controller')>=0)return ROLE_STYLES['Supervisory Controller'];
+    if(role.indexOf('Appliance')>=0||role.indexOf('Gateway')>=0)return ROLE_STYLES['Industrial Appliance'];
+    return {color:'#7a8a9e',label:role};
+  }
   var PROTOCOL_COLORS = { 'Modbus':'#22c55e','Modbus/TCP':'#22c55e','DNP3':'#3aad6b','CIP':'#16a34a','EtherNet/IP':'#059669','OPC UA':'#0d9488','PROFINET':'#06b6d4','BACnet':'#0ea5e9','HTTP':'#8b5cf6','HTTPS':'#7c3aed','SSH':'#6366f1','Telnet':'#ef4444','SNMP':'#ec4899','ARP':'#f59e0b','ICMP':'#d4943a','S7comm':'#3b82f6','IEC 60870-5-104':'#06b6d4','DNS':'#a855f7','TCP':'#94a3b8','UDP':'#94a3b8','_default':'#64748b' };
   var PURDUE_LABELS = { '-1':'Unknown','0':'Level 0 - Process','1':'Level 1 - Basic Control','2':'Level 2 - Supervisory','3':'Level 3 - Operations','4':'Level 4 - Enterprise','5':'Level 5 - DMZ' };
   var PURDUE_COLORS = { '-1':'#64748b','0':'#f59e0b','1':'#22c55e','2':'#3b82f6','3':'#a855f7','4':'#ef4444','5':'#ec4899' };
@@ -197,7 +235,7 @@ var LIVE = (function() {
 
   function processTopology(data){
     var topo=data.topology||{};nodes=topo.nodes||[];edges=topo.edges||[];nodeByIp={};
-    nodes.forEach(function(n){var ip=n.ip||'';n._ip=ip;n._role=n.role||'Unknown';n._level=(n.purdue_level!=null)?n.purdue_level:-1;n._style=ROLE_STYLES[n._role]||ROLE_STYLES['Unknown'];n._protocols=n.protocols||[];n._connCount=0;n._edges=[];nodeByIp[ip]=n;});
+    nodes.forEach(function(n){var ip=n.ip||'';n._ip=ip;n._role=n.role||'Unknown';n._level=(n.purdue_level!=null)?n.purdue_level:-1;n._style=resolveRoleStyle(n._role);n._protocols=n.protocols||[];n._connCount=0;n._edges=[];nodeByIp[ip]=n;});
     edges.forEach(function(e){var src=nodeByIp[e.src];var dst=nodeByIp[e.dst];if(src){src._connCount++;src._edges.push(e);}if(dst){dst._connCount++;dst._edges.push(e);}e._color=protoColor(e.protocol);});
     var waiting=document.getElementById('live-waiting');if(nodes.length===0){waiting.style.display='';return;}waiting.style.display='none';renderSvg();
   }
