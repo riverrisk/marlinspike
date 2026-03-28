@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+{% block title %}MarlinSpike — Findings Catalog{% endblock %}
+
+{% block head %}
+<style>
+.hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+.hero-copy h1 {
+  font-size: 1.6em;
+  margin-bottom: 8px;
+  letter-spacing: -0.4px;
+}
+.hero-copy p {
+  color: var(--text-dim);
+  line-height: 1.6;
+  max-width: 760px;
+}
+.hero-note {
+  min-width: 260px;
+  background: linear-gradient(180deg, rgba(91,138,240,0.12), rgba(91,138,240,0.04));
+  border: 1px solid rgba(91,138,240,0.22);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.hero-note .label {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  font-size: 0.72em;
+  margin-bottom: 6px;
+}
+.hero-note .value {
+  font-size: 1.5em;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+.hero-note .sub {
+  margin-top: 6px;
+  color: var(--text-dim);
+  font-size: 0.84em;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.stat-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.stat-label {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  font-size: 0.72em;
+  margin-bottom: 6px;
+}
+.stat-value {
+  font-size: 1.42em;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+.stat-sub {
+  margin-top: 6px;
+  color: var(--text-dim);
+  font-size: 0.82em;
+  line-height: 1.5;
+}
+.filters-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.filters-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.filters-head h2 {
+  font-size: 0.96em;
+  font-weight: 600;
+}
+.filters-meta {
+  color: var(--text-dim);
+  font-size: 0.82em;
+}
+.filters-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.8fr) repeat(4, minmax(130px, 1fr));
+  gap: 10px;
+}
+.filter-label {
+  display: block;
+  color: var(--text-dim);
+  font-size: 0.74em;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+}
+.ms-input, select.ms-input {
+  width: 100%;
+}
+.filter-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.source-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.source-pill {
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.82em;
+}
+.source-pill .count {
+  margin-left: 6px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+.catalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 10px;
+}
+.entry {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 13px;
+}
+.entry-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.entry-main {
+  min-width: 0;
+}
+.entry-kicker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+  color: var(--text-dim);
+  font-size: 0.74em;
+  text-transform: uppercase;
+  letter-spacing: 0.55px;
+  font-family: var(--font-mono);
+}
+.entry-code {
+  color: var(--accent);
+}
+.entry-family {
+  color: var(--text-dim);
+}
+.entry-title {
+  font-size: 0.93em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.entry-subtitle {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.76em;
+  margin-top: 2px;
+}
+.entry-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  max-width: 42%;
+}
+.entry-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 0.68em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+.entry-badge.source-report { color: #9ec5ff; border-color: rgba(91,138,240,0.34); background: rgba(91,138,240,0.08); }
+.entry-badge.source-dpi { color: #8ce7de; border-color: rgba(50,184,198,0.34); background: rgba(50,184,198,0.08); }
+.entry-badge.source-malware { color: #f5d37a; border-color: rgba(245,158,11,0.34); background: rgba(245,158,11,0.08); }
+.entry-badge.source-mitre { color: #a8e6b8; border-color: rgba(58,173,107,0.34); background: rgba(58,173,107,0.08); }
+.entry-badge.sev-CRITICAL { color: #fecaca; border-color: rgba(239,68,68,0.34); background: rgba(239,68,68,0.08); }
+.entry-badge.sev-HIGH { color: #fdba74; border-color: rgba(245,158,11,0.34); background: rgba(245,158,11,0.08); }
+.entry-badge.sev-MEDIUM { color: #fcd34d; border-color: rgba(234,179,8,0.34); background: rgba(234,179,8,0.08); }
+.entry-badge.sev-LOW { color: #93c5fd; border-color: rgba(59,130,246,0.34); background: rgba(59,130,246,0.08); }
+.entry-badge.sev-INFO { color: #cbd5e1; border-color: rgba(148,163,184,0.34); background: rgba(148,163,184,0.08); }
+.entry-detail {
+  margin-top: 0;
+  color: var(--text);
+  font-size: 0.88em;
+  line-height: 1.45;
+}
+.entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.entry-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  color: var(--text-dim);
+  font-size: 0.74em;
+  line-height: 1.2;
+}
+.entry-meta-chip.primary {
+  color: var(--text);
+  background: rgba(91,138,240,0.08);
+  border-color: rgba(91,138,240,0.16);
+}
+.empty-state {
+  background: var(--panel);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 22px;
+  color: var(--text-dim);
+  text-align: center;
+}
+@media (max-width: 980px) {
+  .hero { flex-direction: column; }
+  .hero-note { min-width: 0; width: 100%; }
+  .filters-grid { grid-template-columns: 1fr 1fr; }
+  .catalog { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .filters-grid { grid-template-columns: 1fr; }
+  .entry-top { flex-direction: column; }
+  .entry-badges { justify-content: flex-start; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="ms-content">
+  <div class="hero">
+    <div class="hero-copy">
+      <h1>Detection Coverage Catalog</h1>
+      <p>
+        This page is a source-backed catalog of what MarlinSpike can currently surface across core report findings,
+        Stage 2 DPI coverage, Stage 4b malware matching, and ATT&amp;CK report mappings. It is a product capability view,
+        not a list of what was detected in any one environment.
+      </p>
+    </div>
+    <div class="hero-note">
+      <div class="label">Catalog Entries</div>
+      <div class="value">{{ filtered_count }}</div>
+      <div class="sub">{{ total_count }} total after combining report, DPI, malware, and ATT&amp;CK sources.</div>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Report Classes</div>
+      <div class="stat-value">{{ summary.report_classes }}</div>
+      <div class="stat-sub">{{ source_meta.report.summary }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">DPI Surface</div>
+      <div class="stat-value">{{ summary.dpi_protocols }}</div>
+      <div class="stat-sub">{{ source_meta.dpi.summary }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Malware Rules</div>
+      <div class="stat-value">{{ summary.malware_rules or "?" }}</div>
+      <div class="stat-sub">{{ source_meta.malware.summary }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">ATT&amp;CK Mapping</div>
+      <div class="stat-value">{{ summary.mitre_rules }}</div>
+      <div class="stat-sub">
+        {{ source_meta.mitre.summary }}
+        {% if summary.mitre_attack_version %}
+        <br>Catalog ATT&amp;CK version {{ summary.mitre_attack_version }}.
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="filters-card">
+    <div class="filters-head">
+      <h2>Filter Coverage</h2>
+      <div class="filters-meta">{{ filtered_count }} of {{ total_count }} entries shown</div>
+    </div>
+    <form method="get">
+      <div class="filters-grid">
+        <div>
+          <label class="filter-label" for="q">Search</label>
+          <input class="ms-input" id="q" name="q" value="{{ selected.q }}" placeholder="Search titles, ids, fields, families, rationale">
+        </div>
+        <div>
+          <label class="filter-label" for="source">Source</label>
+          <select class="ms-input" id="source" name="source">
+            <option value="">All sources</option>
+            {% for source in options.sources %}
+            <option value="{{ source }}" {% if selected.source == source %}selected{% endif %}>{{ source|replace('-', ' ')|title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="filter-label" for="type">Type</label>
+          <select class="ms-input" id="type" name="type">
+            <option value="">All types</option>
+            {% for item_type in options.types %}
+            <option value="{{ item_type }}" {% if selected.type == item_type %}selected{% endif %}>{{ item_type|replace('-', ' ')|title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="filter-label" for="family">Family</label>
+          <select class="ms-input" id="family" name="family">
+            <option value="">All families</option>
+            {% for family in options.families %}
+            <option value="{{ family }}" {% if selected.family == family %}selected{% endif %}>{{ family }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="filter-label" for="severity">Severity</label>
+          <select class="ms-input" id="severity" name="severity">
+            <option value="">All severities</option>
+            {% for severity in options.severities %}
+            <option value="{{ severity }}" {% if selected.severity == severity %}selected{% endif %}>{{ severity }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" type="submit">Apply Filters</button>
+        <a class="btn" href="/findings">Clear</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="source-strip">
+    {% for key, label in [("report","Report"), ("dpi","DPI"), ("malware","Malware"), ("mitre","ATT&CK")] %}
+    <div class="source-pill">
+      {{ label }}
+      <span class="count">{{ filtered_counts.get(key, 0) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if entries %}
+  <div class="catalog">
+    {% for entry in entries %}
+    <div class="entry">
+      <div class="entry-top">
+        <div class="entry-main">
+          <div class="entry-kicker">
+            {% if entry.subtitle %}
+            <span class="entry-code">{{ entry.subtitle }}</span>
+            {% endif %}
+            <span class="entry-family">{{ entry.family }}</span>
+          </div>
+          <div class="entry-title">{{ entry.title }}</div>
+          {% if entry.source == "malware" and entry.type == "rule" %}
+          <div class="entry-subtitle">Stage 4b rule-backed coverage</div>
+          {% elif entry.source == "dpi" and entry.type == "protocol" %}
+          <div class="entry-subtitle">Stage 2 parser surface</div>
+          {% elif entry.source == "mitre" %}
+          <div class="entry-subtitle">Report-side ATT&amp;CK mapping</div>
+          {% elif entry.source == "report" %}
+          <div class="entry-subtitle">Current engine-emitted finding class</div>
+          {% endif %}
+        </div>
+        <div class="entry-badges">
+          <span class="entry-badge source-{{ entry.source }}">{{ entry.source|replace('-', ' ') }}</span>
+          <span class="entry-badge">{{ entry.type|replace('-', ' ') }}</span>
+          {% if entry.severity %}
+          <span class="entry-badge sev-{{ entry.severity }}">{{ entry.severity }}</span>
+          {% endif %}
+        </div>
+      </div>
+      {% if entry.detail %}
+      <div class="entry-detail">{{ entry.detail }}</div>
+      {% endif %}
+      {% if entry.meta %}
+      <div class="entry-meta">
+        {% for part in entry.meta.split(" | ") %}
+        <span class="entry-meta-chip{% if loop.first %} primary{% endif %}">{{ part }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    No coverage entries matched the current filters.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

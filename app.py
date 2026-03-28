@@ -19,9 +19,11 @@ import time
 import uuid
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlparse
 
+import yaml
 from flask import (
     Flask,
     jsonify,
@@ -69,6 +71,206 @@ _stage_re = re.compile(r"^\s*STAGE\s+(\d+)\s*[—–-]\s*(.+)")
 _error_re = re.compile(r"\[!\].*(?:FAILED|ERROR)", re.IGNORECASE)
 
 
+REPORT_FINDING_COVERAGE = [
+    {
+        "id": "ICS_EXTERNAL_COMMS",
+        "title": "OT asset direct internet communications",
+        "type": "finding",
+        "family": "network exposure",
+        "severity": "CRITICAL",
+        "detail": "Flags OT or ICS assets observed talking directly to public internet addresses.",
+    },
+    {
+        "id": "EXTERNAL_IPS_OBSERVED",
+        "title": "Public internet addresses observed",
+        "type": "finding",
+        "family": "network exposure",
+        "severity": "INFO",
+        "detail": "Records public internet addresses present in the capture even when direct OT exposure is not established.",
+    },
+    {
+        "id": "CROSS_PURDUE",
+        "title": "Cross-Purdue communication violations",
+        "type": "finding",
+        "family": "segmentation",
+        "severity": "HIGH",
+        "detail": "Detects direct communications that bypass expected Purdue supervisory boundaries.",
+    },
+    {
+        "id": "CLEARTEXT_ENG",
+        "title": "Cleartext engineering operations",
+        "type": "finding",
+        "family": "engineering access",
+        "severity": "HIGH",
+        "detail": "Highlights engineering actions carried over cleartext industrial protocols.",
+    },
+    {
+        "id": "MODBUS_WRITE_ANON",
+        "title": "Multiple Modbus write sources",
+        "type": "finding",
+        "family": "control-path risk",
+        "severity": "MEDIUM",
+        "detail": "Flags unexpected or overly broad sources issuing Modbus write operations.",
+    },
+    {
+        "id": "NO_AUTH_OBSERVED",
+        "title": "No authentication observed",
+        "type": "finding",
+        "family": "authentication gap",
+        "severity": "MEDIUM",
+        "detail": "Calls out devices with no observed authentication exchanges in the capture surface.",
+    },
+    {
+        "id": "OPC_NO_SECURITY",
+        "title": "OPC UA SecurityMode=None",
+        "type": "finding",
+        "family": "protocol security",
+        "severity": "HIGH",
+        "detail": "Detects OPC UA sessions established without transport or message security.",
+    },
+    {
+        "id": "S7_PROGRAM_ACCESS",
+        "title": "S7 program upload or download activity",
+        "type": "finding",
+        "family": "control-path risk",
+        "severity": "CRITICAL",
+        "detail": "Highlights Siemens S7 programming access that may expose PLC logic or allow engineering changes.",
+    },
+    {
+        "id": "CLEARTEXT_REMOTE_ACCESS",
+        "title": "Cleartext remote access services",
+        "type": "finding",
+        "family": "service exposure",
+        "severity": "HIGH",
+        "detail": "Flags cleartext remote administration services such as Telnet, FTP, and VNC.",
+    },
+    {
+        "id": "PORT_SCAN_TARGET",
+        "title": "Possible port-scan target surface",
+        "type": "finding",
+        "family": "service exposure",
+        "severity": "HIGH",
+        "detail": "Aggregates unusually broad unknown port exposure that resembles port-scan target behavior.",
+    },
+    {
+        "id": "UNKNOWN_SERVICE_PORT",
+        "title": "Unknown service on OT device",
+        "type": "finding",
+        "family": "service exposure",
+        "severity": "MEDIUM",
+        "detail": "Flags unknown or unexplained listener ports on OT assets.",
+    },
+    {
+        "id": "IT_SERVICE_ON_OT_DEVICE",
+        "title": "IT service on field OT device",
+        "type": "finding",
+        "family": "service exposure",
+        "severity": "MEDIUM",
+        "detail": "Highlights non-allowed IT services exposed by Level 0 or Level 1 devices.",
+    },
+    {
+        "id": "HIGH_PORT_SERVICE",
+        "title": "High-port unknown service",
+        "type": "finding",
+        "family": "service exposure",
+        "severity": "MEDIUM",
+        "detail": "Flags stable unknown services running on high ports outside the normal ephemeral pattern.",
+    },
+    {
+        "id": "C2_BEACONING",
+        "title": "Beaconing and periodic command channel indicators",
+        "type": "indicator",
+        "family": "command and control",
+        "severity": "HIGH",
+        "detail": "Uses interval clustering and timing analysis to flag recurring beacon-like communications.",
+    },
+    {
+        "id": "C2_DNS_EXFIL",
+        "title": "DNS exfiltration indicators",
+        "type": "indicator",
+        "family": "exfiltration",
+        "severity": "CRITICAL",
+        "detail": "Identifies high-volume or asymmetrical DNS activity suggestive of exfiltration over DNS.",
+    },
+    {
+        "id": "C2_DNS_TUNNEL_SUSPECT",
+        "title": "DNS tunneling suspects",
+        "type": "indicator",
+        "family": "command and control",
+        "severity": "HIGH",
+        "detail": "Flags suspicious DNS behavior consistent with covert tunneling or staged command channels.",
+    },
+    {
+        "id": "C2_DNS_HIGH_ENTROPY",
+        "title": "High-entropy DNS labels",
+        "type": "indicator",
+        "family": "exfiltration",
+        "severity": "MEDIUM",
+        "detail": "Surfaces high-entropy DNS labels that may indicate encoded payloads or tunneled data.",
+    },
+    {
+        "id": "C2_SUSPECT_CHANNEL",
+        "title": "Suspicious external channels",
+        "type": "indicator",
+        "family": "command and control",
+        "severity": "HIGH",
+        "detail": "Highlights unexplained external connections on unusual ports or protocols.",
+    },
+    {
+        "id": "C2_DATA_EXFIL",
+        "title": "Asymmetric outbound data transfer",
+        "type": "indicator",
+        "family": "exfiltration",
+        "severity": "HIGH",
+        "detail": "Flags strongly asymmetric outbound flows from OT assets toward external destinations.",
+    },
+    {
+        "id": "C2_PERSISTENCE",
+        "title": "Persistent long-lived suspicious channel",
+        "type": "indicator",
+        "family": "command and control",
+        "severity": "MEDIUM",
+        "detail": "Surfaces persistent external communications that remain active for most of the capture duration.",
+    },
+    {
+        "id": "MALWARE_IOC_MATCH",
+        "title": "Malware IOC match",
+        "type": "indicator",
+        "family": "malware",
+        "severity": "HIGH",
+        "detail": "Stage 4b IOC or signature hit produced by the marlinspike-malware engine and published rule packs.",
+    },
+]
+
+MALWARE_OBSERVABLE_COVERAGE = [
+    ("dns_query", "DNS query domain"),
+    ("dns_answer", "DNS response value"),
+    ("http_host", "HTTP host header"),
+    ("http_uri", "HTTP request URI"),
+    ("tls_sni", "TLS SNI value"),
+    ("artifact_sha256", "SHA-256 extracted artifact hash"),
+    ("artifact_key", "Artifact key, file path, mutex, or registry path"),
+    ("src_ip", "Source IP address"),
+    ("dst_ip", "Destination IP address"),
+    ("src_mac", "Source MAC address"),
+    ("dst_mac", "Destination MAC address"),
+    ("hostname", "Observed hostname"),
+    ("protocol", "Protocol identifier"),
+    ("any_text", "Catch-all text observable"),
+]
+
+DPI_EXTRA_COVERAGE = [
+    ("protocol family", "Bronze protocol_transaction events", "event family", "transaction stream"),
+    ("asset family", "Bronze asset_observation events", "event family", "asset observation"),
+    ("topology family", "Bronze topology_observation events", "event family", "topology observation"),
+    ("anomaly family", "Bronze parse_anomaly events", "event family", "parser anomaly"),
+    ("artifact family", "Bronze extracted_artifact events", "event family", "artifact extraction"),
+    ("stovetop", "Frame integrity inspection", "anomaly", "frame integrity"),
+    ("icmpeeker", "ICMP anomaly inspection", "anomaly", "icmp anomaly"),
+    ("bilgepump", "Stateful L2 anomaly analysis", "anomaly", "l2 anomaly"),
+]
+
+
 def _cleanup_runs():
     """Remove completed/failed runs older than RUN_CLEANUP_SECONDS."""
     now = datetime.now(timezone.utc)
@@ -83,6 +285,240 @@ def _cleanup_runs():
                 pass
     for run_id in to_remove:
         del _run_registry[run_id]
+
+
+def _slug_to_label(value):
+    return str(value or "").replace("_", " ").replace("-", " ").strip().title()
+
+
+def _find_malware_rules_catalog_paths():
+    candidates = []
+    env_rules = os.environ.get("MARLINSPIKE_MALWARE_RULES", "").strip()
+    if env_rules:
+        candidates.append(Path(env_rules))
+    candidates.extend([
+        Path("/usr/share/marlinspike-malware/rules/packs"),
+        Path.home() / "marlinspike-malware-rules" / "packs",
+        Path.home() / "marlinspike-malware" / "rules",
+    ])
+    for packs_dir in candidates:
+        if packs_dir and packs_dir.is_dir():
+            root_dir = packs_dir.parent if packs_dir.name == "packs" else packs_dir
+            manifest_path = root_dir / "manifests" / "index.yaml"
+            return root_dir, packs_dir, manifest_path
+    return None, None, None
+
+
+def _append_catalog_entry(entries, **entry):
+    raw = dict(entry)
+    raw["source"] = str(raw.get("source", "") or "").strip().lower()
+    raw["type"] = str(raw.get("type", "") or "").strip().lower()
+    raw["family"] = str(raw.get("family", "") or "").strip()
+    raw["severity"] = str(raw.get("severity", "") or "").strip().upper()
+    raw["title"] = str(raw.get("title", "") or "").strip()
+    raw["subtitle"] = str(raw.get("subtitle", "") or "").strip()
+    raw["detail"] = str(raw.get("detail", "") or "").strip()
+    raw["meta"] = str(raw.get("meta", "") or "").strip()
+    raw["search_blob"] = " ".join(
+        part for part in [
+            raw.get("source", ""),
+            raw.get("type", ""),
+            raw.get("family", ""),
+            raw.get("severity", ""),
+            raw.get("title", ""),
+            raw.get("subtitle", ""),
+            raw.get("detail", ""),
+            raw.get("meta", ""),
+        ] if part
+    ).lower()
+    entries.append(raw)
+
+
+@lru_cache(maxsize=1)
+def _build_findings_catalog():
+    entries = []
+    source_meta = {}
+
+    for item in REPORT_FINDING_COVERAGE:
+        _append_catalog_entry(
+            entries,
+            source="report",
+            type=item["type"],
+            family=item["family"],
+            severity=item["severity"],
+            title=item["title"],
+            subtitle=item["id"],
+            detail=item["detail"],
+            meta="Current engine-emitted finding or indicator class",
+        )
+    source_meta["report"] = {
+        "label": "Report Findings",
+        "summary": f"{len(REPORT_FINDING_COVERAGE)} current finding and indicator classes emitted by the engine",
+    }
+
+    dpi_protocols = sorted({
+        (_slug_to_label(name), key.replace("_", "-"))
+        for key, name in getattr(__import__("_ms_engine"), "RUST_PROTOCOL_DISPLAY_NAMES", {}).items()
+    }, key=lambda item: item[0].lower())
+    for title, proto_key in dpi_protocols:
+        _append_catalog_entry(
+            entries,
+            source="dpi",
+            type="protocol",
+            family="protocol dissector",
+            severity="",
+            title=title,
+            subtitle=proto_key,
+            detail="Protocol coverage exposed through the Stage 2 DPI substrate.",
+            meta="marlinspike-dpi parser surface",
+        )
+    for slug, title, coverage_type, family in DPI_EXTRA_COVERAGE:
+        _append_catalog_entry(
+            entries,
+            source="dpi",
+            type=coverage_type,
+            family=family,
+            severity="",
+            title=title,
+            subtitle=slug,
+            detail="Additional parser-adjacent coverage published by the DPI substrate.",
+            meta="Bronze v2 event or parser-adjacent inspection surface",
+        )
+    source_meta["dpi"] = {
+        "label": "DPI Coverage",
+        "summary": f"{len(dpi_protocols)} protocol dissectors plus Bronze event families and parser-adjacent anomaly surfaces",
+    }
+
+    for field_name, description in MALWARE_OBSERVABLE_COVERAGE:
+        _append_catalog_entry(
+            entries,
+            source="malware",
+            type="observable",
+            family="observable field",
+            severity="",
+            title=field_name,
+            subtitle=_slug_to_label(field_name),
+            detail=description,
+            meta="Accepted by marlinspike-malware during Stage 4b evaluation",
+        )
+
+    malware_root, packs_dir, manifest_path = _find_malware_rules_catalog_paths()
+    malware_manifest = {}
+    if manifest_path and manifest_path.is_file():
+        try:
+            malware_manifest = yaml.safe_load(manifest_path.read_text()) or {}
+        except Exception:
+            malware_manifest = {}
+    malware_pack_count = int(malware_manifest.get("pack_count") or 0)
+    malware_rule_count = int(malware_manifest.get("rule_count") or 0)
+    manifest_pack_map = {}
+    for pack in malware_manifest.get("packs") or []:
+        path_value = str(pack.get("path") or "").strip()
+        if path_value:
+            manifest_pack_map[path_value] = pack
+
+    if packs_dir and packs_dir.is_dir():
+        for rule_file in sorted(packs_dir.rglob("*.y*ml")):
+            try:
+                payload = yaml.safe_load(rule_file.read_text()) or {}
+            except Exception:
+                continue
+            rules = payload.get("rules") or []
+            relative_path = ""
+            try:
+                relative_path = str(rule_file.relative_to(malware_root)).replace(os.sep, "/")
+            except Exception:
+                relative_path = str(rule_file)
+            pack_meta = manifest_pack_map.get(relative_path, {})
+            pack_label = pack_meta.get("name") or payload.get("name") or rule_file.stem
+            for rule in rules:
+                conditions = rule.get("conditions") or []
+                matched_fields = sorted({str(condition.get("field") or "").strip() for condition in conditions if condition.get("field")})
+                references = rule.get("references") or []
+                _append_catalog_entry(
+                    entries,
+                    source="malware",
+                    type="rule",
+                    family=rule.get("family") or pack_label,
+                    severity=rule.get("severity") or "",
+                    title=rule.get("name") or rule.get("id") or "Unnamed malware rule",
+                    subtitle=rule.get("id") or pack_label,
+                    detail=(rule.get("description") or "").strip() or f"Pack: {pack_label}",
+                    meta="Fields: " + ", ".join(matched_fields[:6]) + (f" | Ref: {references[0]}" if references else ""),
+                )
+    source_meta["malware"] = {
+        "label": "Malware Coverage",
+        "summary": (
+            f"{len(MALWARE_OBSERVABLE_COVERAGE)} observable fields, "
+            f"{malware_pack_count or 'unknown'} packs, {malware_rule_count or 'unknown'} rules"
+        ),
+    }
+
+    mitre_rule_count = 0
+    mitre_technique_ids = set()
+    mitre_attack_version = ""
+    mitre_rule_path = Path("rules/mitre/base.yaml")
+    mitre_catalog_path = Path("plugins/marlinspike_mitre/catalog/attack_catalog.json")
+    mitre_payload = {}
+    mitre_catalog = {}
+    try:
+        mitre_payload = yaml.safe_load(mitre_rule_path.read_text()) or {}
+    except Exception:
+        mitre_payload = {}
+    try:
+        mitre_catalog = json.loads(mitre_catalog_path.read_text())
+    except Exception:
+        mitre_catalog = {}
+    enterprise_domain = ((mitre_catalog.get("domains") or {}).get("enterprise-attack") or {})
+    mitre_attack_version = str(enterprise_domain.get("attack_version") or "").strip()
+    technique_map = enterprise_domain.get("techniques") or {}
+    for rule in mitre_payload.get("rules") or []:
+        technique_id = str(rule.get("technique_id") or "").strip().upper()
+        technique = technique_map.get(technique_id) or {}
+        mitre_rule_count += 1
+        if technique_id:
+            mitre_technique_ids.add(technique_id)
+        tactics = ", ".join(technique.get("tactic_shortnames") or [])
+        _append_catalog_entry(
+            entries,
+            source="mitre",
+            type=str(rule.get("kind") or "mapping"),
+            family=rule.get("family") or "ATT&CK mapping",
+            severity="",
+            title=f"{technique_id} {rule.get('title') or technique.get('name') or 'ATT&CK mapping'}".strip(),
+            subtitle=rule.get("id") or technique_id,
+            detail=rule.get("rationale") or "Rule-backed ATT&CK mapping for the report workflow.",
+            meta="Publication: " + str(rule.get("publication") or "") + (f" | Tactics: {tactics}" if tactics else ""),
+        )
+    source_meta["mitre"] = {
+        "label": "ATT&CK Coverage",
+        "summary": (
+            f"{mitre_rule_count} mapping rules, {len(mitre_technique_ids)} techniques"
+            + (f", ATT&CK {mitre_attack_version}" if mitre_attack_version else "")
+        ),
+    }
+
+    entries.sort(key=lambda item: (
+        item.get("source", ""),
+        item.get("family", "").lower(),
+        item.get("severity", ""),
+        item.get("title", "").lower(),
+    ))
+
+    return {
+        "entries": entries,
+        "source_meta": source_meta,
+        "summary": {
+            "total_entries": len(entries),
+            "report_classes": len(REPORT_FINDING_COVERAGE),
+            "dpi_protocols": len(dpi_protocols),
+            "malware_packs": malware_pack_count,
+            "malware_rules": malware_rule_count,
+            "mitre_rules": mitre_rule_count,
+            "mitre_techniques": len(mitre_technique_ids),
+            "mitre_attack_version": mitre_attack_version,
+        },
+    }
 
 
 MAX_CONCURRENT_SCANS = 1
@@ -1553,6 +1989,55 @@ def create_app():
     @login_required
     def projects_page():
         return render_template("projects.html")
+
+    @app.route("/findings")
+    @login_required
+    def findings_page():
+        catalog = _build_findings_catalog()
+        entries = list(catalog["entries"])
+
+        selected = {
+            "q": request.args.get("q", "").strip(),
+            "source": request.args.get("source", "").strip().lower(),
+            "type": request.args.get("type", "").strip().lower(),
+            "family": request.args.get("family", "").strip(),
+            "severity": request.args.get("severity", "").strip().upper(),
+        }
+
+        filtered = []
+        query = selected["q"].lower()
+        for entry in entries:
+            if selected["source"] and entry["source"] != selected["source"]:
+                continue
+            if selected["type"] and entry["type"] != selected["type"]:
+                continue
+            if selected["family"] and entry["family"] != selected["family"]:
+                continue
+            if selected["severity"] and entry["severity"] != selected["severity"]:
+                continue
+            if query and query not in entry["search_blob"]:
+                continue
+            filtered.append(entry)
+
+        options = {
+            "sources": sorted({entry["source"] for entry in entries if entry["source"]}),
+            "types": sorted({entry["type"] for entry in entries if entry["type"]}),
+            "families": sorted({entry["family"] for entry in entries if entry["family"]}),
+            "severities": [sev for sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO") if any(entry["severity"] == sev for entry in entries)],
+        }
+
+        filtered_counts = Counter(entry["source"] for entry in filtered)
+        return render_template(
+            "findings.html",
+            summary=catalog["summary"],
+            source_meta=catalog["source_meta"],
+            entries=filtered,
+            options=options,
+            selected=selected,
+            filtered_counts=dict(filtered_counts),
+            total_count=len(entries),
+            filtered_count=len(filtered),
+        )
 
     # ── Project CRUD API ─────────────────────────────────────
 
