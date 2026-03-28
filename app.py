@@ -1518,17 +1518,17 @@ def create_app():
         session.clear()
         return redirect(url_for("login_page"))
 
-    # ── Landing / About / Demo ────────────────────────────────
+    # ── Root redirects ────────────────────────────────────────
 
     @app.route("/")
     def landing_page():
         if "user" in session:
             return redirect(url_for("dashboard"))
-        return render_template("landing.html")
+        return redirect(url_for("login_page"))
 
     @app.route("/about")
     def about_page():
-        return render_template("about.html")
+        return redirect(url_for("login_page"))
 
     # ── Dashboard ────────────────────────────────────────────
 
