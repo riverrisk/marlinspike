@@ -62,7 +62,7 @@ RUN mkdir -p /opt/marlinspike-malware/bin /opt/marlinspike-malware/rules && \
 FROM python:3.12-slim AS malware-rules-builder
 
 ARG MARLINSPIKE_MALWARE_RULES_REPO=https://github.com/riverrisk/marlinspike-malware-rules.git
-ARG MARLINSPIKE_MALWARE_RULES_REF=f57d56d6d958856452e939116553919a3f64aa31
+ARG MARLINSPIKE_MALWARE_RULES_REF=038dab65a77927efe8d66abf12f3a564865d9e01
 
 WORKDIR /build
 
