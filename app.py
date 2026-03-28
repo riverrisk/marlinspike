@@ -1293,7 +1293,7 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = config.DATABASE_URL
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config.update(
-        SESSION_COOKIE_SECURE=config.SESSION_COOKIE_SECURE,
+        SESSION_COOKIE_SECURE=True,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Lax',
         PERMANENT_SESSION_LIFETIME=86400,
@@ -1333,9 +1333,6 @@ def create_app():
         def _drop_column_if_present(table_name, column_name):
             try:
                 if column_name not in _get_columns(table_name):
-                    return
-                if db.engine.dialect.name == "sqlite":
-                    log.info("Skipping %s.%s drop on SQLite", table_name, column_name)
                     return
                 db.session.execute(text(f"ALTER TABLE {table_name} DROP COLUMN {column_name}"))
                 db.session.commit()
