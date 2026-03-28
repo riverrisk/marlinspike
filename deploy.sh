@@ -114,6 +114,8 @@ rsync -avz --delete \
     --exclude '.git/' \
     --exclude '.github/' \
     --exclude '.claude/' \
+    --exclude 'CLAUDE.md' \
+    --exclude 'AGENTS.md' \
     --exclude '.logbook/' \
     --exclude '.smoke/' \
     --exclude '.venv/' \

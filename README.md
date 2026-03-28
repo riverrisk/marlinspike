@@ -41,6 +41,7 @@ Interactive browser features can improve speed and convenience, but the core tri
 
 - Passive analysis only: no active scanning or packet transmission
 - OT protocol parsing for Modbus, EtherNet/IP, S7, DNP3, PROFINET, OPC UA, BACnet, and more
+- Expanded Rust DPI substrate via `marlinspike-dpi`: 34 protocol dissectors, Bronze v2 event output, frame-integrity inspection, ICMP anomaly inspection, and stateful L2 anomaly analysis
 - Topology construction with Purdue-level inference and vendor fingerprinting
 - Risk surfacing for remote access exposure, C2-like beaconing, suspicious external channels, DNS entropy anomalies, policy violations, full MITRE ATT&CK mapping with tactics, sub-techniques, matrix views, response guidance, and IEC 62443 SR-oriented remediation guidance
 - Flask web UI with an upgraded multi-mode analyst workbench, project management, report viewer, baseline/drift comparison, asset inventory, scan history, optional local live capture mode, and a source-backed `/findings` detection coverage catalog
@@ -205,7 +206,9 @@ The Rust path is intentionally scoped as a standalone DPI engine. MarlinSpike ca
 
 - It is a standalone Rust DPI engine with CLI, library, and FFI surfaces.
 - It accepts classic `pcap` and `pcapng` capture input.
-- It emits structured Bronze events that MarlinSpike can consume.
+- It currently ships 34 protocol dissectors across OT/ICS, IT, and L2 traffic.
+- It emits Bronze v2 events that MarlinSpike can consume across five families: protocol transactions, asset observations, topology observations, parse anomalies, and extracted artifacts.
+- It layers additional parser-adjacent inspection through `stovetop` frame integrity checks, `icmpeeker` ICMP anomaly analysis, and `bilgepump` stateful L2 anomaly tracking.
 - It replaces the dissection stage, not the higher-level breach-triage logic.
 
 That is deliberate. MarlinSpike's value is not just decoding packets quickly. Its value is turning passive OT traffic into topology, findings, and responder decisions a team can actually use.
@@ -232,7 +235,7 @@ Current shipped example:
   The current runtime exposes full ATT&CK metadata and versioning, tactics, sub-techniques, matrix-ready tactic groupings, mitigations, ATT&CK URLs, and rich response guidance in the viewer.
   User-facing interpretation notes live in [docs/mitre-attack-guide.md](docs/mitre-attack-guide.md).
 - `marlinspike-malware`: authoritative sister repo at `/Users/butterbones/marlinspike-malware`, with `_ms_engine.py` invoking it as an optional Stage 4b engine. When `MARLINSPIKE_MALWARE_REPO` and `MARLINSPIKE_MALWARE_REF` are supplied during image build, the runtime binary is layered into `/opt/marlinspike-malware/bin/`.
-- `marlinspike-malware-rules`: authoritative sister repo at `/Users/butterbones/marlinspike-malware-rules`, holding the published `packs/`, `manifests/index.yaml`, and compiled bundle artifacts. When `MARLINSPIKE_MALWARE_RULES_REPO` and `MARLINSPIKE_MALWARE_RULES_REF` are supplied during image build, those assets are layered into `/usr/share/marlinspike-malware/rules/`, and the engine points at `/usr/share/marlinspike-malware/rules/packs`.
+- `marlinspike-malware-rules`: authoritative sister repo at `/Users/butterbones/marlinspike-malware-rules`, holding the published `packs/`, `manifests/index.yaml`, and compiled bundle artifacts. The current published surface is 30 packs and 921 rules. When `MARLINSPIKE_MALWARE_RULES_REPO` and `MARLINSPIKE_MALWARE_RULES_REF` are supplied during image build, those assets are layered into `/usr/share/marlinspike-malware/rules/`, and the engine points at `/usr/share/marlinspike-malware/rules/packs`.
 
 See [`docs/extensibility-contracts.md`](docs/extensibility-contracts.md) for the concrete contract boundaries for Rust engines, Python plugins, and YAML rule packs.
 
@@ -247,11 +250,12 @@ If you are deciding where new work belongs, use this rule of thumb:
 MarlinSpike's current public detection and standards story is intentionally bounded to what the engine already emits today.
 
 - Full MITRE ATT&CK implementation is now present through the shared `marlinspike-mitre` runtime, including ATT&CK version metadata, tactic-aware matrix output, sub-techniques, parent-technique context, mitigations, and response guidance
+- `marlinspike-dpi` now contributes a broader passive-observable surface: 34 protocol dissectors, Bronze v2 event families, and parser-adjacent anomaly streams from `stovetop`, `icmpeeker`, and `bilgepump`
 - Purdue Model inference and cross-level communication checks are part of the core triage workflow
 - Stage 4 remediation guidance is aligned to IEC 62443 SR requirements for the finding classes currently produced by the engine
 - Deployed instances publish a built-in detection coverage catalog at `/findings` that is explicitly framed as what MarlinSpike can detect, not what it has already detected in a given environment
 - The `/findings` page now groups current report finding classes, `marlinspike-dpi` parser coverage, `marlinspike-malware` observable and rule coverage, and the current ATT&CK mapping set behind filterable source, type, family, severity, and search controls
-- The current `marlinspike-malware` section reflects the tracked bootstrap rule pack, and the ATT&CK section now reflects the vendored full ATT&CK implementation shipped by `marlinspike-mitre`
+- The current `marlinspike-malware` section reflects the published `marlinspike-malware-rules` content surface, now at 30 packs and 921 rules, and the ATT&CK section reflects the vendored full ATT&CK implementation shipped by `marlinspike-mitre`
 
 This is now positioned as a full ATT&CK implementation for MarlinSpike's report-facing workflow. It is still intentionally scoped to passive-traffic evidence and analyst triage rather than a broader compliance crosswalk or every possible ATT&CK analytic.
 
@@ -304,6 +308,61 @@ The report workflow supports export directly from the UI:
 ## Screenshots
 
 Click any thumbnail for the full-size image.
+
+### Live Workflow Validation
+
+These screenshots come from a live end-to-end smoke pass captured on March 28, 2026 against the current hosted deployment after running three preset PCAPs: `Modbus.pcap`, `S7comm.pcap`, and the 4SICS benchmark in `fast` mode. They show the core responder path from `project -> scan -> report -> workbench -> assets`.
+
+<table>
+  <tr>
+    <td width="50%">
+      <a href="docs/screenshots/22-live-dashboard.png">
+        <img src="docs/screenshots/22-live-dashboard.png" alt="Live dashboard after deployment smoke validation" width="100%">
+      </a>
+      <br>
+      <sub>Dashboard with the scan workspace surfaced as the operational starting point.</sub>
+    </td>
+    <td width="50%">
+      <a href="docs/screenshots/23-live-projects.png">
+        <img src="docs/screenshots/23-live-projects.png" alt="Live project workspace used during smoke validation" width="100%">
+      </a>
+      <br>
+      <sub>Project-scoped workspace showing the engagement container used to keep the smoke outputs isolated.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <a href="docs/screenshots/24-live-scans.png">
+        <img src="docs/screenshots/24-live-scans.png" alt="Live scan history with completed smoke runs" width="100%">
+      </a>
+      <br>
+      <sub>Scan history with multiple completed runs, including the large-PCAP benchmark path.</sub>
+    </td>
+    <td width="50%">
+      <a href="docs/screenshots/25-live-benchmark-viewer.png">
+        <img src="docs/screenshots/25-live-benchmark-viewer.png" alt="Live benchmark report in the operator workbench" width="100%">
+      </a>
+      <br>
+      <sub>The operator shell on the 4SICS benchmark report with priority targets, auth gaps, and write paths in view.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <a href="docs/screenshots/26-live-modbus-viewer.png">
+        <img src="docs/screenshots/26-live-modbus-viewer.png" alt="Live Modbus report in the operator workbench" width="100%">
+      </a>
+      <br>
+      <sub>A smaller protocol-specific validation pass against Modbus showing the same workbench flow on a focused OT capture.</sub>
+    </td>
+    <td width="50%">
+      <a href="docs/screenshots/27-live-assets.png">
+        <img src="docs/screenshots/27-live-assets.png" alt="Live assets view after smoke validation" width="100%">
+      </a>
+      <br>
+      <sub>Assets mode turns the validated report into a sortable responder ledger with device context and risk evidence.</sub>
+    </td>
+  </tr>
+</table>
 
 <table>
   <tr>
