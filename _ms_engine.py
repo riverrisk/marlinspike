@@ -969,6 +969,7 @@ def _dissect_with_selected_engine(pcap_path: str, args, capture_id: str):
                     "input": dpi_output.get("input", {}),
                     "checkpoint": (dpi_output.get("output") or {}).get("checkpoint", {}),
                     "schema_version": ((dpi_output.get("output") or {}).get("checkpoint", {}) or {}).get("schema_version", ""),
+                    "malware_seed_events": _build_malware_seed_events_from_bronze(dpi_output),
                 }
                 print(f"[*] marlinspike-dpi parsed {len(conversations):,} conversations")
                 return conversations, port_summary, metadata
@@ -4529,6 +4530,91 @@ class RiskSurface:
 # External malware engine support (marlinspike-malware)
 # ---------------------------------------------------------------------------
 
+_SHA256_HEX_RE = re.compile(r"(?i)\b[a-f0-9]{64}\b")
+
+
+def _append_malware_observable(observables: list, seen: set, field: str, value) -> None:
+    """Append a deduplicated malware observable."""
+    if value is None:
+        return
+    if not isinstance(value, str):
+        value = str(value)
+    value = value.strip()
+    if not value:
+        return
+    key = (field, value)
+    if key in seen:
+        return
+    seen.add(key)
+    observables.append({"field": field, "value": value})
+
+
+def _iter_text_values(value):
+    """Yield nested string values from dict/list payloads."""
+    if value is None:
+        return
+    if isinstance(value, str):
+        text = value.strip()
+        if text:
+            yield text
+        return
+    if isinstance(value, dict):
+        for nested in value.values():
+            yield from _iter_text_values(nested)
+        return
+    if isinstance(value, (list, tuple, set)):
+        for nested in value:
+            yield from _iter_text_values(nested)
+
+
+def _append_sha256_observables(observables: list, seen: set, value) -> None:
+    """Extract SHA-256 values from nested text and add artifact observables."""
+    for text in _iter_text_values(value):
+        for match in _SHA256_HEX_RE.findall(text):
+            _append_malware_observable(observables, seen, "artifact_sha256", match.lower())
+
+
+def _build_malware_seed_events_from_bronze(output: dict) -> list:
+    """Preserve Bronze extracted_artifact events for Stage 4b malware matching."""
+    payload = output.get("output") or {}
+    seed_events = []
+
+    for event in payload.get("events") or []:
+        family_name, family_payload = _extract_bronze_family(event)
+        if family_name != "extracted_artifact":
+            continue
+
+        envelope = event.get("envelope") or {}
+        observables = []
+        seen = set()
+
+        sha256_value = (family_payload.get("sha256") or "").strip().lower()
+        if _SHA256_HEX_RE.fullmatch(sha256_value):
+            _append_malware_observable(observables, seen, "artifact_sha256", sha256_value)
+        _append_malware_observable(observables, seen, "artifact_key", family_payload.get("artifact_key"))
+        _append_malware_observable(observables, seen, "any_text", family_payload.get("artifact_type"))
+        _append_malware_observable(observables, seen, "any_text", family_payload.get("mime_type"))
+        _append_malware_observable(observables, seen, "any_text", family_payload.get("description"))
+        _append_sha256_observables(observables, seen, family_payload)
+
+        if not observables:
+            continue
+
+        seed_events.append({
+            "event_id": event.get("event_id") or f"artifact-{len(seed_events)}",
+            "capture_id": event.get("capture_id") or payload.get("capture_id") or "capture",
+            "timestamp": envelope.get("timestamp") or "1970-01-01T00:00:00Z",
+            "family_name": "extracted_artifact",
+            "protocol": (envelope.get("protocol") or "").lower() or None,
+            "src_ip": envelope.get("src_ip") or None,
+            "dst_ip": envelope.get("dst_ip") or None,
+            "src_mac": envelope.get("src_mac") or None,
+            "dst_mac": envelope.get("dst_mac") or None,
+            "observables": observables,
+        })
+
+    return seed_events
+
 def _find_malware_binary() -> Optional[str]:
     """Locate the marlinspike-malware binary in PATH or common locations."""
     for candidate in [
@@ -4565,45 +4651,53 @@ def _conversations_to_observed_events(conversations: list, capture_id: str) -> l
     for i, conv in enumerate(conversations):
         c = conv if isinstance(conv, dict) else asdict(conv)
         observables = []
+        seen = set()
 
         # DNS queries
         for qname in (c.get("dns_queries") or []):
-            observables.append({"field": "dns_query", "value": qname})
+            _append_malware_observable(observables, seen, "dns_query", qname)
 
         # Protocol
         proto = c.get("protocol", "")
         if proto:
-            observables.append({"field": "protocol", "value": proto.lower()})
+            _append_malware_observable(observables, seen, "protocol", proto.lower())
 
         # IP addresses
         src_ip = c.get("src_ip", "")
         dst_ip = c.get("dst_ip", "")
         if src_ip:
-            observables.append({"field": "src_ip", "value": src_ip})
+            _append_malware_observable(observables, seen, "src_ip", src_ip)
         if dst_ip:
-            observables.append({"field": "dst_ip", "value": dst_ip})
+            _append_malware_observable(observables, seen, "dst_ip", dst_ip)
 
         # MAC addresses
         src_mac = c.get("src_mac", "")
         dst_mac = c.get("dst_mac", "")
         if src_mac:
-            observables.append({"field": "src_mac", "value": src_mac})
+            _append_malware_observable(observables, seen, "src_mac", src_mac)
         if dst_mac:
-            observables.append({"field": "dst_mac", "value": dst_mac})
+            _append_malware_observable(observables, seen, "dst_mac", dst_mac)
 
         # Bronze passthrough attributes as any_text
         for key, val in (c.get("protocol_attributes") or {}).items():
             if isinstance(val, str) and val:
-                observables.append({"field": "any_text", "value": val})
+                _append_malware_observable(observables, seen, "any_text", val)
             elif isinstance(val, list):
                 for item in val:
                     if isinstance(item, str) and item:
-                        observables.append({"field": "any_text", "value": item})
+                        _append_malware_observable(observables, seen, "any_text", item)
 
         # Operations as any_text
         for op in (c.get("operations_seen") or []):
             if isinstance(op, str) and op:
-                observables.append({"field": "any_text", "value": op})
+                _append_malware_observable(observables, seen, "any_text", op)
+
+        # File-hash extraction from conversation/report-adjacent text surfaces.
+        _append_sha256_observables(observables, seen, c.get("protocol_attributes") or {})
+        _append_sha256_observables(observables, seen, c.get("protocol_object_refs") or [])
+        _append_sha256_observables(observables, seen, c.get("operations_seen") or [])
+        _append_sha256_observables(observables, seen, c.get("src_asset") or {})
+        _append_sha256_observables(observables, seen, c.get("dst_asset") or {})
 
         if not observables:
             continue
@@ -4726,7 +4820,7 @@ def _malware_findings_to_risk_findings(findings: list) -> list:
 
 
 def _run_malware_stage(conversations: list, capture_id: str,
-                       skip: bool = False) -> dict:
+                       skip: bool = False, extra_events: Optional[list] = None) -> dict:
     """Run the malware detection stage.  Returns dict with indicators and findings."""
     result = {"malware_findings": [], "c2_indicators": [], "risk_findings": []}
 
@@ -4746,7 +4840,8 @@ def _run_malware_stage(conversations: list, capture_id: str,
     print(f"  Engine: {binary}")
     print(f"  Rules:  {rules_dir}")
 
-    events = _conversations_to_observed_events(conversations, capture_id)
+    events = list(extra_events or [])
+    events.extend(_conversations_to_observed_events(conversations, capture_id))
     if not events:
         print(f"  No observable events to evaluate")
         return result
@@ -4880,6 +4975,7 @@ def run_chain(args):
             report.grassmarlin_used = False
 
     if not report.grassmarlin_used:
+        malware_seed_events = []
         capture_id = os.path.splitext(os.path.basename(capture_info.pcap_path))[0] or "capture"
         conversations, port_summary, dpi_metadata = _dissect_with_selected_engine(
             capture_info.pcap_path,
@@ -4910,6 +5006,7 @@ def run_chain(args):
         capture_info.protocols_seen = dict(proto_counts)
         report.capture_info = asdict(capture_info)
         report.port_summary = port_summary
+        malware_seed_events = dpi_metadata.get("malware_seed_events", [])
 
     _save_intermediate(report, args.output, "Protocol Dissection")
 
@@ -4959,6 +5056,7 @@ def run_chain(args):
         conversations if not report.grassmarlin_used else [],
         capture_id_for_malware,
         skip=getattr(args, "fast", False),
+        extra_events=malware_seed_events if not report.grassmarlin_used else None,
     )
     if malware_result["malware_findings"]:
         report.malware_findings = malware_result["malware_findings"]
