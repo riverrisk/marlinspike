@@ -39,7 +39,7 @@ RUN git clone "$MARLINSPIKE_MITRE_REPO" marlinspike-mitre && \
 FROM rust:1.85-slim-bookworm AS malware-builder
 
 ARG MARLINSPIKE_MALWARE_REPO=https://github.com/riverrisk/marlinspike-malware.git
-ARG MARLINSPIKE_MALWARE_REF=e2574a97a7407516a93a452442278ebf8756520a
+ARG MARLINSPIKE_MALWARE_REF=1d4fcdd7cc0f2d7069601a8488e007909a71fb58
 
 WORKDIR /build
 
