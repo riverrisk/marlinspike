@@ -1,0 +1,1181 @@
+{
+  "artifact_type": "plugin_output",
+  "plugin_id": "marlinspike-mitre",
+  "plugin_version": "0.2.0",
+  "contract_version": 1,
+  "generated_at": "2026-03-27T11:13:33.268887+00:00",
+  "input_report": "demo-report.json",
+  "summary": {
+    "classification_total": 3,
+    "observed_total": 3,
+    "inferred_total": 0,
+    "platform_coverage_total": 4,
+    "mapped_category_total": 2,
+    "unmapped_category_total": 9,
+    "tactic_total": 5,
+    "subtechnique_total": 0,
+    "matrix_domain_total": 1
+  },
+  "data": {
+    "classifications": [
+      {
+        "technique_id": "T1071",
+        "title": "Application Layer Protocol",
+        "family": "Command and Control",
+        "publication": "Published on report findings",
+        "basis": "observed",
+        "confidence": 0.9,
+        "mapped_from": [
+          "C2_BEACONING"
+        ],
+        "affected_nodes": [
+          "00:0e:38:95:1d:8b",
+          "10.10.10.10",
+          "10.10.10.20",
+          "10.10.10.30",
+          "192.168.1.71",
+          "192.168.88.1",
+          "192.168.88.105",
+          "192.168.88.52",
+          "192.168.88.61",
+          "192.168.89.1",
+          "192.168.89.2",
+          "192.195.142.14",
+          "8.8.8.8"
+        ],
+        "evidence_refs": [
+          "finding:c2-beaconing:1",
+          "finding:c2-beaconing:10",
+          "finding:c2-beaconing:2",
+          "finding:c2-beaconing:3",
+          "finding:c2-beaconing:4",
+          "finding:c2-beaconing:5",
+          "finding:c2-beaconing:6",
+          "finding:c2-beaconing:7",
+          "finding:c2-beaconing:8",
+          "finding:c2-beaconing:9",
+          "indicator:c2-beaconing:1",
+          "indicator:c2-beaconing:10",
+          "indicator:c2-beaconing:2",
+          "indicator:c2-beaconing:3",
+          "indicator:c2-beaconing:4",
+          "indicator:c2-beaconing:5",
+          "indicator:c2-beaconing:6",
+          "indicator:c2-beaconing:7",
+          "indicator:c2-beaconing:8",
+          "indicator:c2-beaconing:9"
+        ],
+        "rationale": "Beaconing, DNS tunneling, and suspect external channels indicate probable command traffic over application protocols.",
+        "domain": "enterprise-attack",
+        "attack_version": "18.1",
+        "technique_url": "https://attack.mitre.org/techniques/T1071",
+        "attack_name": "Application Layer Protocol",
+        "description": "Adversaries may communicate using OSI application layer protocols to avoid detection/network filtering by blending in with existing traffic. Commands to the remote system, and often the results of those commands, will be embedded within the protocol traffic between the client and server. Adversaries may utilize many different protocols, including those used for web browsing, transferring files, electronic mail, DNS, or publishing/subscribing. For connections that occur internally within an enclave (such as those between a proxy or pivot node and other nodes), commonly used protocols are SMB, SSH, or RDP.(Citation: Mandiant APT29 Eye Spy Email Nov 22)",
+        "detection": "",
+        "platforms": [
+          "ESXi",
+          "Linux",
+          "Network Devices",
+          "Windows",
+          "macOS"
+        ],
+        "tactics": [
+          {
+            "description": "The adversary is trying to communicate with compromised systems to control them. Command and Control consists of techniques that adversaries may use to communicate with systems under their control within a victim network. Adversaries commonly attempt to mimic normal, expected traffic to avoid detection. There are many ways an adversary can establish command and control with various levels of stealth depending on the victim\u2019s network structure and defenses.",
+            "id": "TA0011",
+            "modified": "2025-04-25T14:45:36.561Z",
+            "name": "Command and Control",
+            "shortname": "command-and-control",
+            "stix_id": "x-mitre-tactic--f72804c5-f15a-449e-a5da-2eecd181f813",
+            "url": "https://attack.mitre.org/tactics/TA0011",
+            "version": "1.0"
+          }
+        ],
+        "tactic_ids": [
+          "TA0011"
+        ],
+        "tactic_shortnames": [
+          "command-and-control"
+        ],
+        "is_subtechnique": false,
+        "parent_technique_id": "",
+        "parent_technique_name": "",
+        "parent_technique_url": "",
+        "mitigations": [
+          {
+            "description": "Use intrusion detection signatures to block traffic at network boundaries.",
+            "id": "M1031",
+            "modified": "2024-10-17T18:54:36.723Z",
+            "name": "Network Intrusion Prevention",
+            "stix_id": "course-of-action--12241367-a8b7-49b4-b86e-2236901ba50c",
+            "url": "https://attack.mitre.org/mitigations/M1031",
+            "version": "1.0"
+          },
+          {
+            "description": "Employ network appliances and endpoint software to filter ingress, egress, and lateral network traffic. This includes protocol-based filtering, enforcing firewall rules, and blocking or restricting traffic based on predefined conditions to limit adversary movement and data exfiltration. This mitigation can be implemented through the following measures: Ingress Traffic Filtering: - Use Case: Configure network firewalls to allow traffic only from authorized IP addresses to public-facing servers. - Implementation: Limit SSH (port 22) and RDP (port 3389) traffic to specific IP ranges. Egress Traffic Filtering: - Use Case: Use firewalls or endpoint security software to block unauthorized outbound traffic to prevent data exfiltration and command-and-control (C2) communications. - Implementation: Block outbound traffic to known malicious IPs or regions where communication is unexpected. Protocol-Based Filtering: - Use Case: Restrict the use of specific protocols that are commonly abused by adversaries, such as SMB, RPC, or Telnet, based on business needs. - Implementation: Disable SMBv1 on endpoints to prevent exploits like EternalBlue. Network Segmentation: - Use Case: Create network segments for critical systems and restrict communication between segments unless explicitly authorized. - Implementation: Implement VLANs to isolate IoT devices or guest networks from core business systems. Application Layer Filtering: - Use Case: Use proxy servers or Web Application Firewalls (WAFs) to inspect and block malicious HTTP/S traffic. - Implementation: Configure a WAF to block SQL injection attempts or other web application exploitation techniques.",
+            "id": "M1037",
+            "modified": "2024-12-11T19:43:03.354Z",
+            "name": "Filter Network Traffic",
+            "stix_id": "course-of-action--20f6a9df-37c4-4e20-9e47-025983b1b39d",
+            "url": "https://attack.mitre.org/mitigations/M1037",
+            "version": "1.2"
+          }
+        ],
+        "rule_ids": [
+          "finding-application-layer-protocol"
+        ],
+        "response_guidance": {
+          "priority": "high",
+          "analyst_summary": "Beaconing, DNS tunneling, and suspect external channels indicate probable command traffic over application protocols.",
+          "next_steps": [
+            "Validate the protocol, destination, and session cadence against approved outbound communication paths.",
+            "Review packet samples and endpoint context to determine whether the channel is interactive C2, tunneling, or benign management traffic.",
+            "If the flow is unauthorized, contain the endpoint long enough to capture process, DNS, and persistence evidence.",
+            "Pivot on the affected assets first: 00:0e:38:95:1d:8b, 10.10.10.10, 10.10.10.20, 10.10.10.30. Validate whether the traffic pattern is expected for their role.",
+            "Trace the mapping back to the observed evidence refs: finding:c2-beaconing:1, finding:c2-beaconing:10, finding:c2-beaconing:2, finding:c2-beaconing:3.",
+            "Frame triage around the ATT&CK tactic(s): Command and Control.",
+            "Confirm whether the observed behavior is approved or expected before escalating containment.",
+            "If the behavior is unexpected, preserve packet evidence and isolate the host or channel long enough to collect endpoint context.",
+            "Review ATT&CK mitigations that best fit this behavior: Network Intrusion Prevention, Filter Network Traffic."
+          ],
+          "detection_notes": "",
+          "mitigation_focus": [
+            "Network Intrusion Prevention",
+            "Filter Network Traffic"
+          ],
+          "references": [
+            "https://attack.mitre.org/techniques/T1071",
+            "https://attack.mitre.org/tactics/TA0011"
+          ]
+        }
+      },
+      {
+        "technique_id": "T1029",
+        "title": "Scheduled Transfer",
+        "family": "Command and Control",
+        "publication": "Published on report findings",
+        "basis": "observed",
+        "confidence": 0.86,
+        "mapped_from": [
+          "C2_BEACONING"
+        ],
+        "affected_nodes": [
+          "00:0e:38:95:1d:8b",
+          "10.10.10.10",
+          "10.10.10.20",
+          "10.10.10.30",
+          "192.168.1.71",
+          "192.168.88.1",
+          "192.168.88.105",
+          "192.168.88.52",
+          "192.168.88.61",
+          "192.168.89.1",
+          "192.168.89.2",
+          "192.195.142.14",
+          "8.8.8.8"
+        ],
+        "evidence_refs": [
+          "finding:c2-beaconing:1",
+          "finding:c2-beaconing:10",
+          "finding:c2-beaconing:2",
+          "finding:c2-beaconing:3",
+          "finding:c2-beaconing:4",
+          "finding:c2-beaconing:5",
+          "finding:c2-beaconing:6",
+          "finding:c2-beaconing:7",
+          "finding:c2-beaconing:8",
+          "finding:c2-beaconing:9",
+          "indicator:c2-beaconing:1",
+          "indicator:c2-beaconing:10",
+          "indicator:c2-beaconing:2",
+          "indicator:c2-beaconing:3",
+          "indicator:c2-beaconing:4",
+          "indicator:c2-beaconing:5",
+          "indicator:c2-beaconing:6",
+          "indicator:c2-beaconing:7",
+          "indicator:c2-beaconing:8",
+          "indicator:c2-beaconing:9"
+        ],
+        "rationale": "Recurring beacon intervals and persistent external sessions suggest scheduled transfer behavior.",
+        "domain": "enterprise-attack",
+        "attack_version": "18.1",
+        "technique_url": "https://attack.mitre.org/techniques/T1029",
+        "attack_name": "Scheduled Transfer",
+        "description": "Adversaries may schedule data exfiltration to be performed only at certain times of day or at certain intervals. This could be done to blend traffic patterns with normal activity or availability. When scheduled exfiltration is used, other exfiltration techniques likely apply as well to transfer the information out of the network, such as [Exfiltration Over C2 Channel](https://attack.mitre.org/techniques/T1041) or [Exfiltration Over Alternative Protocol](https://attack.mitre.org/techniques/T1048).",
+        "detection": "",
+        "platforms": [
+          "Linux",
+          "Windows",
+          "macOS"
+        ],
+        "tactics": [
+          {
+            "description": "The adversary is trying to steal data. Exfiltration consists of techniques that adversaries may use to steal data from your network. Once they\u2019ve collected data, adversaries often package it to avoid detection while removing it. This can include compression and encryption. Techniques for getting data out of a target network typically include transferring it over their command and control channel or an alternate channel and may also include putting size limits on the transmission.",
+            "id": "TA0010",
+            "modified": "2025-04-25T14:45:34.933Z",
+            "name": "Exfiltration",
+            "shortname": "exfiltration",
+            "stix_id": "x-mitre-tactic--9a4e74ab-5008-408c-84bf-a10dfbc53462",
+            "url": "https://attack.mitre.org/tactics/TA0010",
+            "version": "1.0"
+          }
+        ],
+        "tactic_ids": [
+          "TA0010"
+        ],
+        "tactic_shortnames": [
+          "exfiltration"
+        ],
+        "is_subtechnique": false,
+        "parent_technique_id": "",
+        "parent_technique_name": "",
+        "parent_technique_url": "",
+        "mitigations": [
+          {
+            "description": "Use intrusion detection signatures to block traffic at network boundaries.",
+            "id": "M1031",
+            "modified": "2024-10-17T18:54:36.723Z",
+            "name": "Network Intrusion Prevention",
+            "stix_id": "course-of-action--12241367-a8b7-49b4-b86e-2236901ba50c",
+            "url": "https://attack.mitre.org/mitigations/M1031",
+            "version": "1.0"
+          }
+        ],
+        "rule_ids": [
+          "finding-scheduled-transfer"
+        ],
+        "response_guidance": {
+          "priority": "medium",
+          "analyst_summary": "Recurring beacon intervals and persistent external sessions suggest scheduled transfer behavior.",
+          "next_steps": [
+            "Validate interval, jitter, and persistence against backup, polling, and monitoring jobs that normally run on the asset.",
+            "If the cadence is unexplained, collect host scheduling artifacts and preserve packet timing evidence for scoping.",
+            "Pivot on the affected assets first: 00:0e:38:95:1d:8b, 10.10.10.10, 10.10.10.20, 10.10.10.30. Validate whether the traffic pattern is expected for their role.",
+            "Trace the mapping back to the observed evidence refs: finding:c2-beaconing:1, finding:c2-beaconing:10, finding:c2-beaconing:2, finding:c2-beaconing:3.",
+            "Frame triage around the ATT&CK tactic(s): Exfiltration.",
+            "Confirm whether the observed behavior is approved or expected before escalating containment.",
+            "If the behavior is unexpected, preserve packet evidence and isolate the host or channel long enough to collect endpoint context.",
+            "Review ATT&CK mitigations that best fit this behavior: Network Intrusion Prevention."
+          ],
+          "detection_notes": "",
+          "mitigation_focus": [
+            "Network Intrusion Prevention"
+          ],
+          "references": [
+            "https://attack.mitre.org/techniques/T1029",
+            "https://attack.mitre.org/tactics/TA0010"
+          ]
+        }
+      },
+      {
+        "technique_id": "T1132",
+        "title": "Data Encoding",
+        "family": "Exfiltration",
+        "publication": "Published on report findings",
+        "basis": "observed",
+        "confidence": 0.82,
+        "mapped_from": [
+          "C2_DNS_HIGH_ENTROPY"
+        ],
+        "affected_nodes": [
+          "192.168.88.1",
+          "192.168.88.53"
+        ],
+        "evidence_refs": [
+          "finding:c2-dns-high-entropy:1",
+          "finding:c2-dns-high-entropy:2",
+          "finding:c2-dns-high-entropy:3",
+          "finding:c2-dns-high-entropy:4",
+          "finding:c2-dns-high-entropy:5",
+          "finding:c2-dns-high-entropy:6",
+          "finding:c2-dns-high-entropy:7",
+          "finding:c2-dns-high-entropy:8",
+          "finding:c2-dns-high-entropy:9",
+          "indicator:c2-dns-high-entropy:1",
+          "indicator:c2-dns-high-entropy:2",
+          "indicator:c2-dns-high-entropy:3",
+          "indicator:c2-dns-high-entropy:4",
+          "indicator:c2-dns-high-entropy:5",
+          "indicator:c2-dns-high-entropy:6",
+          "indicator:c2-dns-high-entropy:7",
+          "indicator:c2-dns-high-entropy:8",
+          "indicator:c2-dns-high-entropy:9"
+        ],
+        "rationale": "Encoded or high-entropy DNS labels suggest staged or covert data encoding.",
+        "domain": "enterprise-attack",
+        "attack_version": "18.1",
+        "technique_url": "https://attack.mitre.org/techniques/T1132",
+        "attack_name": "Data Encoding",
+        "description": "Adversaries may encode data to make the content of command and control traffic more difficult to detect. Command and control (C2) information can be encoded using a standard data encoding system. Use of data encoding may adhere to existing protocol specifications and includes use of ASCII, Unicode, Base64, MIME, or other binary-to-text and character encoding systems.(Citation: Wikipedia Binary-to-text Encoding) (Citation: Wikipedia Character Encoding) Some data encoding systems may also result in data compression, such as gzip.",
+        "detection": "",
+        "platforms": [
+          "ESXi",
+          "Linux",
+          "Windows",
+          "macOS"
+        ],
+        "tactics": [
+          {
+            "description": "The adversary is trying to communicate with compromised systems to control them. Command and Control consists of techniques that adversaries may use to communicate with systems under their control within a victim network. Adversaries commonly attempt to mimic normal, expected traffic to avoid detection. There are many ways an adversary can establish command and control with various levels of stealth depending on the victim\u2019s network structure and defenses.",
+            "id": "TA0011",
+            "modified": "2025-04-25T14:45:36.561Z",
+            "name": "Command and Control",
+            "shortname": "command-and-control",
+            "stix_id": "x-mitre-tactic--f72804c5-f15a-449e-a5da-2eecd181f813",
+            "url": "https://attack.mitre.org/tactics/TA0011",
+            "version": "1.0"
+          }
+        ],
+        "tactic_ids": [
+          "TA0011"
+        ],
+        "tactic_shortnames": [
+          "command-and-control"
+        ],
+        "is_subtechnique": false,
+        "parent_technique_id": "",
+        "parent_technique_name": "",
+        "parent_technique_url": "",
+        "mitigations": [
+          {
+            "description": "Use intrusion detection signatures to block traffic at network boundaries.",
+            "id": "M1031",
+            "modified": "2024-10-17T18:54:36.723Z",
+            "name": "Network Intrusion Prevention",
+            "stix_id": "course-of-action--12241367-a8b7-49b4-b86e-2236901ba50c",
+            "url": "https://attack.mitre.org/mitigations/M1031",
+            "version": "1.0"
+          }
+        ],
+        "rule_ids": [
+          "finding-data-encoding"
+        ],
+        "response_guidance": {
+          "priority": "medium",
+          "analyst_summary": "Encoded or high-entropy DNS labels suggest staged or covert data encoding.",
+          "next_steps": [
+            "Review queried domains, entropy, label length, and subdomain churn to distinguish encoded data from unusual but benign traffic.",
+            "Compare DNS behavior across peer assets to see whether the pattern is isolated or systemic.",
+            "Pivot on the affected assets first: 192.168.88.1, 192.168.88.53. Validate whether the traffic pattern is expected for their role.",
+            "Trace the mapping back to the observed evidence refs: finding:c2-dns-high-entropy:1, finding:c2-dns-high-entropy:2, finding:c2-dns-high-entropy:3, finding:c2-dns-high-entropy:4.",
+            "Frame triage around the ATT&CK tactic(s): Command and Control.",
+            "Confirm whether the observed behavior is approved or expected before escalating containment.",
+            "If the behavior is unexpected, preserve packet evidence and isolate the host or channel long enough to collect endpoint context.",
+            "Review ATT&CK mitigations that best fit this behavior: Network Intrusion Prevention."
+          ],
+          "detection_notes": "",
+          "mitigation_focus": [
+            "Network Intrusion Prevention"
+          ],
+          "references": [
+            "https://attack.mitre.org/techniques/T1132",
+            "https://attack.mitre.org/tactics/TA0011"
+          ]
+        }
+      }
+    ],
+    "platform_coverage": [
+      {
+        "technique_id": "T1016",
+        "title": "System Network Configuration Discovery",
+        "family": "Passive Recon",
+        "publication": "Platform mapping",
+        "basis": "platform",
+        "confidence": 1.0,
+        "mapped_from": [],
+        "affected_nodes": [],
+        "evidence_refs": [
+          "platform:t1016"
+        ],
+        "rationale": "Addressing, topology, Purdue, and role inference provide system-network-configuration context.",
+        "domain": "enterprise-attack",
+        "attack_version": "18.1",
+        "technique_url": "https://attack.mitre.org/techniques/T1016",
+        "attack_name": "System Network Configuration Discovery",
+        "description": "Adversaries may look for details about the network configuration and settings, such as IP and/or MAC addresses, of systems they access or through information discovery of remote systems. Several operating system administration utilities exist that can be used to gather this information. Examples include [Arp](https://attack.mitre.org/software/S0099), [ipconfig](https://attack.mitre.org/software/S0100)/[ifconfig](https://attack.mitre.org/software/S0101), [nbtstat](https://attack.mitre.org/software/S0102), and [route](https://attack.mitre.org/software/S0103). Adversaries may also leverage a [Network Device CLI](https://attack.mitre.org/techniques/T1059/008) on network devices to gather information about configurations and settings, such as IP addresses of configured interfaces and static/dynamic routes (e.g. <code>show ip route</code>, <code>show ip interface</code>).(Citation: US-CERT-TA18-106A)(Citation: Mandiant APT41 Global Intrusion ) On ESXi, adversaries may leverage esxcli to gather network configuration information. For example, the command `esxcli network nic list` will retrieve the MAC address, while `esxcli network ip interface ipv4 get` will retrieve the local IPv4 address.(Citation: Trellix Rnasomhouse 2024) Adversaries may use the information from [System Network Configuration Discovery](https://attack.mitre.org/techniques/T1016) during automated discovery to shape follow-on behaviors, including determining certain access within the target network and what actions to do next.",
+        "detection": "",
+        "platforms": [
+          "ESXi",
+          "Linux",
+          "Network Devices",
+          "Windows",
+          "macOS"
+        ],
+        "tactics": [
+          {
+            "description": "The adversary is trying to figure out your environment. Discovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what\u2019s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective.",
+            "id": "TA0007",
+            "modified": "2025-04-25T14:45:35.302Z",
+            "name": "Discovery",
+            "shortname": "discovery",
+            "stix_id": "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+            "url": "https://attack.mitre.org/tactics/TA0007",
+            "version": "1.0"
+          }
+        ],
+        "tactic_ids": [
+          "TA0007"
+        ],
+        "tactic_shortnames": [
+          "discovery"
+        ],
+        "is_subtechnique": false,
+        "parent_technique_id": "",
+        "parent_technique_name": "",
+        "parent_technique_url": "",
+        "mitigations": [],
+        "rule_ids": [
+          "platform-system-network-configuration-discovery"
+        ],
+        "response_guidance": {
+          "priority": "informational",
+          "analyst_summary": "Addressing, topology, Purdue, and role inference provide system-network-configuration context.",
+          "next_steps": [
+            "Pivot from this technique into addressing, routing, VLAN, and Purdue inferences for the affected segment.",
+            "Check whether the observed topology matches the expected design for control and supervisory assets.",
+            "Trace the mapping back to the observed evidence refs: platform:t1016.",
+            "Frame triage around the ATT&CK tactic(s): Discovery.",
+            "Treat this as ATT&CK coverage context for passive analysis, not as a confirmed incident on its own."
+          ],
+          "detection_notes": "",
+          "mitigation_focus": [],
+          "references": [
+            "https://attack.mitre.org/techniques/T1016",
+            "https://attack.mitre.org/tactics/TA0007"
+          ]
+        }
+      },
+      {
+        "technique_id": "T1040",
+        "title": "Network Sniffing",
+        "family": "Passive Recon",
+        "publication": "Platform mapping",
+        "basis": "platform",
+        "confidence": 1.0,
+        "mapped_from": [],
+        "affected_nodes": [],
+        "evidence_refs": [
+          "platform:t1040"
+        ],
+        "rationale": "Passive PCAP ingestion and review provide network-sniffing coverage context for the report.",
+        "domain": "enterprise-attack",
+        "attack_version": "18.1",
+        "technique_url": "https://attack.mitre.org/techniques/T1040",
+        "attack_name": "Network Sniffing",
+        "description": "Adversaries may passively sniff network traffic to capture information about an environment, including authentication material passed over the network. Network sniffing refers to using the network interface on a system to monitor or capture information sent over a wired or wireless connection. An adversary may place a network interface into promiscuous mode to passively access data in transit over the network, or use span ports to capture a larger amount of data. Data captured via this technique may include user credentials, especially those sent over an insecure, unencrypted protocol. Techniques for name service resolution poisoning, such as [LLMNR/NBT-NS Poisoning and SMB Relay](https://attack.mitre.org/techniques/T1557/001), can also be used to capture credentials to websites, proxies, and internal systems by redirecting traffic to an adversary. Network sniffing may reveal configuration details, such as running services, version numbers, and other network characteristics (e.g. IP addresses, hostnames, VLAN IDs) necessary for subsequent [Lateral Movement](https://attack.mitre.org/tactics/TA0008) and/or [Defense Evasion](https://attack.mitre.org/tactics/TA0005) activities. Adversaries may likely also utilize network sniffing during [Adversary-in-the-Middle](https://attack.mitre.org/techniques/T1557) (AiTM) to passively gain additional knowledge about the environment. In cloud-based environments, adversaries may still be able to use traffic mirroring services to sniff network traffic from virtual machines. For example, AWS Traffic Mirroring, GCP Packet Mirroring, and Azure vTap allow users to define specified instances to collect traffic from and specified targets to send collected traffic to.(Citation: AWS Traffic Mirroring)(Citation: GCP Packet Mirroring)(Citation: Azure Virtual Network TAP) Often, much of this traffic will be in cleartext due to the use of TLS termination at the load balancer level to reduce the strain of encrypting and decrypting traffic.(Citation: Rhino Security Labs AWS VPC Traffic Mirroring)(Citation: SpecterOps AWS Traffic Mirroring) The adversary can then use exfiltration techniques such as Transfer Data to Cloud Account in order to access the sniffed traffic.(Citation: Rhino Security Labs AWS VPC Traffic Mirroring) On network devices, adversaries may perform network captures using [Network Device CLI](https://attack.mitre.org/techniques/T1059/008) commands such as `monitor capture`.(Citation: US-CERT-TA18-106A)(Citation: capture_embedded_packet_on_software)",
+        "detection": "",
+        "platforms": [
+          "IaaS",
+          "Linux",
+          "Network Devices",
+          "Windows",
+          "macOS"
+        ],
+        "tactics": [
+          {
+            "description": "The adversary is trying to steal account names and passwords. Credential Access consists of techniques for stealing credentials like account names and passwords. Techniques used to get credentials include keylogging or credential dumping. Using legitimate credentials can give adversaries access to systems, make them harder to detect, and provide the opportunity to create more accounts to help achieve their goals.",
+            "id": "TA0006",
+            "modified": "2025-04-25T14:45:32.408Z",
+            "name": "Credential Access",
+            "shortname": "credential-access",
+            "stix_id": "x-mitre-tactic--2558fd61-8c75-4730-94c4-11926db2a263",
+            "url": "https://attack.mitre.org/tactics/TA0006",
+            "version": "1.0"
+          },
+          {
+            "description": "The adversary is trying to figure out your environment. Discovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what\u2019s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective.",
+            "id": "TA0007",
+            "modified": "2025-04-25T14:45:35.302Z",
+            "name": "Discovery",
+            "shortname": "discovery",
+            "stix_id": "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+            "url": "https://attack.mitre.org/tactics/TA0007",
+            "version": "1.0"
+          }
+        ],
+        "tactic_ids": [
+          "TA0006",
+          "TA0007"
+        ],
+        "tactic_shortnames": [
+          "credential-access",
+          "discovery"
+        ],
+        "is_subtechnique": false,
+        "parent_technique_id": "",
+        "parent_technique_name": "",
+        "parent_technique_url": "",
+        "mitigations": [
+          {
+            "description": "Network segmentation involves dividing a network into smaller, isolated segments to control and limit the flow of traffic between devices, systems, and applications. By segmenting networks, organizations can reduce the attack surface, restrict lateral movement by adversaries, and protect critical assets from compromise. Effective network segmentation leverages a combination of physical boundaries, logical separation through VLANs, and access control policies enforced by network appliances like firewalls, routers, and cloud-based configurations. This mitigation can be implemented through the following measures: Segment Critical Systems: - Identify and group systems based on their function, sensitivity, and risk. Examples include payment systems, HR databases, production systems, and internet-facing servers. - Use VLANs, firewalls, or routers to enforce logical separation. Implement DMZ for Public-Facing Services: - Host web servers, DNS servers, and email servers in a DMZ to limit their access to internal systems. - Apply strict firewall rules to filter traffic between the DMZ and internal networks. Use Cloud-Based Segmentation: - In cloud environments, use VPCs, subnets, and security groups to isolate applications and enforce traffic rules. - Apply AWS Transit Gateway or Azure VNet peering for controlled connectivity between cloud segments. Apply Microsegmentation for Workloads: - Use software-defined networking (SDN) tools to implement workload-level segmentation and prevent lateral movement. Restrict Traffic with ACLs and Firewalls: - Apply Access Control Lists (ACLs) to network devices to enforce \"deny by default\" policies. - Use firewalls to restrict both north-south (external-internal) and east-west (internal-internal) traffic. Monitor and Audit Segmented Networks: - Regularly review firewall rules, ACLs, and segmentation policies. - Monitor network flows for anomalies to ensure segmentation is effective. Test Segmentation Effectiveness: - Perform periodic penetration tests to verify that unauthorized access is blocked between network segments.",
+            "id": "M1030",
+            "modified": "2025-04-02T17:29:32.003Z",
+            "name": "Network Segmentation",
+            "stix_id": "course-of-action--86598de0-b347-4928-9eb0-0acbfc21908c",
+            "url": "https://attack.mitre.org/mitigations/M1030",
+            "version": "1.2"
+          },
+          {
+            "description": "User Account Management involves implementing and enforcing policies for the lifecycle of user accounts, including creation, modification, and deactivation. Proper account management reduces the attack surface by limiting unauthorized access, managing account privileges, and ensuring accounts are used according to organizational policies. This mitigation can be implemented through the following measures: Enforcing the Principle of Least Privilege - Implementation: Assign users only the minimum permissions required to perform their job functions. Regularly audit accounts to ensure no excess permissions are granted. - Use Case: Reduces the risk of privilege escalation by ensuring accounts cannot perform unauthorized actions. Implementing Strong Password Policies - Implementation: Enforce password complexity requirements (e.g., length, character types). Require password expiration every 90 days and disallow password reuse. - Use Case: Prevents adversaries from gaining unauthorized access through password guessing or brute force attacks. Managing Dormant and Orphaned Accounts - Implementation: Implement automated workflows to disable accounts after a set period of inactivity (e.g., 30 days). Remove orphaned accounts (e.g., accounts without an assigned owner) during regular account audits. - Use Case: Eliminates dormant accounts that could be exploited by attackers. Account Lockout Policies - Implementation: Configure account lockout thresholds (e.g., lock accounts after five failed login attempts). Set lockout durations to a minimum of 15 minutes. - Use Case: Mitigates automated attack techniques that rely on repeated login attempts. Multi-Factor Authentication (MFA) for High-Risk Accounts - Implementation: Require MFA for all administrative accounts and high-risk users. Use MFA mechanisms like hardware tokens, authenticator apps, or biometrics. - Use Case: Prevents unauthorized access, even if credentials are stolen. Restricting Interactive Logins - Implementation: Restrict interactive logins for privileged accounts to specific secure systems or management consoles. Use group policies to enforce logon restrictions. - Use Case: Protects sensitive accounts from misuse or exploitation. *Tools for Implementation* Built-in Tools: - Microsoft Active Directory (AD): Centralized account management and RBAC enforcement. - Group Policy Object (GPO): Enforce password policies, logon restrictions, and account lockout policies. Identity and Access Management (IAM) Tools: - Okta: Centralized user provisioning, MFA, and SSO integration. - Microsoft Azure Active Directory: Provides advanced account lifecycle management, role-based access, and conditional access policies. Privileged Account Management (PAM): - CyberArk, BeyondTrust, Thycotic: Manage and monitor privileged account usage, enforce session recording, and JIT access.",
+            "id": "M1018",
+            "modified": "2024-12-24T14:33:36.029Z",
+            "name": "User Account Management",
+            "stix_id": "course-of-action--93e7968a-9074-4eac-8ae9-9f5200ec3317",
+            "url": "https://attack.mitre.org/mitigations/M1018",
+            "version": "1.2"
+          },
+          {
+            "description": "Multi-Factor Authentication (MFA) enhances security by requiring users to provide at least two forms of verification to prove their identity before granting access. These factors typically include: - *Something you know*: Passwords, PINs. - *Something you have*: Physical tokens, smartphone authenticator apps. - *Something you are*: Biometric data such as fingerprints, facial recognition, or retinal scans. Implementing MFA across all critical systems and services ensures robust protection against account takeover and unauthorized access. This mitigation can be implemented through the following measures: Identity and Access Management (IAM): - Use IAM solutions like Azure Active Directory, Okta, or AWS IAM to enforce MFA policies for all user logins, especially for privileged roles. - Enable conditional access policies to enforce MFA for risky sign-ins (e.g., unfamiliar devices, geolocations). - Enable Conditional Access policies to only allow logins from trusted devices, such as those enrolled in Intune or joined via Hybrid/Entra. Authentication Tools and Methods: - Use authenticator applications such as Google Authenticator, Microsoft Authenticator, or Authy for time-based one-time passwords (TOTP). - Deploy hardware-based tokens like YubiKey, RSA SecurID, or smart cards for additional security. - Enforce biometric authentication for compatible devices and applications. Secure Legacy Systems: - Integrate MFA solutions with older systems using third-party tools like Duo Security or Thales SafeNet. - Enable RADIUS/NPS servers to facilitate MFA for VPNs, RDP, and other network logins. Monitoring and Alerting: - Use SIEM tools to monitor failed MFA attempts, login anomalies, or brute-force attempts against MFA systems. - Implement alerts for suspicious MFA activities, such as repeated failed codes or new device registrations. Training and Policy Enforcement: - Educate employees on the importance of MFA and secure authenticator usage. - Enforce policies that require MFA on all critical systems, especially for remote access, privileged accounts, and cloud applications.",
+            "id": "M1032",
+            "modified": "2025-05-09T15:48:18.053Z",
+            "name": "Multi-factor Authentication",
+            "stix_id": "course-of-action--b045d015-6bed-4490-bd38-56b41ece59a0",
+            "url": "https://attack.mitre.org/mitigations/M1032",
+            "version": "1.1"
+          },
+          {
+            "description": "Protect sensitive information at rest, in transit, and during processing by using strong encryption algorithms. Encryption ensures the confidentiality and integrity of data, preventing unauthorized access or tampering. This mitigation can be implemented through the following measures: Encrypt Data at Rest: - Use Case: Use full-disk encryption or file-level encryption to secure sensitive data stored on devices. - Implementation: Implement BitLocker for Windows systems or FileVault for macOS devices to encrypt hard drives. Encrypt Data in Transit: - Use Case: Use secure communication protocols (e.g., TLS, HTTPS) to encrypt sensitive data as it travels over networks. - Implementation: Enable HTTPS for all web applications and configure mail servers to enforce STARTTLS for email encryption. Encrypt Backups: - Use Case: Ensure that backup data is encrypted both during storage and transfer to prevent unauthorized access. - Implementation: Encrypt cloud backups using AES-256 before uploading them to Amazon S3 or Google Cloud. Encrypt Application Secrets: - Use Case: Store sensitive credentials, API keys, and configuration files in encrypted vaults. - Implementation: Use HashiCorp Vault or AWS Secrets Manager to manage and encrypt secrets. Database Encryption: - Use Case: Enable Transparent Data Encryption (TDE) or column-level encryption in database management systems. - Implementation: Use MySQL\u2019s built-in encryption features to encrypt sensitive database fields such as social security numbers.",
+            "id": "M1041",
+            "modified": "2025-04-02T17:28:57.029Z",
+            "name": "Encrypt Sensitive Information",
+            "stix_id": "course-of-action--feff9142-e8c2-46f4-842b-bd6fb3d41157",
+            "url": "https://attack.mitre.org/mitigations/M1041",
+            "version": "1.1"
+          }
+        ],
+        "rule_ids": [
+          "platform-network-sniffing"
+        ],
+        "response_guidance": {
+          "priority": "informational",
+          "analyst_summary": "Passive PCAP ingestion and review provide network-sniffing coverage context for the report.",
+          "next_steps": [
+            "Use this technique as a coverage lens when reviewing collector placement and packet visibility gaps.",
+            "Validate that capture points see the east-west and north-south paths required for the investigation.",
+            "Trace the mapping back to the observed evidence refs: platform:t1040.",
+            "Frame triage around the ATT&CK tactic(s): Credential Access, Discovery.",
+            "Treat this as ATT&CK coverage context for passive analysis, not as a confirmed incident on its own.",
+            "Review ATT&CK mitigations that best fit this behavior: Network Segmentation, User Account Management, Multi-factor Authentication."
+          ],
+          "detection_notes": "",
+          "mitigation_focus": [
+            "Network Segmentation",
+            "User Account Management",
+            "Multi-factor Authentication",
+            "Encrypt Sensitive Information"
+          ],
+          "references": [
+            "https://attack.mitre.org/techniques/T1040",
+            "https://attack.mitre.org/tactics/TA0006",
+            "https://attack.mitre.org/tactics/TA0007"
+          ]
+        }
+      },
+      {
+        "technique_id": "T1046",
+        "title": "Network Service Discovery",
+        "family": "Passive Recon",
+        "publication": "Platform mapping",
+        "basis": "platform",
+        "confidence": 1.0,
+        "mapped_from": [],
+        "affected_nodes": [],
+        "evidence_refs": [
+          "platform:t1046"
+        ],
+        "rationale": "Parsed conversations and exposed listeners provide passive network-service discovery context.",
+        "domain": "enterprise-attack",
+        "attack_version": "18.1",
+        "technique_url": "https://attack.mitre.org/techniques/T1046",
+        "attack_name": "Network Service Discovery",
+        "description": "Adversaries may attempt to get a listing of services running on remote hosts and local network infrastructure devices, including those that may be vulnerable to remote software exploitation. Common methods to acquire this information include port, vulnerability, and/or wordlist scans using tools that are brought onto a system.(Citation: CISA AR21-126A FIVEHANDS May 2021) Within cloud environments, adversaries may attempt to discover services running on other cloud hosts. Additionally, if the cloud environment is connected to a on-premises environment, adversaries may be able to identify services running on non-cloud systems as well. Within macOS environments, adversaries may use the native Bonjour application to discover services running on other macOS hosts within a network. The Bonjour mDNSResponder daemon automatically registers and advertises a host\u2019s registered services on the network. For example, adversaries can use a mDNS query (such as <code>dns-sd -B _ssh._tcp .</code>) to find other systems broadcasting the ssh service.(Citation: apple doco bonjour description)(Citation: macOS APT Activity Bradley)",
+        "detection": "",
+        "platforms": [
+          "Containers",
+          "IaaS",
+          "Linux",
+          "Network Devices",
+          "Windows",
+          "macOS"
+        ],
+        "tactics": [
+          {
+            "description": "The adversary is trying to figure out your environment. Discovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what\u2019s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective.",
+            "id": "TA0007",
+            "modified": "2025-04-25T14:45:35.302Z",
+            "name": "Discovery",
+            "shortname": "discovery",
+            "stix_id": "x-mitre-tactic--c17c5845-175e-4421-9713-829d0573dbc9",
+            "url": "https://attack.mitre.org/tactics/TA0007",
+            "version": "1.0"
+          }
+        ],
+        "tactic_ids": [
+          "TA0007"
+        ],
+        "tactic_shortnames": [
+          "discovery"
+        ],
+        "is_subtechnique": false,
+        "parent_technique_id": "",
+        "parent_technique_name": "",
+        "parent_technique_url": "",
+        "mitigations": [
+          {
+            "description": "Use intrusion detection signatures to block traffic at network boundaries.",
+            "id": "M1031",
+            "modified": "2024-10-17T18:54:36.723Z",
+            "name": "Network Intrusion Prevention",
+            "stix_id": "course-of-action--12241367-a8b7-49b4-b86e-2236901ba50c",
+            "url": "https://attack.mitre.org/mitigations/M1031",
+            "version": "1.0"
+          },
+          {
+            "description": "Network segmentation involves dividing a network into smaller, isolated segments to control and limit the flow of traffic between devices, systems, and applications. By segmenting networks, organizations can reduce the attack surface, restrict lateral movement by adversaries, and protect critical assets from compromise. Effective network segmentation leverages a combination of physical boundaries, logical separation through VLANs, and access control policies enforced by network appliances like firewalls, routers, and cloud-based configurations. This mitigation can be implemented through the following measures: Segment Critical Systems: - Identify and group systems based on their function, sensitivity, and risk. Examples include payment systems, HR databases, production systems, and internet-facing servers. - Use VLANs, firewalls, or routers to enforce logical separation. Implement DMZ for Public-Facing Services: - Host web servers, DNS servers, and email servers in a DMZ to limit their access to internal systems. - Apply strict firewall rules to filter traffic between the DMZ and internal networks. Use Cloud-Based Segmentation: - In cloud environments, use VPCs, subnets, and security groups to isolate applications and enforce traffic rules. - Apply AWS Transit Gateway or Azure VNet peering for controlled connectivity between cloud segments. Apply Microsegmentation for Workloads: - Use software-defined networking (SDN) tools to implement workload-level segmentation and prevent lateral movement. Restrict Traffic with ACLs and Firewalls: - Apply Access Control Lists (ACLs) to network devices to enforce \"deny by default\" policies. - Use firewalls to restrict both north-south (external-internal) and east-west (internal-internal) traffic. Monitor and Audit Segmented Networks: - Regularly review firewall rules, ACLs, and segmentation policies. - Monitor network flows for anomalies to ensure segmentation is effective. Test Segmentation Effectiveness: - Perform periodic penetration tests to verify that unauthorized access is blocked between network segments.",
+            "id": "M1030",
+            "modified": "2025-04-02T17:29:32.003Z",
+            "name": "Network Segmentation",
+            "stix_id": "course-of-action--86598de0-b347-4928-9eb0-0acbfc21908c",
+            "url": "https://attack.mitre.org/mitigations/M1030",
+            "version": "1.2"
+          },
+          {
+            "description": "Disable or remove unnecessary and potentially vulnerable software, features, or services to reduce the attack surface and prevent abuse by adversaries. This involves identifying software or features that are no longer needed or that could be exploited and ensuring they are either removed or properly disabled. This mitigation can be implemented through the following measures: Remove Legacy Software: - Use Case: Disable or remove older versions of software that no longer receive updates or security patches (e.g., legacy Java, Adobe Flash). - Implementation: A company removes Flash Player from all employee systems after it has reached its end-of-life date. Disable Unused Features: - Use Case: Turn off unnecessary operating system features like SMBv1, Telnet, or RDP if they are not required. - Implementation: Disable SMBv1 in a Windows environment to mitigate vulnerabilities like EternalBlue. Control Applications Installed by Users: - Use Case: Prevent users from installing unauthorized software via group policies or other management tools. - Implementation: Block user installations of unauthorized file-sharing applications (e.g., BitTorrent clients) in an enterprise environment. Remove Unnecessary Services: - Use Case: Identify and disable unnecessary default services running on endpoints, servers, or network devices. - Implementation: Disable unused administrative shares (e.g., C$, ADMIN$) on workstations. Restrict Add-ons and Plugins: - Use Case: Remove or disable browser plugins and add-ons that are not needed for business purposes. - Implementation: Disable Java and ActiveX plugins in web browsers to prevent drive-by attacks.",
+            "id": "M1042",
+            "modified": "2024-12-10T19:21:06.027Z",
+            "name": "Disable or Remove Feature or Program",
+            "stix_id": "course-of-action--eb88d97c-32f1-40be-80f0-d61a4b0b4b31",
+            "url": "https://attack.mitre.org/mitigations/M1042",
+            "version": "1.2"
+          }
+        ],
+        "rule_ids": [
+          "platform-network-service-discovery"
+        ],
+        "response_guidance": {
+          "priority": "informational",
+          "analyst_summary": "Parsed conversations and exposed listeners provide passive network-service discovery context.",
+          "next_steps": [
+            "Compare exposed listeners and peer counts with the approved service inventory for critical assets.",
+            "Use the matrix hit to drive follow-up review of unexpected ports, protocols, and service roles.",
+            "Trace the mapping back to the observed evidence refs: platform:t1046.",
+            "Frame triage around the ATT&CK tactic(s): Discovery.",
+            "Treat this as ATT&CK coverage context for passive analysis, not as a confirmed incident on its own.",
+            "Review ATT&CK mitigations that best fit this behavior: Network Intrusion Prevention, Network Segmentation, Disable or Remove Feature or Program."
+          ],
+          "detection_notes": "",
+          "mitigation_focus": [
+            "Network Intrusion Prevention",
+            "Network Segmentation",
+            "Disable or Remove Feature or Program"
+          ],
+          "references": [
+            "https://attack.mitre.org/techniques/T1046",
+            "https://attack.mitre.org/tactics/TA0007"
+          ]
+        }
+      },
+      {
+        "technique_id": "T1590",
+        "title": "Gather Victim Network Information",
+        "family": "Passive Recon",
+        "publication": "Platform mapping",
+        "basis": "platform",
+        "confidence": 1.0,
+        "mapped_from": [],
+        "affected_nodes": [],
+        "evidence_refs": [
+          "platform:t1590"
+        ],
+        "rationale": "Asset, topology, and communication inventory provide gather-victim-network-information coverage.",
+        "domain": "enterprise-attack",
+        "attack_version": "18.1",
+        "technique_url": "https://attack.mitre.org/techniques/T1590",
+        "attack_name": "Gather Victim Network Information",
+        "description": "Adversaries may gather information about the victim's networks that can be used during targeting. Information about networks may include a variety of details, including administrative data (ex: IP ranges, domain names, etc.) as well as specifics regarding its topology and operations. Adversaries may gather this information in various ways, such as direct collection actions via [Active Scanning](https://attack.mitre.org/techniques/T1595) or [Phishing for Information](https://attack.mitre.org/techniques/T1598). Information about networks may also be exposed to adversaries via online or other accessible data sets (ex: [Search Open Technical Databases](https://attack.mitre.org/techniques/T1596)).(Citation: WHOIS)(Citation: DNS Dumpster)(Citation: Circl Passive DNS) Gathering this information may reveal opportunities for other forms of reconnaissance (ex: [Active Scanning](https://attack.mitre.org/techniques/T1595) or [Search Open Websites/Domains](https://attack.mitre.org/techniques/T1593)), establishing operational resources (ex: [Acquire Infrastructure](https://attack.mitre.org/techniques/T1583) or [Compromise Infrastructure](https://attack.mitre.org/techniques/T1584)), and/or initial access (ex: [Trusted Relationship](https://attack.mitre.org/techniques/T1199)).",
+        "detection": "",
+        "platforms": [
+          "PRE"
+        ],
+        "tactics": [
+          {
+            "description": "The adversary is trying to gather information they can use to plan future operations. Reconnaissance consists of techniques that involve adversaries actively or passively gathering information that can be used to support targeting. Such information may include details of the victim organization, infrastructure, or staff/personnel. This information can be leveraged by the adversary to aid in other phases of the adversary lifecycle, such as using gathered information to plan and execute Initial Access, to scope and prioritize post-compromise objectives, or to drive and lead further Reconnaissance efforts.",
+            "id": "TA0043",
+            "modified": "2025-04-25T14:45:36.201Z",
+            "name": "Reconnaissance",
+            "shortname": "reconnaissance",
+            "stix_id": "x-mitre-tactic--daa4cbb1-b4f4-4723-a824-7f1efd6e0592",
+            "url": "https://attack.mitre.org/tactics/TA0043",
+            "version": "1.0"
+          }
+        ],
+        "tactic_ids": [
+          "TA0043"
+        ],
+        "tactic_shortnames": [
+          "reconnaissance"
+        ],
+        "is_subtechnique": false,
+        "parent_technique_id": "",
+        "parent_technique_name": "",
+        "parent_technique_url": "",
+        "mitigations": [
+          {
+            "description": "Pre-compromise mitigations involve proactive measures and defenses implemented to prevent adversaries from successfully identifying and exploiting weaknesses during the Reconnaissance and Resource Development phases of an attack. These activities focus on reducing an organization's attack surface, identify adversarial preparation efforts, and increase the difficulty for attackers to conduct successful operations. This mitigation can be implemented through the following measures: Limit Information Exposure: - Regularly audit and sanitize publicly available data, including job posts, websites, and social media. - Use tools like OSINT monitoring platforms (e.g., SpiderFoot, Recon-ng) to identify leaked information. Protect Domain and DNS Infrastructure: - Enable DNSSEC and use WHOIS privacy protection. - Monitor for domain hijacking or lookalike domains using services like RiskIQ or DomainTools. External Monitoring: - Use tools like Shodan, Censys to monitor your external attack surface. - Deploy external vulnerability scanners to proactively address weaknesses. Threat Intelligence: - Leverage platforms like MISP, Recorded Future, or Anomali to track adversarial infrastructure, tools, and activity. Content and Email Protections: - Use email security solutions like Proofpoint, Microsoft Defender for Office 365, or Mimecast. - Enforce SPF/DKIM/DMARC policies to protect against email spoofing. Training and Awareness: - Educate employees on identifying phishing attempts, securing their social media, and avoiding information leaks.",
+            "id": "M1056",
+            "modified": "2024-12-18T18:24:37.835Z",
+            "name": "Pre-compromise",
+            "stix_id": "course-of-action--78bb71be-92b4-46de-acd6-5f998fedf1cc",
+            "url": "https://attack.mitre.org/mitigations/M1056",
+            "version": "1.1"
+          }
+        ],
+        "rule_ids": [
+          "platform-gather-victim-network-information"
+        ],
+        "response_guidance": {
+          "priority": "informational",
+          "analyst_summary": "Asset, topology, and communication inventory provide gather-victim-network-information coverage.",
+          "next_steps": [
+            "Use this coverage hit to organize asset inventory review before investigating higher-confidence ATT&CK findings.",
+            "Validate that external hosts and supervisory nodes are correctly labeled before escalating suspicious behavior.",
+            "Trace the mapping back to the observed evidence refs: platform:t1590.",
+            "Frame triage around the ATT&CK tactic(s): Reconnaissance.",
+            "Treat this as ATT&CK coverage context for passive analysis, not as a confirmed incident on its own.",
+            "Review ATT&CK mitigations that best fit this behavior: Pre-compromise."
+          ],
+          "detection_notes": "",
+          "mitigation_focus": [
+            "Pre-compromise"
+          ],
+          "references": [
+            "https://attack.mitre.org/techniques/T1590",
+            "https://attack.mitre.org/tactics/TA0043"
+          ]
+        }
+      }
+    ],
+    "coverage": {
+      "mapped_categories": [
+        "C2_BEACONING",
+        "C2_DNS_HIGH_ENTROPY"
+      ],
+      "unmapped_categories": [
+        "CLEARTEXT_REMOTE_ACCESS",
+        "CROSS_PURDUE",
+        "EXTERNAL_IPS_OBSERVED",
+        "HIGH_PORT_SERVICE",
+        "IT_SERVICE_ON_OT_DEVICE",
+        "MODBUS_WRITE_ANON",
+        "NO_AUTH_OBSERVED",
+        "PORT_SCAN_TARGET",
+        "UNKNOWN_SERVICE_PORT"
+      ]
+    },
+    "matrix": {
+      "primary_domain": "enterprise-attack",
+      "domains": [
+        {
+          "domain": "enterprise-attack",
+          "name": "Enterprise ATT&CK",
+          "attack_version": "18.1",
+          "bundle_modified": "2025-11-13T14:00:00.188Z",
+          "source_url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-18.1.json",
+          "matrix": {
+            "name": "Enterprise ATT&CK",
+            "stix_id": "x-mitre-matrix--eafc1b4c-5e56-4965-bd4e-66a6a89c88cc",
+            "tactic_order": [
+              "TA0043",
+              "TA0042",
+              "TA0001",
+              "TA0002",
+              "TA0003",
+              "TA0004",
+              "TA0005",
+              "TA0006",
+              "TA0007",
+              "TA0008",
+              "TA0009",
+              "TA0011",
+              "TA0010",
+              "TA0040"
+            ]
+          },
+          "tactics": [
+            {
+              "tactic_id": "TA0043",
+              "name": "Reconnaissance",
+              "shortname": "reconnaissance",
+              "url": "https://attack.mitre.org/tactics/TA0043",
+              "description": "The adversary is trying to gather information they can use to plan future operations. Reconnaissance consists of techniques that involve adversaries actively or passively gathering information that can be used to support targeting. Such information may include details of the victim organization, infrastructure, or staff/personnel. This information can be leveraged by the adversary to aid in other phases of the adversary lifecycle, such as using gathered information to plan and execute Initial Access, to scope and prioritize post-compromise objectives, or to drive and lead further Reconnaissance efforts.",
+              "technique_total": 45,
+              "mapped_total": 1,
+              "classified_total": 0,
+              "coverage_total": 1,
+              "entries": [
+                {
+                  "technique_id": "T1590",
+                  "title": "Gather Victim Network Information",
+                  "attack_name": "Gather Victim Network Information",
+                  "technique_url": "https://attack.mitre.org/techniques/T1590",
+                  "kind": "coverage",
+                  "status": "covered",
+                  "basis": "platform",
+                  "confidence": 1.0,
+                  "family": "Passive Recon",
+                  "is_subtechnique": false,
+                  "parent_technique_id": "",
+                  "parent_technique_name": "",
+                  "affected_nodes": []
+                }
+              ]
+            },
+            {
+              "tactic_id": "TA0042",
+              "name": "Resource Development",
+              "shortname": "resource-development",
+              "url": "https://attack.mitre.org/tactics/TA0042",
+              "description": "The adversary is trying to establish resources they can use to support operations. Resource Development consists of techniques that involve adversaries creating, purchasing, or compromising/stealing resources that can be used to support targeting. Such resources include infrastructure, accounts, or capabilities. These resources can be leveraged by the adversary to aid in other phases of the adversary lifecycle, such as using purchased domains to support Command and Control, email accounts for phishing as a part of Initial Access, or stealing code signing certificates to help with Defense Evasion.",
+              "technique_total": 47,
+              "mapped_total": 0,
+              "classified_total": 0,
+              "coverage_total": 0,
+              "entries": []
+            },
+            {
+              "tactic_id": "TA0001",
+              "name": "Initial Access",
+              "shortname": "initial-access",
+              "url": "https://attack.mitre.org/tactics/TA0001",
+              "description": "The adversary is trying to get into your network. Initial Access consists of techniques that use various entry vectors to gain their initial foothold within a network. Techniques used to gain a foothold include targeted spearphishing and exploiting weaknesses on public-facing web servers. Footholds gained through initial access may allow for continued access, like valid accounts and use of external remote services, or may be limited-use due to changing passwords.",
+              "technique_total": 22,
+              "mapped_total": 0,
+              "classified_total": 0,
+              "coverage_total": 0,
+              "entries": []
+            },
+            {
+              "tactic_id": "TA0002",
+              "name": "Execution",
+              "shortname": "execution",
+              "url": "https://attack.mitre.org/tactics/TA0002",
+              "description": "The adversary is trying to run malicious code. Execution consists of techniques that result in adversary-controlled code running on a local or remote system. Techniques that run malicious code are often paired with techniques from all other tactics to achieve broader goals, like exploring a network or stealing data. For example, an adversary might use a remote access tool to run a PowerShell script that does Remote System Discovery.",
+              "technique_total": 46,
+              "mapped_total": 0,
+              "classified_total": 0,
+              "coverage_total": 0,
+              "entries": []
+            },
+            {
+              "tactic_id": "TA0003",
+              "name": "Persistence",
+              "shortname": "persistence",
+              "url": "https://attack.mitre.org/tactics/TA0003",
+              "description": "The adversary is trying to maintain their foothold. Persistence consists of techniques that adversaries use to keep access to systems across restarts, changed credentials, and other interruptions that could cut off their access. Techniques used for persistence include any access, action, or configuration changes that let them maintain their foothold on systems, such as replacing or hijacking legitimate code or adding startup code.",
+              "technique_total": 126,
+              "mapped_total": 0,
+              "classified_total": 0,
+              "coverage_total": 0,
+              "entries": []
+            },
+            {
+              "tactic_id": "TA0004",
+              "name": "Privilege Escalation",
+              "shortname": "privilege-escalation",
+              "url": "https://attack.mitre.org/tactics/TA0004",
+              "description": "The adversary is trying to gain higher-level permissions. Privilege Escalation consists of techniques that adversaries use to gain higher-level permissions on a system or network. Adversaries can often enter and explore a network with unprivileged access but require elevated permissions to follow through on their objectives. Common approaches are to take advantage of system weaknesses, misconfigurations, and vulnerabilities. Examples of elevated access include: * SYSTEM/root level * local administrator * user account with admin-like access * user accounts with access to specific system or perform specific function These techniques often overlap with Persistence techniques, as OS features that let an adversary persist can execute in an elevated context.",
+              "technique_total": 109,
+              "mapped_total": 0,
+              "classified_total": 0,
+              "coverage_total": 0,
+              "entries": []
+            },
+            {
+              "tactic_id": "TA0005",
+              "name": "Defense Evasion",
+              "shortname": "defense-evasion",
+              "url": "https://attack.mitre.org/tactics/TA0005",
+              "description": "The adversary is trying to avoid being detected. Defense Evasion consists of techniques that adversaries use to avoid detection throughout their compromise. Techniques used for defense evasion include uninstalling/disabling security software or obfuscating/encrypting data and scripts. Adversaries also leverage and abuse trusted processes to hide and masquerade their malware. Other tactics\u2019 techniques are cross-listed here when those techniques include the added benefit of subverting defenses.",
+              "technique_total": 215,
+              "mapped_total": 0,
+              "classified_total": 0,
+              "coverage_total": 0,
+              "entries": []
+            },
+            {
+              "tactic_id": "TA0006",
+              "name": "Credential Access",
+              "shortname": "credential-access",
+              "url": "https://attack.mitre.org/tactics/TA0006",
+              "description": "The adversary is trying to steal account names and passwords. Credential Access consists of techniques for stealing credentials like account names and passwords. Techniques used to get credentials include keylogging or credential dumping. Using legitimate credentials can give adversaries access to systems, make them harder to detect, and provide the opportunity to create more accounts to help achieve their goals.",
+              "technique_total": 67,
+              "mapped_total": 1,
+              "classified_total": 0,
+              "coverage_total": 1,
+              "entries": [
+                {
+                  "technique_id": "T1040",
+                  "title": "Network Sniffing",
+                  "attack_name": "Network Sniffing",
+                  "technique_url": "https://attack.mitre.org/techniques/T1040",
+                  "kind": "coverage",
+                  "status": "covered",
+                  "basis": "platform",
+                  "confidence": 1.0,
+                  "family": "Passive Recon",
+                  "is_subtechnique": false,
+                  "parent_technique_id": "",
+                  "parent_technique_name": "",
+                  "affected_nodes": []
+                }
+              ]
+            },
+            {
+              "tactic_id": "TA0007",
+              "name": "Discovery",
+              "shortname": "discovery",
+              "url": "https://attack.mitre.org/tactics/TA0007",
+              "description": "The adversary is trying to figure out your environment. Discovery consists of techniques an adversary may use to gain knowledge about the system and internal network. These techniques help adversaries observe the environment and orient themselves before deciding how to act. They also allow adversaries to explore what they can control and what\u2019s around their entry point in order to discover how it could benefit their current objective. Native operating system tools are often used toward this post-compromise information-gathering objective.",
+              "technique_total": 49,
+              "mapped_total": 3,
+              "classified_total": 0,
+              "coverage_total": 3,
+              "entries": [
+                {
+                  "technique_id": "T1016",
+                  "title": "System Network Configuration Discovery",
+                  "attack_name": "System Network Configuration Discovery",
+                  "technique_url": "https://attack.mitre.org/techniques/T1016",
+                  "kind": "coverage",
+                  "status": "covered",
+                  "basis": "platform",
+                  "confidence": 1.0,
+                  "family": "Passive Recon",
+                  "is_subtechnique": false,
+                  "parent_technique_id": "",
+                  "parent_technique_name": "",
+                  "affected_nodes": []
+                },
+                {
+                  "technique_id": "T1040",
+                  "title": "Network Sniffing",
+                  "attack_name": "Network Sniffing",
+                  "technique_url": "https://attack.mitre.org/techniques/T1040",
+                  "kind": "coverage",
+                  "status": "covered",
+                  "basis": "platform",
+                  "confidence": 1.0,
+                  "family": "Passive Recon",
+                  "is_subtechnique": false,
+                  "parent_technique_id": "",
+                  "parent_technique_name": "",
+                  "affected_nodes": []
+                },
+                {
+                  "technique_id": "T1046",
+                  "title": "Network Service Discovery",
+                  "attack_name": "Network Service Discovery",
+                  "technique_url": "https://attack.mitre.org/techniques/T1046",
+                  "kind": "coverage",
+                  "status": "covered",
+                  "basis": "platform",
+                  "confidence": 1.0,
+                  "family": "Passive Recon",
+                  "is_subtechnique": false,
+                  "parent_technique_id": "",
+                  "parent_technique_name": "",
+                  "affected_nodes": []
+                }
+              ]
+            },
+            {
+              "tactic_id": "TA0008",
+              "name": "Lateral Movement",
+              "shortname": "lateral-movement",
+              "url": "https://attack.mitre.org/tactics/TA0008",
+              "description": "The adversary is trying to move through your environment. Lateral Movement consists of techniques that adversaries use to enter and control remote systems on a network. Following through on their primary objective often requires exploring the network to find their target, then pivoting through multiple systems and accounts to gain access to it. Adversaries might install their own remote access tools to accomplish Lateral Movement or use legitimate credentials with native network and operating system tools, which may be stealthier.",
+              "technique_total": 23,
+              "mapped_total": 0,
+              "classified_total": 0,
+              "coverage_total": 0,
+              "entries": []
+            },
+            {
+              "tactic_id": "TA0009",
+              "name": "Collection",
+              "shortname": "collection",
+              "url": "https://attack.mitre.org/tactics/TA0009",
+              "description": "The adversary is trying to gather data of interest to their goal. Collection consists of techniques adversaries may use to gather information and the sources information is collected from that are relevant to following through on the adversary's objectives. Frequently, the next goal after collecting data is to either steal (exfiltrate) the data or to use the data to gain more information about the target environment. Common target sources include various drive types, browsers, audio, video, and email. Common collection methods include capturing screenshots and keyboard input.",
+              "technique_total": 41,
+              "mapped_total": 0,
+              "classified_total": 0,
+              "coverage_total": 0,
+              "entries": []
+            },
+            {
+              "tactic_id": "TA0011",
+              "name": "Command and Control",
+              "shortname": "command-and-control",
+              "url": "https://attack.mitre.org/tactics/TA0011",
+              "description": "The adversary is trying to communicate with compromised systems to control them. Command and Control consists of techniques that adversaries may use to communicate with systems under their control within a victim network. Adversaries commonly attempt to mimic normal, expected traffic to avoid detection. There are many ways an adversary can establish command and control with various levels of stealth depending on the victim\u2019s network structure and defenses.",
+              "technique_total": 45,
+              "mapped_total": 2,
+              "classified_total": 2,
+              "coverage_total": 0,
+              "entries": [
+                {
+                  "technique_id": "T1071",
+                  "title": "Application Layer Protocol",
+                  "attack_name": "Application Layer Protocol",
+                  "technique_url": "https://attack.mitre.org/techniques/T1071",
+                  "kind": "classification",
+                  "status": "classified",
+                  "basis": "observed",
+                  "confidence": 0.9,
+                  "family": "Command and Control",
+                  "is_subtechnique": false,
+                  "parent_technique_id": "",
+                  "parent_technique_name": "",
+                  "affected_nodes": [
+                    "00:0e:38:95:1d:8b",
+                    "10.10.10.10",
+                    "10.10.10.20",
+                    "10.10.10.30",
+                    "192.168.1.71",
+                    "192.168.88.1",
+                    "192.168.88.105",
+                    "192.168.88.52",
+                    "192.168.88.61",
+                    "192.168.89.1",
+                    "192.168.89.2",
+                    "192.195.142.14",
+                    "8.8.8.8"
+                  ]
+                },
+                {
+                  "technique_id": "T1132",
+                  "title": "Data Encoding",
+                  "attack_name": "Data Encoding",
+                  "technique_url": "https://attack.mitre.org/techniques/T1132",
+                  "kind": "classification",
+                  "status": "classified",
+                  "basis": "observed",
+                  "confidence": 0.82,
+                  "family": "Exfiltration",
+                  "is_subtechnique": false,
+                  "parent_technique_id": "",
+                  "parent_technique_name": "",
+                  "affected_nodes": [
+                    "192.168.88.1",
+                    "192.168.88.53"
+                  ]
+                }
+              ]
+            },
+            {
+              "tactic_id": "TA0010",
+              "name": "Exfiltration",
+              "shortname": "exfiltration",
+              "url": "https://attack.mitre.org/tactics/TA0010",
+              "description": "The adversary is trying to steal data. Exfiltration consists of techniques that adversaries may use to steal data from your network. Once they\u2019ve collected data, adversaries often package it to avoid detection while removing it. This can include compression and encryption. Techniques for getting data out of a target network typically include transferring it over their command and control channel or an alternate channel and may also include putting size limits on the transmission.",
+              "technique_total": 19,
+              "mapped_total": 1,
+              "classified_total": 1,
+              "coverage_total": 0,
+              "entries": [
+                {
+                  "technique_id": "T1029",
+                  "title": "Scheduled Transfer",
+                  "attack_name": "Scheduled Transfer",
+                  "technique_url": "https://attack.mitre.org/techniques/T1029",
+                  "kind": "classification",
+                  "status": "classified",
+                  "basis": "observed",
+                  "confidence": 0.86,
+                  "family": "Command and Control",
+                  "is_subtechnique": false,
+                  "parent_technique_id": "",
+                  "parent_technique_name": "",
+                  "affected_nodes": [
+                    "00:0e:38:95:1d:8b",
+                    "10.10.10.10",
+                    "10.10.10.20",
+                    "10.10.10.30",
+                    "192.168.1.71",
+                    "192.168.88.1",
+                    "192.168.88.105",
+                    "192.168.88.52",
+                    "192.168.88.61",
+                    "192.168.89.1",
+                    "192.168.89.2",
+                    "192.195.142.14",
+                    "8.8.8.8"
+                  ]
+                }
+              ]
+            },
+            {
+              "tactic_id": "TA0040",
+              "name": "Impact",
+              "shortname": "impact",
+              "url": "https://attack.mitre.org/tactics/TA0040",
+              "description": "The adversary is trying to manipulate, interrupt, or destroy your systems and data. Impact consists of techniques that adversaries use to disrupt availability or compromise integrity by manipulating business and operational processes. Techniques used for impact can include destroying or tampering with data. In some cases, business processes can look fine, but may have been altered to benefit the adversaries\u2019 goals. These techniques might be used by adversaries to follow through on their end goal or to provide cover for a confidentiality breach.",
+              "technique_total": 33,
+              "mapped_total": 0,
+              "classified_total": 0,
+              "coverage_total": 0,
+              "entries": []
+            }
+          ]
+        }
+      ]
+    },
+    "pack_ids": [
+      "marlinspike-mitre-base"
+    ],
+    "supported_techniques": [
+      "T1016",
+      "T1029",
+      "T1040",
+      "T1046",
+      "T1071",
+      "T1132",
+      "T1590"
+    ]
+  },
+  "attack_metadata": {
+    "catalog_schema_version": 1,
+    "catalog_generated_at": "2026-03-27T10:38:50.214168+00:00",
+    "source_index_url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/index.json",
+    "domains": {
+      "enterprise-attack": {
+        "domain": "enterprise-attack",
+        "name": "Enterprise ATT&CK",
+        "attack_version": "18.1",
+        "bundle_modified": "2025-11-13T14:00:00.188Z",
+        "source_url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-18.1.json",
+        "matrix": {
+          "name": "Enterprise ATT&CK",
+          "stix_id": "x-mitre-matrix--eafc1b4c-5e56-4965-bd4e-66a6a89c88cc",
+          "tactic_order": [
+            "TA0043",
+            "TA0042",
+            "TA0001",
+            "TA0002",
+            "TA0003",
+            "TA0004",
+            "TA0005",
+            "TA0006",
+            "TA0007",
+            "TA0008",
+            "TA0009",
+            "TA0011",
+            "TA0010",
+            "TA0040"
+          ]
+        }
+      }
+    }
+  },
+  "warnings": []
+}

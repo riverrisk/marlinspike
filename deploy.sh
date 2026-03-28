@@ -111,12 +111,28 @@ echo "[2/4] Syncing files..."
 rsync -avz --delete \
     --exclude '__pycache__' \
     --exclude '*.pyc' \
+    --exclude '.git/' \
+    --exclude '.github/' \
+    --exclude '.claude/' \
+    --exclude '.logbook/' \
+    --exclude '.smoke/' \
+    --exclude '.venv/' \
+    --exclude '.venv-*/' \
+    --exclude 'node_modules/' \
+    --exclude 'marlinspike-dpi/' \
+    --exclude 'windows/build/' \
+    --exclude 'windows/wine-lab/' \
+    --exclude '.DS_Store' \
     --include 'data/oui.json' \
     --exclude 'data/**' \
+    --exclude 'presets/' \
     --exclude 'backups/' \
     --exclude '.env*' \
     --exclude 'venv/' \
     "$LOCAL_DIR/" "$REMOTE:$REMOTE_DIR/"
+rsync -avz \
+    "$LOCAL_DIR/presets/README.md" \
+    "$REMOTE:$REMOTE_DIR/presets/README.md"
 
 echo ""
 echo "[3/4] Building & restarting container..."

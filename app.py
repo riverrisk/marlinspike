@@ -1,6 +1,6 @@
 """MarlinSpike — Standalone passive OT network topology mapper.
 
-Flask web application with PostgreSQL-backed auth and scan history.
+Flask web application with database-backed auth and scan history.
 """
 
 import glob
@@ -13,10 +13,11 @@ import re
 import secrets
 import shutil
 import subprocess
+import tempfile
 import threading
 import time
 import uuid
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -45,7 +46,7 @@ from _auth import (
 )
 from _models import Project, ScanHistory, User, db
 
-APP_VERSION = "1.9.0"
+APP_VERSION = "2.0.0"
 
 log = logging.getLogger("marlinspike")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
@@ -64,6 +65,8 @@ PCAP_MAGIC = {
 
 _run_registry = {}  # run_id -> {process, output, status, ...}
 _runs_lock = threading.Lock()
+_stage_re = re.compile(r"^\s*STAGE\s+(\d+)\s*[—–-]\s*(.+)")
+_error_re = re.compile(r"\[!\].*(?:FAILED|ERROR)", re.IGNORECASE)
 
 
 def _cleanup_runs():
@@ -114,6 +117,246 @@ def _scan_artifacts(run_state):
             pass
 
 
+def _set_run_stage(run_state, stage_num, stage_name=""):
+    """Update run stage progress for UI polling."""
+    run_state["stage"] = stage_num
+    if stage_name:
+        run_state["stage_name"] = stage_name
+    for stage in run_state.get("stages", []):
+        if stage["number"] < stage_num:
+            if stage["state"] not in ("failed", "stopped"):
+                stage["state"] = "complete"
+        elif stage["number"] == stage_num:
+            if stage["state"] not in ("failed", "stopped"):
+                stage["state"] = "running"
+
+
+def _mark_active_stage(run_state, state):
+    """Mark the currently running stage as failed/stopped."""
+    for stage in run_state.get("stages", []):
+        if stage["state"] == "running":
+            stage["state"] = state
+            return
+
+
+def _apply_stage_marker(run_state, line, stage_map=None):
+    """Parse engine STAGE lines into UI stage progress."""
+    match = _stage_re.match(line)
+    if not match:
+        return
+    stage_num = int(match.group(1))
+    if stage_map:
+        stage_num = stage_map.get(stage_num, stage_num)
+    if stage_num < 1:
+        return
+    stage_name = match.group(2).strip()
+    _set_run_stage(run_state, stage_num, stage_name)
+
+
+def _merge_nested(existing, incoming):
+    """Merge protocol identity dicts without dropping values from prior chunks."""
+    if not isinstance(existing, dict):
+        existing = {}
+    if not isinstance(incoming, dict):
+        incoming = {}
+    merged = dict(existing)
+    for key, value in incoming.items():
+        current = merged.get(key)
+        if isinstance(current, dict) and isinstance(value, dict):
+            merged[key] = _merge_nested(current, value)
+        elif isinstance(current, list) and isinstance(value, list):
+            seen = {json.dumps(item, sort_keys=True, default=str) for item in current}
+            combined = list(current)
+            for item in value:
+                marker = json.dumps(item, sort_keys=True, default=str)
+                if marker not in seen:
+                    combined.append(item)
+                    seen.add(marker)
+            merged[key] = combined
+        elif isinstance(current, bool) and isinstance(value, bool):
+            merged[key] = current or value
+        elif current in (None, "", [], {}):
+            merged[key] = value
+    return merged
+
+
+def _merge_chunk_conversations(chunk_reports, capture_info_seed=None):
+    """Merge conversations from chunk-level dissect reports into one artifact."""
+    conv_map = {}
+    merged_capture_info = dict(capture_info_seed or {})
+
+    list_fields = (
+        "modbus_functions",
+        "s7_functions",
+        "dnp3_objects",
+        "opc_sessions",
+        "iec104_typeids",
+        "iec104_causes",
+        "src_ports_seen",
+        "dns_queries",
+        "dns_query_types",
+    )
+    nested_fields = (
+        "cip_identity",
+        "pn_identity",
+        "bacnet_identity",
+        "omron_identity",
+        "mms_identity",
+        "goose_identity",
+        "l2_discovery",
+    )
+    numeric_sum_fields = ("packet_count", "bytes_total", "modbus_writes")
+    bool_fields = ("s7_program_access", "opc_no_security")
+
+    for report_path in chunk_reports:
+        with open(report_path) as handle:
+            data = json.load(handle)
+
+        conversations = data.get("conversations", data.get("data", {}).get("conversations", [])) or []
+        capture_info = data.get("capture_info", data.get("data", {}).get("capture_info", {})) or {}
+
+        if capture_info:
+            if not merged_capture_info:
+                merged_capture_info = dict(capture_info)
+            else:
+                for field in ("total_packets", "total_bytes"):
+                    if field in capture_info:
+                        merged_capture_info[field] = merged_capture_info.get(field, 0) + capture_info[field]
+                if capture_info.get("duration_s", 0) > merged_capture_info.get("duration_s", 0):
+                    merged_capture_info["duration_s"] = capture_info["duration_s"]
+                    merged_capture_info["duration_seconds"] = capture_info.get(
+                        "duration_seconds",
+                        capture_info["duration_s"],
+                    )
+                for field in ("pcap_path", "capture_source", "capture_type"):
+                    if not merged_capture_info.get(field) and capture_info.get(field):
+                        merged_capture_info[field] = capture_info[field]
+
+        for conv in conversations:
+            key = (
+                conv.get("src_mac", ""),
+                conv.get("dst_mac", ""),
+                conv.get("protocol", ""),
+                int(conv.get("port", 0) or 0),
+            )
+            if key not in conv_map:
+                conv_map[key] = dict(conv)
+                continue
+
+            existing = conv_map[key]
+
+            for field in numeric_sum_fields:
+                existing[field] = int(existing.get(field, 0) or 0) + int(conv.get(field, 0) or 0)
+
+            if conv.get("first_seen") and (
+                not existing.get("first_seen") or conv["first_seen"] < existing["first_seen"]
+            ):
+                existing["first_seen"] = conv["first_seen"]
+            if conv.get("last_seen") and (
+                not existing.get("last_seen") or conv["last_seen"] > existing["last_seen"]
+            ):
+                existing["last_seen"] = conv["last_seen"]
+
+            for field in ("src_ip", "dst_ip", "transport"):
+                if not existing.get(field) and conv.get(field):
+                    existing[field] = conv[field]
+            if not existing.get("src_port") and conv.get("src_port"):
+                existing["src_port"] = conv["src_port"]
+
+            for field in list_fields:
+                current = list(existing.get(field) or [])
+                seen = {json.dumps(item, sort_keys=True, default=str) for item in current}
+                for item in conv.get(field) or []:
+                    marker = json.dumps(item, sort_keys=True, default=str)
+                    if marker not in seen:
+                        current.append(item)
+                        seen.add(marker)
+                existing[field] = current
+
+            for field in nested_fields:
+                existing[field] = _merge_nested(existing.get(field), conv.get(field))
+
+            for field in bool_fields:
+                if conv.get(field):
+                    existing[field] = True
+
+            if float(conv.get("beacon_score", 0.0) or 0.0) > float(existing.get("beacon_score", 0.0) or 0.0):
+                existing["beacon_score"] = conv.get("beacon_score", 0.0)
+                existing["beacon_interval"] = conv.get("beacon_interval", 0.0)
+                existing["beacon_jitter"] = conv.get("beacon_jitter", 0.0)
+            if float(conv.get("dns_entropy", 0.0) or 0.0) > float(existing.get("dns_entropy", 0.0) or 0.0):
+                existing["dns_entropy"] = conv.get("dns_entropy", 0.0)
+
+    return list(conv_map.values()), merged_capture_info
+
+
+def _finalize_scan_history(app, run_id, run_state, report_path):
+    """Persist final scan status and summary metadata."""
+    try:
+        with app.app_context():
+            rec = ScanHistory.query.filter_by(run_id=run_id).first()
+            if rec:
+                rec.status = run_state["status"]
+                rec.completed_at = datetime.now(timezone.utc)
+                if run_state["status"] in ("failed", "stopped"):
+                    tail = run_state["output"][-10:]
+                    rec.error_tail = "\n".join(tail) if tail else None
+                if os.path.isfile(report_path):
+                    try:
+                        with open(report_path) as rf:
+                            rdata = json.load(rf)
+                        topo = rdata.get("results", {}).get("topology", rdata.get("topology", {}))
+                        rec.node_count = len(topo.get("nodes", []))
+                        rec.edge_count = len(topo.get("edges", []))
+                    except Exception:
+                        pass
+                db.session.commit()
+    except Exception as exc:
+        log.warning("Failed to update scan_history: %s", exc)
+
+
+def _finalize_run(app, run_id, run_state, report_path):
+    """Apply final run status, optional ATT&CK plugin, and DB persistence."""
+    run_state["finished_at"] = datetime.now(timezone.utc).isoformat()
+
+    if run_state.get("stop_requested"):
+        run_state["status"] = "stopped"
+        _mark_active_stage(run_state, "stopped")
+    elif run_state.get("return_code", 1) == 0:
+        if config.MARLINSPIKE_MITRE_ENABLED and run_state.get("command") == "chain":
+            plugin_stage_num = len(run_state["stages"])
+            _set_run_stage(run_state, plugin_stage_num, "MITRE ATT&CK")
+            if os.path.isfile(report_path):
+                run_state["output"].append("[*] Running marlinspike-mitre...")
+                try:
+                    artifact_path, plugin_output = _run_mitre_plugin(report_path)
+                    if artifact_path:
+                        run_state["artifacts_produced"]["marlinspike-mitre"] = artifact_path
+                    run_state["output"].extend(plugin_output)
+                    if artifact_path:
+                        run_state["output"].append(
+                            f"[+] MITRE artifact saved: {os.path.basename(artifact_path)}"
+                        )
+                except Exception as exc:
+                    run_state["output"].append(f"[!] marlinspike-mitre skipped: {exc}")
+            else:
+                run_state["output"].append("[!] marlinspike-mitre skipped: report file missing")
+            for stage in run_state["stages"]:
+                if stage["number"] == plugin_stage_num and stage["state"] == "running":
+                    stage["state"] = "complete"
+
+        run_state["status"] = "completed"
+        for stage in run_state["stages"]:
+            if stage["state"] in ("running", "complete"):
+                stage["state"] = "complete"
+    else:
+        run_state["status"] = "failed"
+        _mark_active_stage(run_state, "failed")
+
+    _scan_artifacts(run_state)
+    _finalize_scan_history(app, run_id, run_state, report_path)
+
+
 # ═══════════════════════════════════════════════════════════════
 # Submission archival helpers
 # ═══════════════════════════════════════════════════════════════
@@ -160,6 +403,91 @@ def _sanitize_report(report: dict) -> dict:
     return r
 
 
+def _is_primary_report_filename(filename: str) -> bool:
+    safe_name = os.path.basename(str(filename or ""))
+    return bool(safe_name.endswith(".json") and not safe_name.endswith("-mitre.json"))
+
+
+def _mitre_sidecar_path(report_path: str) -> str:
+    base, _ = os.path.splitext(report_path)
+    return base + "-mitre.json"
+
+
+def _run_mitre_plugin(report_path: str) -> tuple[str, list[str]]:
+    if not config.MARLINSPIKE_MITRE_ENABLED:
+        return "", []
+    if not os.path.isfile(report_path):
+        raise FileNotFoundError(f"Report not found: {report_path}")
+
+    output_path = _mitre_sidecar_path(report_path)
+    cmd = [
+        config.PYTHON_EXE,
+        "-u",
+        "-m",
+        config.MARLINSPIKE_MITRE_MODULE,
+        "--input-report",
+        report_path,
+        "--output",
+        output_path,
+    ]
+    if config.MARLINSPIKE_MITRE_RULES and os.path.isfile(config.MARLINSPIKE_MITRE_RULES):
+        cmd.extend(["--rules", config.MARLINSPIKE_MITRE_RULES])
+
+    env = os.environ.copy()
+    existing_pythonpath = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = (
+        config.BASE_DIR + (os.pathsep + existing_pythonpath if existing_pythonpath else "")
+    )
+
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        cwd=config.BASE_DIR,
+        env=env,
+        timeout=120,
+    )
+    output_lines = [
+        line.strip()
+        for line in ((result.stdout or "") + "\n" + (result.stderr or "")).splitlines()
+        if line.strip()
+    ]
+    if result.returncode != 0:
+        detail = output_lines[-1] if output_lines else f"exit code {result.returncode}"
+        raise RuntimeError(detail)
+    return output_path, output_lines
+
+
+def _load_report_with_extensions(path: str, ensure_mitre: bool = False) -> dict:
+    with open(path) as handle:
+        report = json.load(handle)
+    if not isinstance(report, dict):
+        return report
+
+    merged = report.copy()
+    extensions = dict(merged.get("extensions") or {})
+    mitre_path = _mitre_sidecar_path(path)
+
+    if ensure_mitre and config.MARLINSPIKE_MITRE_ENABLED and not os.path.isfile(mitre_path):
+        try:
+            _run_mitre_plugin(path)
+        except Exception as exc:
+            log.warning("marlinspike-mitre generation failed for %s: %s", path, exc)
+
+    if os.path.isfile(mitre_path):
+        try:
+            with open(mitre_path) as handle:
+                artifact = json.load(handle)
+            if isinstance(artifact, dict) and artifact.get("plugin_id") == "marlinspike-mitre":
+                extensions["marlinspike-mitre"] = artifact
+        except Exception as exc:
+            log.warning("Failed to load MITRE sidecar %s: %s", mitre_path, exc)
+
+    if extensions:
+        merged["extensions"] = extensions
+    return merged
+
+
 def _viewer_anchor(value: str) -> str:
     value = str(value or "").strip()
     return re.sub(r"[^a-zA-Z0-9_-]+", "-", value).strip("-") or "asset"
@@ -175,19 +503,577 @@ def _severity_rank(severity: str) -> int:
     }.get((severity or "").upper(), 5)
 
 
+_DPI_LABELS = {
+    "app_name": "App Name",
+    "called_station_id": "Called Station",
+    "calling_station_id": "Calling Station",
+    "client_id": "Client ID",
+    "facility": "Facility",
+    "firmware": "Firmware",
+    "framed_ip_address": "Framed IP",
+    "identifier": "Identifier",
+    "ip": "IP",
+    "nas_identifier": "NAS Identifier",
+    "nas_ip_address": "NAS IP",
+    "nas_port_type": "NAS Port Type",
+    "protocol_name": "Protocol Name",
+    "protocol_version": "Protocol Version",
+    "qos": "QoS",
+    "service_type": "Service Type",
+    "severity": "Severity",
+    "transaction_id": "Transaction ID",
+    "username": "Username",
+}
+
+_DPI_IDENTITY_KEYS = {
+    "app_name",
+    "called_station_id",
+    "calling_station_id",
+    "client_id",
+    "firmware",
+    "framed_ip_address",
+    "ip",
+    "nas_identifier",
+    "nas_ip_address",
+    "username",
+}
+
+_DPI_PRIORITY_KEYS = {
+    "username": 0,
+    "client_id": 1,
+    "nas_identifier": 2,
+    "nas_ip_address": 3,
+    "calling_station_id": 4,
+    "called_station_id": 5,
+    "app_name": 6,
+    "firmware": 7,
+}
+
+_WORKBENCH_VIEW_LOCATIONS = {
+    "dashboard",
+    "map",
+    "findings",
+    "evidence",
+    "assets",
+    "intel",
+    "risk",
+    "reports",
+}
+
+_WORKBENCH_BLOCK_TYPES = {
+    "metric_strip",
+    "key_value",
+    "chip_list",
+    "table",
+    "records",
+    "markdown",
+}
+
+
+def _dpi_label(key: str) -> str:
+    key = str(key or "").strip()
+    return _DPI_LABELS.get(key, key.replace("_", " ").title())
+
+
+def _dpi_values(value) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        items = list(value)
+    else:
+        items = [value]
+
+    out = []
+    for item in items:
+        if item is None:
+            continue
+        if isinstance(item, dict):
+            for subkey, subvalue in item.items():
+                for text in _dpi_values(subvalue):
+                    merged = f"{_dpi_label(subkey)}: {text}"
+                    if merged not in out:
+                        out.append(merged)
+            continue
+        text = str(item).strip()
+        if text and text not in out:
+            out.append(text[:240])
+    return out
+
+
+def _append_unique_text(values: list[str], value: str, limit: int = 8) -> None:
+    text = str(value or "").strip()
+    if text and text not in values and len(values) < limit:
+        values.append(text)
+
+
+def _append_unique_pair(values: list[dict], label: str, value: str, limit: int = 8) -> None:
+    label = str(label or "").strip()
+    text = str(value or "").strip()
+    if not label or not text or len(values) >= limit:
+        return
+    candidate = {"label": label, "value": text}
+    if candidate not in values:
+        values.append(candidate)
+
+
+def _workbench_text(value, *, limit: int = 240) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    return text[:limit]
+
+
+def _sanitize_workbench_block(block: dict) -> dict | None:
+    if not isinstance(block, dict):
+        return None
+    block_type = _workbench_text(block.get("type"), limit=32).lower()
+    if block_type not in _WORKBENCH_BLOCK_TYPES:
+        return None
+
+    title = _workbench_text(block.get("title"), limit=120)
+    note = _workbench_text(block.get("note"), limit=240)
+    sanitized = {"type": block_type}
+    if title:
+        sanitized["title"] = title
+    if note:
+        sanitized["note"] = note
+
+    if block_type == "metric_strip":
+        items = []
+        for item in list(block.get("items") or [])[:8]:
+            if not isinstance(item, dict):
+                continue
+            label = _workbench_text(item.get("label"), limit=64)
+            value = _workbench_text(item.get("value"), limit=48)
+            if not label or not value:
+                continue
+            entry = {"label": label, "value": value}
+            tone = _workbench_text(item.get("tone"), limit=24).lower()
+            if tone:
+                entry["tone"] = tone
+            items.append(entry)
+        if not items:
+            return None
+        sanitized["items"] = items
+        return sanitized
+
+    if block_type == "key_value":
+        items = []
+        for item in list(block.get("items") or [])[:16]:
+            if not isinstance(item, dict):
+                continue
+            label = _workbench_text(item.get("label"), limit=96)
+            value = _workbench_text(item.get("value"), limit=240)
+            if label and value:
+                items.append({"label": label, "value": value})
+        if not items:
+            return None
+        sanitized["items"] = items
+        return sanitized
+
+    if block_type == "chip_list":
+        items = []
+        for item in list(block.get("items") or [])[:24]:
+            text = _workbench_text(item, limit=120)
+            if text:
+                items.append(text)
+        if not items:
+            return None
+        sanitized["items"] = items
+        return sanitized
+
+    if block_type == "table":
+        columns = []
+        for column in list(block.get("columns") or [])[:8]:
+            text = _workbench_text(column, limit=64)
+            if text:
+                columns.append(text)
+        rows = []
+        for row in list(block.get("rows") or [])[:24]:
+            if not isinstance(row, (list, tuple)):
+                continue
+            cleaned = [_workbench_text(cell, limit=160) for cell in list(row)[: len(columns) or 8]]
+            if any(cleaned):
+                rows.append(cleaned)
+        if not columns or not rows:
+            return None
+        sanitized["columns"] = columns
+        sanitized["rows"] = rows
+        return sanitized
+
+    if block_type == "records":
+        items = []
+        for item in list(block.get("items") or [])[:16]:
+            if not isinstance(item, dict):
+                continue
+            title = _workbench_text(item.get("title"), limit=120)
+            if not title:
+                continue
+            record = {"title": title}
+            subtitle = _workbench_text(item.get("subtitle"), limit=180)
+            body = _workbench_text(item.get("body"), limit=360)
+            chips = [_workbench_text(chip, limit=80) for chip in list(item.get("chips") or [])[:8]]
+            chips = [chip for chip in chips if chip]
+            if subtitle:
+                record["subtitle"] = subtitle
+            if body:
+                record["body"] = body
+            if chips:
+                record["chips"] = chips
+            items.append(record)
+        if not items:
+            return None
+        sanitized["items"] = items
+        return sanitized
+
+    if block_type == "markdown":
+        text = _workbench_text(block.get("text"), limit=4000)
+        if not text:
+            return None
+        sanitized["text"] = text
+        return sanitized
+
+    return None
+
+
+def _collect_workbench_views(report: dict) -> list[dict]:
+    extensions = dict(report.get("extensions") or {})
+    views = []
+    for extension_id, artifact in extensions.items():
+        if not isinstance(artifact, dict):
+            continue
+        for raw_view in list(artifact.get("workbench_views") or [])[:12]:
+            if not isinstance(raw_view, dict):
+                continue
+            title = _workbench_text(raw_view.get("title"), limit=120)
+            if not title:
+                continue
+            view_id = _viewer_anchor(raw_view.get("view_id") or title)
+            location = _workbench_text(raw_view.get("location") or "intel", limit=24).lower()
+            if location not in _WORKBENCH_VIEW_LOCATIONS:
+                location = "intel"
+            blocks = []
+            for block in list(raw_view.get("blocks") or [])[:12]:
+                sanitized = _sanitize_workbench_block(block)
+                if sanitized:
+                    blocks.append(sanitized)
+            if not blocks:
+                continue
+
+            view = {
+                "view_id": view_id,
+                "title": title,
+                "location": location,
+                "source_extension": extension_id,
+                "order": int(raw_view.get("order") or 100),
+                "blocks": blocks,
+            }
+            summary = _workbench_text(raw_view.get("summary"), limit=240)
+            badge = _workbench_text(raw_view.get("badge"), limit=48)
+            nav_label = _workbench_text(raw_view.get("nav_label"), limit=32)
+            if summary:
+                view["summary"] = summary
+            if badge:
+                view["badge"] = badge
+            if nav_label:
+                view["nav_label"] = nav_label
+            views.append(view)
+
+    views.sort(key=lambda item: (item.get("location", ""), int(item.get("order") or 100), item.get("title", "")))
+    return views
+
+
+def _build_dpi_context(report: dict, nodes: list[dict]) -> tuple[dict, dict]:
+    conversations = list(report.get("conversations") or [])
+    known_ips = {
+        str(node.get("ip") or node.get("address") or "").strip()
+        for node in nodes
+        if str(node.get("ip") or node.get("address") or "").strip()
+    }
+    asset_state = {}
+    protocol_counts = Counter()
+    identity_counts = Counter()
+    hunt_term_counts = Counter()
+    highlight_candidates = []
+
+    def get_asset_state(ip: str) -> dict:
+        if ip not in asset_state:
+            asset_state[ip] = {
+                "conversation_count": 0,
+                "protocol_counts": Counter(),
+                "operations": [],
+                "identity_pairs": [],
+                "attribute_pairs": [],
+                "objects": [],
+                "asset_hints": [],
+                "hunt_terms": [],
+                "peers": defaultdict(
+                    lambda: {
+                        "conversation_count": 0,
+                        "protocol_counts": Counter(),
+                        "operations": [],
+                        "objects": [],
+                        "notes": [],
+                    }
+                ),
+            }
+        return asset_state[ip]
+
+    def collect_asset_hints(asset: dict, prefix: str) -> tuple[list[dict], list[str]]:
+        hints = []
+        hunt_terms = []
+        if not isinstance(asset, dict):
+            return hints, hunt_terms
+
+        for key, value in dict(asset.get("identifiers") or {}).items():
+            for text in _dpi_values(value):
+                _append_unique_pair(hints, f"{prefix} {_dpi_label(key)}", text, limit=8)
+                _append_unique_text(hunt_terms, text, limit=12)
+
+        for key, value in asset.items():
+            if key in {"asset_key", "identifiers", "protocols"}:
+                continue
+            for text in _dpi_values(value):
+                _append_unique_pair(hints, f"{prefix} {_dpi_label(key)}", text, limit=8)
+                _append_unique_text(hunt_terms, text, limit=12)
+
+        return hints, hunt_terms
+
+    for conversation in conversations:
+        protocol = str(conversation.get("protocol") or "Unknown").strip() or "Unknown"
+        src_ip = str(conversation.get("src_ip") or "").strip()
+        dst_ip = str(conversation.get("dst_ip") or "").strip()
+        operations = _dpi_values(conversation.get("operations_seen"))
+        object_refs = _dpi_values(conversation.get("protocol_object_refs"))
+        protocol_attributes = dict(conversation.get("protocol_attributes") or {})
+        src_asset = dict(conversation.get("src_asset") or {})
+        dst_asset = dict(conversation.get("dst_asset") or {})
+        src_hints, src_terms = collect_asset_hints(src_asset, "Source")
+        dst_hints, dst_terms = collect_asset_hints(dst_asset, "Target")
+
+        attribute_pairs = []
+        identity_pairs = []
+        hunt_terms = []
+        for key in sorted(protocol_attributes, key=lambda item: (_DPI_PRIORITY_KEYS.get(item, 99), _dpi_label(item))):
+            for text in _dpi_values(protocol_attributes.get(key)):
+                label = _dpi_label(key)
+                _append_unique_pair(attribute_pairs, label, text, limit=10)
+                _append_unique_text(hunt_terms, text, limit=16)
+                if key in _DPI_IDENTITY_KEYS:
+                    _append_unique_pair(identity_pairs, label, text, limit=8)
+
+        for value in object_refs:
+            _append_unique_text(hunt_terms, value, limit=16)
+        for value in src_terms + dst_terms:
+            _append_unique_text(hunt_terms, value, limit=16)
+
+        has_enrichment = bool(operations or object_refs or attribute_pairs or src_hints or dst_hints)
+        if not has_enrichment:
+            continue
+
+        protocol_counts[protocol] += 1
+        for pair in identity_pairs:
+            identity_counts[f"{pair['label']}: {pair['value']}"] += 1
+        for term in hunt_terms:
+            hunt_term_counts[term] += 1
+
+        conversation_score = (
+            len(identity_pairs) * 4
+            + len(object_refs) * 3
+            + (len(src_hints) + len(dst_hints)) * 2
+            + len(operations)
+        )
+        highlight_candidates.append(
+            {
+                "protocol": protocol,
+                "src": src_ip or "Unknown",
+                "dst": dst_ip or "Unknown",
+                "operations": operations[:6],
+                "identities": identity_pairs[:5],
+                "attributes": attribute_pairs[:6],
+                "object_refs": object_refs[:5],
+                "asset_hints": (src_hints + dst_hints)[:6],
+                "hunt_terms": hunt_terms[:6],
+                "packet_count": int(conversation.get("packet_count") or 0),
+                "bytes_total": int(conversation.get("bytes_total") or 0),
+                "_score": conversation_score,
+            }
+        )
+
+        endpoints = [
+            (src_ip, dst_ip, src_hints, "source"),
+            (dst_ip, src_ip, dst_hints, "target"),
+        ]
+        for ip, peer_ip, asset_hints, side in endpoints:
+            if ip not in known_ips:
+                continue
+            entry = get_asset_state(ip)
+            entry["conversation_count"] += 1
+            entry["protocol_counts"][protocol] += 1
+
+            for op in operations:
+                _append_unique_text(entry["operations"], op, limit=10)
+            for pair in identity_pairs:
+                _append_unique_pair(entry["identity_pairs"], pair["label"], pair["value"], limit=8)
+            for pair in attribute_pairs:
+                _append_unique_pair(entry["attribute_pairs"], pair["label"], pair["value"], limit=10)
+            for value in object_refs:
+                _append_unique_text(entry["objects"], value, limit=8)
+            for pair in asset_hints:
+                _append_unique_pair(entry["asset_hints"], pair["label"], pair["value"], limit=8)
+            for term in hunt_terms:
+                _append_unique_text(entry["hunt_terms"], term, limit=12)
+
+            if peer_ip:
+                peer_entry = entry["peers"][peer_ip]
+                peer_entry["conversation_count"] += 1
+                peer_entry["protocol_counts"][protocol] += 1
+                for op in operations:
+                    _append_unique_text(peer_entry["operations"], op, limit=6)
+                for value in object_refs:
+                    _append_unique_text(peer_entry["objects"], value, limit=4)
+                for pair in identity_pairs[:4]:
+                    _append_unique_text(peer_entry["notes"], f"{pair['label']}: {pair['value']}", limit=5)
+                for pair in asset_hints[:4]:
+                    _append_unique_text(peer_entry["notes"], f"{pair['label']}: {pair['value']}", limit=5)
+
+    asset_evidence = {}
+    for ip, state in asset_state.items():
+        peer_items = []
+        for peer_ip, peer in sorted(
+            state["peers"].items(),
+            key=lambda item: (
+                -int(item[1].get("conversation_count") or 0),
+                -sum(item[1]["protocol_counts"].values()),
+                item[0],
+            ),
+        )[:5]:
+            peer_items.append(
+                {
+                    "peer": peer_ip,
+                    "conversation_count": int(peer.get("conversation_count") or 0),
+                    "protocols": [
+                        name
+                        for name, _count in peer["protocol_counts"].most_common(3)
+                    ],
+                    "operations": peer["operations"][:5],
+                    "objects": peer["objects"][:4],
+                    "notes": peer["notes"][:4],
+                }
+            )
+
+        asset_evidence[ip] = {
+            "conversation_count": int(state["conversation_count"] or 0),
+            "protocols": [name for name, _count in state["protocol_counts"].most_common(4)],
+            "operations": state["operations"][:8],
+            "identities": state["identity_pairs"][:6],
+            "attributes": state["attribute_pairs"][:8],
+            "objects": state["objects"][:6],
+            "asset_hints": state["asset_hints"][:6],
+            "hunt_terms": state["hunt_terms"][:10],
+            "peers": peer_items,
+        }
+
+    highlight_candidates.sort(
+        key=lambda item: (
+            -int(item["_score"] or 0),
+            -int(item.get("packet_count") or 0),
+            item.get("protocol", ""),
+            item.get("src", ""),
+            item.get("dst", ""),
+        )
+    )
+    highlights = [
+        {key: value for key, value in item.items() if key != "_score"}
+        for item in highlight_candidates[:8]
+    ]
+
+    summary = {
+        "engine": str(report.get("dpi_engine") or "").strip(),
+        "engine_version": str(report.get("dpi_engine_version") or "").strip(),
+        "schema_version": str(report.get("dpi_schema_version") or "").strip(),
+        "enriched_conversation_count": len(highlight_candidates),
+        "asset_count": len(asset_evidence),
+        "identity_count": len(identity_counts),
+        "hunt_term_count": len(hunt_term_counts),
+        "top_protocols": [
+            {"name": name, "count": count}
+            for name, count in protocol_counts.most_common(6)
+        ],
+        "top_identities": [
+            {"label": label, "count": count}
+            for label, count in identity_counts.most_common(6)
+        ],
+    }
+    return summary, {"asset_evidence": asset_evidence, "dpi_highlights": highlights}
+
+
 def _build_viewer_context(report: dict) -> dict:
     """Prepare server-rendered triage context for the viewer."""
     nodes = list(report.get("nodes") or [])
     edges = list(report.get("edges") or [])
     risk_findings = list(report.get("risk_findings") or [])
-    c2_indicators = sorted(
-        list(report.get("c2_indicators") or []),
-        key=lambda item: (_severity_rank(item.get("severity")), item.get("type", ""), item.get("src", "")),
-    )
+    c2_indicators = list(report.get("c2_indicators") or [])
     protocol_summary = dict(report.get("protocol_summary") or {})
     port_summary = dict(report.get("port_summary") or {})
     purdue_violations = list(report.get("purdue_violations") or [])
     mac_table = list(report.get("mac_table") or [])
+    mitre_extension = dict(((report.get("extensions") or {}).get("marlinspike-mitre") or {}))
+    mitre_data = dict(mitre_extension.get("data") or {})
+    mitre_summary = dict(mitre_extension.get("summary") or {})
+    mitre_attack_metadata = dict(mitre_extension.get("attack_metadata") or {})
+    mitre_matrix = dict(mitre_data.get("matrix") or {})
+    mitre_classifications = sorted(
+        list(mitre_data.get("classifications") or []),
+        key=lambda item: (
+            {"observed": 0, "inferred": 1, "platform": 2}.get(str(item.get("basis") or "inferred"), 9),
+            -float(item.get("confidence") or 0.0),
+            str(item.get("technique_id") or ""),
+        ),
+    )
+    mitre_platform_coverage = sorted(
+        list(mitre_data.get("platform_coverage") or []),
+        key=lambda item: (str(item.get("domain") or ""), str(item.get("family") or ""), str(item.get("technique_id") or "")),
+    )
+    mitre_domains = sorted(
+        list((mitre_attack_metadata.get("domains") or {}).values()),
+        key=lambda item: (str(item.get("name") or ""), str(item.get("domain") or "")),
+    )
+    mitre_matrix_domains = sorted(
+        list(mitre_matrix.get("domains") or []),
+        key=lambda item: (str(item.get("name") or ""), str(item.get("domain") or "")),
+    )
+
+    signal_attack_ids = defaultdict(list)
+    for item in mitre_classifications:
+        technique_id = str(item.get("technique_id") or "").strip().upper()
+        if not technique_id:
+            continue
+        for signal in item.get("mapped_from") or []:
+            signal_key = str(signal or "").strip().upper()
+            if signal_key and technique_id not in signal_attack_ids[signal_key]:
+                signal_attack_ids[signal_key].append(technique_id)
+
+    enriched_findings = []
+    for finding in risk_findings:
+        item = dict(finding or {})
+        mapped = signal_attack_ids.get(str(item.get("category") or "").strip().upper(), [])
+        existing = [str(value).strip().upper() for value in (item.get("attack_ids") or []) if str(value).strip()]
+        item["attack_ids"] = sorted(set(existing + mapped))
+        enriched_findings.append(item)
+    risk_findings = enriched_findings
+
+    enriched_indicators = []
+    for indicator in c2_indicators:
+        item = dict(indicator or {})
+        mapped = signal_attack_ids.get(str(item.get("type") or "").strip().upper(), [])
+        existing = [str(value).strip().upper() for value in (item.get("attack_ids") or []) if str(value).strip()]
+        item["attack_ids"] = sorted(set(existing + mapped))
+        enriched_indicators.append(item)
+    c2_indicators = sorted(
+        enriched_indicators,
+        key=lambda item: (_severity_rank(item.get("severity")), item.get("type", ""), item.get("src", "")),
+    )
 
     node_risks = defaultdict(list)
     for finding in risk_findings:
@@ -197,6 +1083,14 @@ def _build_viewer_context(report: dict) -> dict:
             node_risks[str(ip)].append(finding)
     for items in node_risks.values():
         items.sort(key=lambda item: (_severity_rank(item.get("severity")), item.get("category", "")))
+
+    dpi_summary, dpi_context = _build_dpi_context(report, nodes)
+    asset_evidence = dict(dpi_context.get("asset_evidence") or {})
+    module_views = _collect_workbench_views(report)
+    module_views_by_location = {location: [] for location in sorted(_WORKBENCH_VIEW_LOCATIONS)}
+    for view in module_views:
+        location = str(view.get("location") or "intel")
+        module_views_by_location.setdefault(location, []).append(view)
 
     def classify_score(node: dict) -> int:
         score = 0
@@ -235,6 +1129,7 @@ def _build_viewer_context(report: dict) -> dict:
     for node in sorted(nodes, key=node_priority_key, reverse=True):
         ip = str(node.get("ip") or node.get("address") or "")
         related_risks = node_risks.get(ip, [])
+        dpi_evidence = asset_evidence.get(ip, {})
         assets_sorted.append({
             **node,
             "_ip": ip,
@@ -244,6 +1139,7 @@ def _build_viewer_context(report: dict) -> dict:
             "_risk_findings": related_risks,
             "_classification_score": classify_score(node),
             "_has_writes": ip in write_nodes,
+            "_dpi": dpi_evidence,
         })
 
     priority_nodes = [node for node in assets_sorted if int(node.get("attack_priority") or 0) > 0][:8]
@@ -307,8 +1203,18 @@ def _build_viewer_context(report: dict) -> dict:
         "severity_counts": severity_counts,
         "packet_count": (report.get("capture_info") or {}).get("total_packets"),
         "duration_seconds": (report.get("capture_info") or {}).get("duration_seconds"),
+        "dpi_enriched_conversation_count": int(dpi_summary.get("enriched_conversation_count") or 0),
+        "dpi_asset_count": int(dpi_summary.get("asset_count") or 0),
+        "dpi_identity_count": int(dpi_summary.get("identity_count") or 0),
     }
     summary["unclassified_count"] = max(0, summary["asset_count"] - summary["classified_count"])
+    summary["mitre_classification_total"] = len(mitre_classifications)
+    summary["mitre_platform_total"] = len(mitre_platform_coverage)
+    summary["mitre_tactic_total"] = int(mitre_summary.get("tactic_total") or 0)
+    summary["mitre_subtechnique_total"] = int(mitre_summary.get("subtechnique_total") or 0)
+    summary["mitre_matrix_domain_total"] = int(mitre_summary.get("matrix_domain_total") or len(mitre_matrix_domains))
+    summary["module_view_total"] = len(module_views)
+    summary["module_location_total"] = sum(1 for items in module_views_by_location.values() if items)
 
     return {
         "summary": summary,
@@ -324,7 +1230,55 @@ def _build_viewer_context(report: dict) -> dict:
         "purdue_violations": purdue_violations,
         "c2_indicators": c2_indicators,
         "mac_table": mac_table,
+        "mitre_summary": mitre_summary,
+        "mitre_attack_metadata": mitre_attack_metadata,
+        "mitre_domains": mitre_domains,
+        "mitre_matrix": mitre_matrix,
+        "mitre_matrix_domains": mitre_matrix_domains,
+        "mitre_classifications": mitre_classifications,
+        "mitre_platform_coverage": mitre_platform_coverage,
+        "dpi_summary": dpi_summary,
+        "dpi_highlights": dpi_context.get("dpi_highlights") or [],
+        "asset_evidence": asset_evidence,
+        "module_views": module_views,
+        "module_views_by_location": module_views_by_location,
     }
+
+
+SCAN_COMMAND_ALIASES = {
+    "analyze": "dissect",
+    "classify": "topology",
+    "report": "risk",
+}
+
+VALID_SCAN_COMMANDS = {"chain", "ingest", "dissect", "topology", "risk"}
+VALID_SCAN_PROFILES = {"full", "fast"}
+
+
+def _normalize_scan_command(command: str) -> str:
+    """Map legacy UI labels onto canonical engine subcommands."""
+    normalized = (command or "chain").strip().lower()
+    normalized = SCAN_COMMAND_ALIASES.get(normalized, normalized)
+    return normalized if normalized in VALID_SCAN_COMMANDS else "chain"
+
+
+def _normalize_scan_profile(profile: str) -> str:
+    normalized = (profile or "full").strip().lower()
+    return normalized if normalized in VALID_SCAN_PROFILES else "full"
+
+
+def _scan_stage_names(command: str) -> list[str]:
+    if command == "chain":
+        return ["Ingest", "Analyze", "Classify", "Report"]
+    if command == "ingest":
+        return ["Ingest"]
+    if command == "dissect":
+        return ["Analyze"]
+    if command == "topology":
+        return ["Classify"]
+    if command == "risk":
+        return ["Report"]
+    return ["Run"]
 
 
 def create_app():
@@ -339,7 +1293,7 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = config.DATABASE_URL
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config.update(
-        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_SECURE=config.SESSION_COOKIE_SECURE,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Lax',
         PERMANENT_SESSION_LIFETIME=86400,
@@ -348,39 +1302,72 @@ def create_app():
     # Rate limiter
     limiter = Limiter(get_remote_address, app=app, default_limits=[])
 
+    # Ensure writable paths exist before database initialization.
+    os.makedirs(config.DATA_DIR, exist_ok=True)
+    os.makedirs(config.REPORTS_DIR, exist_ok=True)
+    os.makedirs(config.UPLOADS_DIR, exist_ok=True)
+    os.makedirs(config.SUBMISSIONS_DIR, exist_ok=True)
+    os.makedirs(config.PRESETS_DIR, exist_ok=True)
+
     # Init DB
     db.init_app(app)
     with app.app_context():
+        from sqlalchemy import inspect, text
+
         db.create_all()
+
+        def _get_columns(table_name):
+            return {col["name"] for col in inspect(db.engine).get_columns(table_name)}
+
+        def _add_column_if_missing(table_name, column_name, ddl_fragment):
+            try:
+                if column_name in _get_columns(table_name):
+                    return
+                db.session.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {ddl_fragment}"))
+                db.session.commit()
+                log.info("Added %s.%s", table_name, column_name)
+            except Exception as exc:
+                db.session.rollback()
+                log.info("Column migration skipped for %s.%s: %s", table_name, column_name, exc)
+
+        def _drop_column_if_present(table_name, column_name):
+            try:
+                if column_name not in _get_columns(table_name):
+                    return
+                if db.engine.dialect.name == "sqlite":
+                    log.info("Skipping %s.%s drop on SQLite", table_name, column_name)
+                    return
+                db.session.execute(text(f"ALTER TABLE {table_name} DROP COLUMN {column_name}"))
+                db.session.commit()
+                log.info("Dropped legacy %s.%s", table_name, column_name)
+            except Exception as exc:
+                db.session.rollback()
+                log.info("Legacy column cleanup skipped for %s.%s: %s", table_name, column_name, exc)
+
         # Migrate: add project_id column to scan_history if missing
-        from sqlalchemy import text
-        try:
-            db.session.execute(text(
-                "ALTER TABLE scan_history ADD COLUMN IF NOT EXISTS "
-                "project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL"
-            ))
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            log.info("project_id migration skipped (may already exist): %s", e)
+        _add_column_if_missing(
+            "scan_history",
+            "project_id",
+            "project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL",
+        )
+        _add_column_if_missing(
+            "scan_history",
+            "scan_profile",
+            "scan_profile VARCHAR(12) NOT NULL DEFAULT 'full'",
+        )
 
         # Migrate: add user profile columns if missing
-        profile_cols = [
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(120)",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS company VARCHAR(120)",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(30)",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS birthday DATE",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_tier VARCHAR(20) NOT NULL DEFAULT 'free'",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS upload_limit_mb INTEGER NOT NULL DEFAULT 200",
-        ]
-        try:
-            for stmt in profile_cols:
-                db.session.execute(text(stmt))
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            log.info("Profile column migration skipped (may already exist): %s", e)
+        for column_name, ddl_fragment in [
+            ("full_name", "full_name VARCHAR(120)"),
+            ("company", "company VARCHAR(120)"),
+            ("phone", "phone VARCHAR(30)"),
+            ("birthday", "birthday DATE"),
+            ("address", "address TEXT"),
+            ("upload_limit_mb", "upload_limit_mb INTEGER NOT NULL DEFAULT 200"),
+        ]:
+            _add_column_if_missing("users", column_name, ddl_fragment)
+
+        _drop_column_if_present("users", "subscription_tier")
 
     # Bootstrap admin
     bootstrap_admin(app)
@@ -394,12 +1381,6 @@ def create_app():
         if stale:
             db.session.commit()
             log.info("Marked %d stale running scans as interrupted", len(stale))
-
-    # Ensure data dirs
-    os.makedirs(config.REPORTS_DIR, exist_ok=True)
-    os.makedirs(config.UPLOADS_DIR, exist_ok=True)
-    os.makedirs(config.SUBMISSIONS_DIR, exist_ok=True)
-    os.makedirs(config.PRESETS_DIR, exist_ok=True)
 
     # One-time migration: copy baked-in presets to data volume
     if os.path.isdir(config.PRESETS_BAKED_DIR) and config.PRESETS_BAKED_DIR != config.PRESETS_DIR:
@@ -592,7 +1573,7 @@ def create_app():
                 pcap_count = sum(1 for f in os.listdir(up_dir)
                                  if f.lower().endswith((".pcap", ".pcapng", ".cap")))
             if os.path.isdir(rp_dir):
-                report_count = sum(1 for f in os.listdir(rp_dir) if f.endswith(".json"))
+                report_count = sum(1 for f in os.listdir(rp_dir) if _is_primary_report_filename(f))
             result.append({
                 "id": p.id,
                 "name": p.name,
@@ -705,7 +1686,7 @@ def create_app():
         rdir = os.path.join(config.REPORTS_DIR, str(session["user_id"]), str(pid))
         if os.path.isdir(rdir):
             for fn in os.listdir(rdir):
-                if fn.endswith(".json"):
+                if _is_primary_report_filename(fn):
                     path = os.path.join(rdir, fn)
                     try:
                         stat = os.stat(path)
@@ -920,7 +1901,7 @@ def create_app():
     @limiter.limit("10 per minute")
     def api_scan_start():
         body = request.get_json(silent=True) or {}
-        command = body.get("command", "chain")
+        command = _normalize_scan_command(body.get("command", "chain"))
         # Accept pcap_file (bare filename) with pcap_path backward compat
         pcap_file = body.get("pcap_file", "") or body.get("pcap_path", "")
         interface = body.get("interface", "")
@@ -929,6 +1910,7 @@ def create_app():
         capture_filter = body.get("capture_filter", "")
         chunk_size = body.get("chunk_size", 300000)
         collapse_threshold = body.get("collapse_threshold", 50)
+        scan_profile = _normalize_scan_profile(body.get("scan_profile", body.get("profile", "full")))
         project_id = body.get("project_id")
 
         # Resolve project
@@ -996,8 +1978,29 @@ def create_app():
         report_filename = f"{prefix}marlinspike-{run_id[:8]}.json"
         report_path = os.path.join(user_reports_dir(project_id), report_filename)
 
+        chunk_val = 0
+        try:
+            chunk_val = max(0, int(chunk_size))
+        except (ValueError, TypeError):
+            chunk_val = 0
+
+        collapse_val = 50
+        try:
+            collapse_val = int(collapse_threshold)
+        except (ValueError, TypeError):
+            collapse_val = 50
+
+        pcap_size = os.path.getsize(pcap_path) if pcap_path and os.path.isfile(pcap_path) else 0
+        use_chunked_chain = bool(
+            command == "chain"
+            and pcap_path
+            and not interface
+            and chunk_val > 0
+            and pcap_size > config.PCAP_PROCESS_SIZE
+        )
+
         # Build CLI args
-        args = ["python3", "-u", config.MARLINSPIKE_PY]
+        args = [config.PYTHON_EXE, "-u", config.MARLINSPIKE_PY]
         if pcap_path:
             args.extend(["--pcap", pcap_path])
         elif interface:
@@ -1008,26 +2011,22 @@ def create_app():
             args.append("--skip-ephemeral")
         if capture_filter:
             args.extend(["--capture-filter", capture_filter])
-        try:
-            chunk_val = int(chunk_size)
-            if chunk_val > 0:
-                args.extend(["--chunk-size", str(chunk_val)])
-        except (ValueError, TypeError):
-            pass
-        try:
-            collapse_val = int(collapse_threshold)
-            if collapse_val > 0:
-                args.extend(["--collapse-threshold", str(collapse_val)])
-            else:
-                args.extend(["--collapse-threshold", "0"])
-        except (ValueError, TypeError):
-            pass
+        if scan_profile == "fast":
+            args.append("--fast")
+        if chunk_val > 0 and not use_chunked_chain:
+            args.extend(["--chunk-size", str(chunk_val)])
+        if collapse_val > 0:
+            args.extend(["--collapse-threshold", str(collapse_val)])
+        else:
+            args.extend(["--collapse-threshold", "0"])
         args.append("--no-grassmarlin")
         args.extend(["-o", report_path])
         args.append(command)
 
         # MarlinSpike chain stages
-        chain_stages = ["Ingest", "Analyze", "Classify", "Report"]
+        chain_stages = _scan_stage_names(command)
+        if command == "chain" and config.MARLINSPIKE_MITRE_ENABLED:
+            chain_stages.append("ATT&CK")
         stages = []
         for i, stage_name in enumerate(chain_stages):
             stages.append({
@@ -1036,18 +2035,20 @@ def create_app():
                 "state": "pending",
             })
 
-        try:
-            proc = subprocess.Popen(
-                args,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-                cwd=config.REPORTS_DIR,
-            )
-        except Exception as e:
-            log.error("Failed to start scan: %s", e)
-            return jsonify({"ok": False, "error": "Failed to start scan"}), 500
+        proc = None
+        if not use_chunked_chain:
+            try:
+                proc = subprocess.Popen(
+                    args,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    cwd=config.REPORTS_DIR,
+                )
+            except Exception as e:
+                log.error("Failed to start scan: %s", e)
+                return jsonify({"ok": False, "error": "Failed to start scan"}), 500
 
         # Compute PCAP hash if file-based
         pcap_hash = None
@@ -1062,7 +2063,14 @@ def create_app():
             except Exception:
                 pass
 
-        log.info("Scan start: %s by %s (command=%s, file=%s)", run_id, session.get("user", "?"), command, pcap_source or "live")
+        log.info(
+            "Scan start: %s by %s (command=%s, file=%s, mode=%s)",
+            run_id,
+            session.get("user", "?"),
+            command,
+            pcap_source or "live",
+            "chunked" if use_chunked_chain else "single",
+        )
 
         run_state = {
             "process": proc,
@@ -1072,6 +2080,7 @@ def create_app():
             "stage_name": "",
             "stages": stages,
             "command": command,
+            "scan_profile": scan_profile,
             "report_path": report_path,
             "report_filename": report_filename,
             "started_at": datetime.now(timezone.utc).isoformat(),
@@ -1079,6 +2088,12 @@ def create_app():
             "return_code": None,
             "artifacts_produced": {},
             "project_id": project_id,
+            "stop_requested": False,
+            "pcap_path": pcap_path,
+            "pcap_size": pcap_size,
+            "chunk_size": chunk_val,
+            "collapse_threshold": collapse_val,
+            "chunked": use_chunked_chain,
         }
 
         with _runs_lock:
@@ -1090,6 +2105,7 @@ def create_app():
             user_id=session["user_id"],
             project_id=project_id,
             command=command,
+            scan_profile=scan_profile,
             pcap_source=pcap_source,
             pcap_hash=pcap_hash,
             status="running",
@@ -1102,65 +2118,202 @@ def create_app():
             for line in proc.stdout:
                 line = line.rstrip()
                 run_state["output"].append(line)
-                # Parse stage markers
-                m = re.match(r"^\s*STAGE\s+(\d+)\s*[—–-]\s*(.+)", line)
-                if m:
-                    stage_num = int(m.group(1))
-                    stage_name = m.group(2).strip()
-                    run_state["stage"] = stage_num
-                    run_state["stage_name"] = stage_name
-                    for s in run_state["stages"]:
-                        if s["number"] < stage_num:
-                            s["state"] = "complete"
-                        elif s["number"] == stage_num:
-                            s["state"] = "running"
-                # Detect errors
-                if re.search(r"\[!\].*(?:FAILED|ERROR)", line, re.IGNORECASE):
-                    for s in run_state["stages"]:
-                        if s["state"] == "running":
-                            s["state"] = "failed"
-                            break
+                _apply_stage_marker(run_state, line)
+                if _error_re.search(line):
+                    _mark_active_stage(run_state, "failed")
             proc.wait()
             run_state["return_code"] = proc.returncode
-            run_state["finished_at"] = datetime.now(timezone.utc).isoformat()
-            if proc.returncode == 0:
-                run_state["status"] = "completed"
-                for s in run_state["stages"]:
-                    if s["state"] in ("running", "complete"):
-                        s["state"] = "complete"
-            else:
-                run_state["status"] = "failed"
-                for s in run_state["stages"]:
-                    if s["state"] == "running":
-                        s["state"] = "failed"
-            _scan_artifacts(run_state)
+            _finalize_run(app, run_id, run_state, report_path)
 
-            # Update scan_history in DB
+        def _chunked_reader():
+            chunk_dir = ""
+            merged_path = ""
+            chunk_reports = []
+
+            def _run_child(child_args, cwd=None, prefix="", stage_map=None):
+                child = subprocess.Popen(
+                    child_args,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    cwd=cwd or config.REPORTS_DIR,
+                )
+                run_state["process"] = child
+                try:
+                    for raw_line in child.stdout:
+                        raw_line = raw_line.rstrip()
+                        display_line = f"{prefix}{raw_line}" if prefix else raw_line
+                        run_state["output"].append(display_line)
+                        if stage_map is not None:
+                            _apply_stage_marker(run_state, raw_line, stage_map=stage_map)
+                        if _error_re.search(raw_line):
+                            _mark_active_stage(run_state, "failed")
+                    child.wait()
+                    return child.returncode
+                finally:
+                    run_state["process"] = None
+
             try:
-                with app.app_context():
-                    rec = ScanHistory.query.filter_by(run_id=run_id).first()
-                    if rec:
-                        rec.status = run_state["status"]
-                        rec.completed_at = datetime.now(timezone.utc)
-                        # Save last output lines on failure
-                        if run_state["status"] in ("failed", "stopped"):
-                            tail = run_state["output"][-10:]
-                            rec.error_tail = "\n".join(tail) if tail else None
-                        # Read report for node/edge counts
-                        if os.path.isfile(report_path):
-                            try:
-                                with open(report_path) as rf:
-                                    rdata = json.load(rf)
-                                topo = rdata.get("results", {}).get("topology", rdata.get("topology", {}))
-                                rec.node_count = len(topo.get("nodes", []))
-                                rec.edge_count = len(topo.get("edges", []))
-                            except Exception:
-                                pass
-                        db.session.commit()
-            except Exception as e:
-                log.warning("Failed to update scan_history: %s", e)
+                temp_root = os.path.join(tempfile.gettempdir(), "ms-chunks")
+                os.makedirs(temp_root, exist_ok=True)
+                chunk_dir = tempfile.mkdtemp(prefix=f"{run_id[:8]}-", dir=temp_root)
 
-        threading.Thread(target=_reader, daemon=True, name=f"ms-run-{run_id[:8]}").start()
+                run_state["output"].append("[*] Large capture detected — using chunked chain pipeline")
+                _set_run_stage(run_state, 1, "Ingest")
+                run_state["output"].append(
+                    f"[*] Splitting {os.path.basename(pcap_path)} into chunks of {chunk_val:,} packets"
+                )
+
+                split_args = [
+                    "editcap",
+                    "-c",
+                    str(chunk_val),
+                    pcap_path,
+                    os.path.join(chunk_dir, "chunk.pcap"),
+                ]
+                split_rc = _run_child(split_args, cwd=chunk_dir)
+                if run_state["stop_requested"]:
+                    run_state["return_code"] = -15
+                    return
+                if split_rc != 0:
+                    run_state["output"].append(f"[!] FAILED: editcap split failed (rc={split_rc})")
+                    run_state["return_code"] = split_rc
+                    return
+
+                chunk_files = sorted(
+                    name for name in os.listdir(chunk_dir)
+                    if name.startswith("chunk") and (name.endswith(".pcap") or name.endswith(".pcapng"))
+                )
+                if not chunk_files:
+                    run_state["output"].append("[!] FAILED: chunk split produced no chunk files")
+                    run_state["return_code"] = 1
+                    return
+
+                total_chunks = len(chunk_files)
+                run_state["output"].append(f"[*] Split into {total_chunks} chunks")
+                _set_run_stage(run_state, 2, f"Analyze (1/{total_chunks})")
+
+                for idx, chunk_file in enumerate(chunk_files, start=1):
+                    if run_state["stop_requested"]:
+                        run_state["return_code"] = -15
+                        return
+                    chunk_path = os.path.join(chunk_dir, chunk_file)
+                    chunk_report = os.path.join(chunk_dir, f"chunk-dissect-{idx:05d}.json")
+                    chunk_reports.append(chunk_report)
+                    run_state["stage_name"] = f"Analyze ({idx}/{total_chunks})"
+                    run_state["output"].append(f"[*] Dissecting chunk {idx}/{total_chunks}: {chunk_file}")
+
+                    dissect_args = [
+                        config.PYTHON_EXE,
+                        "-u",
+                        config.MARLINSPIKE_PY,
+                        "--pcap",
+                        chunk_path,
+                        "--no-grassmarlin",
+                        "-o",
+                        chunk_report,
+                    ]
+                    if scan_profile == "fast":
+                        dissect_args.append("--fast")
+                    if collapse_val > 0:
+                        dissect_args.extend(["--collapse-threshold", str(collapse_val)])
+                    else:
+                        dissect_args.extend(["--collapse-threshold", "0"])
+                    dissect_args.append("dissect")
+
+                    dissect_rc = _run_child(
+                        dissect_args,
+                        prefix=f"[chunk {idx}/{total_chunks}] ",
+                    )
+                    if run_state["stop_requested"]:
+                        run_state["return_code"] = -15
+                        return
+                    if dissect_rc != 0:
+                        run_state["output"].append(
+                            f"[!] FAILED: chunk {idx}/{total_chunks} dissection failed (rc={dissect_rc})"
+                        )
+                        run_state["return_code"] = dissect_rc
+                        return
+                    if not os.path.isfile(chunk_report):
+                        run_state["output"].append(
+                            f"[!] FAILED: chunk {idx}/{total_chunks} produced no dissect report"
+                        )
+                        run_state["return_code"] = 1
+                        return
+                    try:
+                        os.unlink(chunk_path)
+                    except OSError:
+                        pass
+
+                if run_state["stop_requested"]:
+                    run_state["return_code"] = -15
+                    return
+
+                run_state["stage_name"] = "Analyze (merge)"
+                run_state["output"].append("[*] Merging conversations from chunk reports")
+                merged_conversations, merged_capture_info = _merge_chunk_conversations(
+                    chunk_reports,
+                    capture_info_seed={
+                        "pcap_path": pcap_path,
+                        "capture_source": os.path.basename(pcap_path),
+                        "total_bytes": pcap_size,
+                    },
+                )
+                run_state["output"].append(
+                    f"[*] Merged {len(merged_conversations):,} unique conversations"
+                )
+                merged_path = os.path.join(chunk_dir, "merged-conversations.json")
+                with open(merged_path, "w") as handle:
+                    json.dump(
+                        {
+                            "conversations": merged_conversations,
+                            "capture_info": merged_capture_info,
+                        },
+                        handle,
+                        indent=2,
+                        default=str,
+                    )
+
+                if run_state["stop_requested"]:
+                    run_state["return_code"] = -15
+                    return
+
+                run_state["output"].append("[*] Running topology + risk from merged conversations")
+                chain_args = [
+                    config.PYTHON_EXE,
+                    "-u",
+                    config.MARLINSPIKE_PY,
+                    "--conversations",
+                    merged_path,
+                    "--no-grassmarlin",
+                    "-o",
+                    report_path,
+                ]
+                if skip_ephemeral:
+                    chain_args.append("--skip-ephemeral")
+                if scan_profile == "fast":
+                    chain_args.append("--fast")
+                chain_args.append("chain-from-conversations")
+
+                run_state["return_code"] = _run_child(
+                    chain_args,
+                    stage_map={3: 3, 4: 4},
+                )
+            except FileNotFoundError as exc:
+                run_state["output"].append(f"[!] FAILED: required tool missing: {exc}")
+                run_state["return_code"] = 127
+            except Exception as exc:
+                log.exception("Chunked scan %s failed", run_id)
+                run_state["output"].append(f"[!] FAILED: chunked pipeline error: {exc}")
+                run_state["return_code"] = 1
+            finally:
+                if chunk_dir:
+                    shutil.rmtree(chunk_dir, ignore_errors=True)
+                _finalize_run(app, run_id, run_state, report_path)
+
+        worker = _chunked_reader if use_chunked_chain else _reader
+        threading.Thread(target=worker, daemon=True, name=f"ms-run-{run_id[:8]}").start()
 
         return jsonify({"ok": True, "run_id": run_id})
 
@@ -1177,6 +2330,7 @@ def create_app():
                 entry = {
                     "run_id": run_id,
                     "command": run["command"],
+                    "scan_profile": run.get("scan_profile", "full"),
                     "status": run["status"],
                     "stage": run["stage"],
                     "stage_name": run["stage_name"],
@@ -1199,6 +2353,11 @@ def create_app():
             run = _run_registry.get(run_id)
         if not run:
             return jsonify({"error": "Run not found"}), 404
+        artifacts = {
+            str(key): os.path.basename(str(path))
+            for key, path in (run.get("artifacts_produced", {}) or {}).items()
+            if path
+        }
         return jsonify({
             "run_id": run_id,
             "status": run["status"],
@@ -1206,12 +2365,14 @@ def create_app():
             "stage_name": run["stage_name"],
             "stages": run.get("stages", []),
             "command": run["command"],
+            "scan_profile": run.get("scan_profile", "full"),
             "started_at": run["started_at"],
             "finished_at": run["finished_at"],
             "return_code": run["return_code"],
             "output_lines": len(run["output"]),
             "report_filename": run["report_filename"],
             "project_id": run.get("project_id"),
+            "artifacts_produced": artifacts,
         })
 
     @app.route("/api/runs/<run_id>/output")
@@ -1248,6 +2409,7 @@ def create_app():
             run = _run_registry.get(run_id)
         if not run:
             return jsonify({"error": "Run not found"}), 404
+        run["stop_requested"] = True
         proc = run.get("process")
         if proc and proc.poll() is None:
             proc.terminate()
@@ -1255,20 +2417,9 @@ def create_app():
                 proc.wait(timeout=8)
             except subprocess.TimeoutExpired:
                 proc.kill()
-            run["status"] = "stopped"
-            run["finished_at"] = datetime.now(timezone.utc).isoformat()
-            for s in run.get("stages", []):
-                if s["state"] == "running":
-                    s["state"] = "stopped"
-            # Update DB
-            try:
-                rec = ScanHistory.query.filter_by(run_id=run_id).first()
-                if rec:
-                    rec.status = "stopped"
-                    rec.completed_at = datetime.now(timezone.utc)
-                    db.session.commit()
-            except Exception:
-                pass
+        if run["status"] in ("pending", "running"):
+            _mark_active_stage(run, "stopped")
+            run["stage_name"] = "Stopping"
         return jsonify({"ok": True})
 
     # ── Run topology + live viewer ───────────────────────────
@@ -1334,7 +2485,7 @@ def create_app():
         rdir = user_reports_dir(project_id)
         if os.path.isdir(rdir):
             for fn in os.listdir(rdir):
-                if fn.endswith(".json"):
+                if _is_primary_report_filename(fn):
                     path = os.path.join(rdir, fn)
                     try:
                         stat = os.stat(path)
@@ -1468,8 +2619,7 @@ def create_app():
         path = os.path.join(user_reports_dir(project_id), safe_name)
         if not os.path.isfile(path):
             return "Report not found", 404
-        with open(path) as f:
-            report = json.load(f)
+        report = _load_report_with_extensions(path, ensure_mitre=True)
         sanitized_report = _sanitize_report(report)
         return render_template(
             "viewer.html",
@@ -1487,8 +2637,7 @@ def create_app():
         path = os.path.join(user_reports_dir(project_id), safe_name)
         if not os.path.isfile(path):
             return "Report not found", 404
-        with open(path) as f:
-            report = json.load(f)
+        report = _load_report_with_extensions(path, ensure_mitre=True)
         return render_template(
             "assets.html",
             report_json=_sanitize_report(report),
@@ -1503,6 +2652,9 @@ def create_app():
         path = os.path.join(user_reports_dir(project_id), safe_name)
         if os.path.isfile(path):
             os.unlink(path)
+        mitre_path = _mitre_sidecar_path(path)
+        if os.path.isfile(mitre_path):
+            os.unlink(mitre_path)
         return jsonify({"ok": True})
 
     # ── PCAP file browser ─────────────────────────────────────
@@ -1666,6 +2818,7 @@ def create_app():
                 "run_id": s.run_id,
                 "user": s.user.username if s.user else "?",
                 "command": s.command,
+                "scan_profile": s.scan_profile or "full",
                 "pcap_source": (os.path.basename(s.pcap_source) if s.pcap_source and not s.pcap_source.startswith("live:") else s.pcap_source),
                 "status": s.status,
                 "started_at": s.started_at.isoformat() if s.started_at else None,
@@ -1991,7 +3144,6 @@ def create_app():
                 "username": u.username,
                 "role": u.role,
                 "created_at": u.created_at.isoformat() if u.created_at else None,
-                "subscription_tier": u.subscription_tier or "free",
                 "upload_limit_mb": u.upload_limit_mb if u.upload_limit_mb else 200,
             }
             for u in users
@@ -2083,7 +3235,6 @@ def create_app():
             "phone": user.phone or "",
             "birthday": user.birthday.isoformat() if user.birthday else "",
             "address": user.address or "",
-            "subscription_tier": user.subscription_tier or "free",
             "upload_limit_mb": user.upload_limit_mb if user.upload_limit_mb else 200,
             "joined": user.created_at.isoformat() if user.created_at else "",
             "scan_count": scan_count,
@@ -2120,11 +3271,6 @@ def create_app():
         user = User.query.filter_by(username=username).first()
         if not user:
             return jsonify({"ok": False, "error": "User not found"}), 404
-        if "subscription_tier" in body:
-            tier = body["subscription_tier"]
-            if tier not in ("free", "pro", "enterprise"):
-                return jsonify({"ok": False, "error": "Invalid tier"}), 400
-            user.subscription_tier = tier
         if "upload_limit_mb" in body:
             try:
                 limit = int(body["upload_limit_mb"])
@@ -2134,7 +3280,12 @@ def create_app():
             except (ValueError, TypeError):
                 return jsonify({"ok": False, "error": "upload_limit_mb must be 1–10000"}), 400
         db.session.commit()
-        log.info("Limits updated for %s by %s: %s", username, session.get("user", "?"), body)
+        log.info(
+            "Upload limit updated for %s by %s: %s MB",
+            username,
+            session.get("user", "?"),
+            user.upload_limit_mb,
+        )
         return jsonify({"ok": True})
 
     return app

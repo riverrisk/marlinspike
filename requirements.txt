@@ -2,4 +2,6 @@ flask
 flask-sqlalchemy
 flask-limiter
 psycopg2-binary
+PyYAML
+waitress
 zstandard

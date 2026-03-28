@@ -25,7 +25,6 @@ class User(db.Model):
     phone = db.Column(db.String(30), nullable=True)
     birthday = db.Column(db.Date, nullable=True)
     address = db.Column(db.Text, nullable=True)
-    subscription_tier = db.Column(db.String(20), nullable=False, default="free")
     upload_limit_mb = db.Column(db.Integer, nullable=False, default=200)
 
     scans = db.relationship("ScanHistory", backref="user", cascade="all, delete-orphan")
@@ -61,6 +60,7 @@ class ScanHistory(db.Model):
         db.Integer, db.ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
     )
     command = db.Column(db.String(20), nullable=False)
+    scan_profile = db.Column(db.String(12), nullable=False, default="full")
     pcap_source = db.Column(db.Text)
     pcap_hash = db.Column(db.String(64))
     status = db.Column(db.String(20), nullable=False)  # running/completed/failed/stopped

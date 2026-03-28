@@ -6,11 +6,11 @@ VORACITY MODULE — MARLINSPIKE
 module:
     name: MarlinSpike
     id: VORACITY-MODULE-MARLINSPIKE
-    version: 1.9.1
+    version: 2.0.0
     author: River Caudle <danny@riverman.io>
     organization: River Risk Partners (Riverman Enterprises LLC)
     date_created: 2026-02-20
-    date_modified: 2026-02-26
+    date_modified: 2026-03-27
     license: Apache-2.0
 
 classification:
@@ -363,6 +363,101 @@ def _protocol_service_port(protocol_key: str, src_port: int, dst_port: int) -> i
     return dst_port or src_port or 0
 
 
+def _append_unique_limited(bucket: list, value, limit: int = 32):
+    """Append a normalized value while preserving order and capping fan-out."""
+    if value is None:
+        return
+    text = str(value).strip()
+    if not text or text in bucket:
+        return
+    if len(bucket) < limit:
+        bucket.append(text)
+
+
+def _merge_bronze_attributes(bucket: dict, attributes: dict, limit: int = 12):
+    """Preserve protocol attributes generically so new DPI enrichments survive."""
+    if not isinstance(attributes, dict):
+        return
+    for key, value in attributes.items():
+        key_text = str(key).strip()
+        if not key_text or value is None:
+            continue
+        values = bucket.setdefault(key_text, [])
+        _append_unique_limited(values, value, limit=limit)
+
+
+def _finalize_bronze_attributes(bucket: dict) -> dict:
+    """Collapse aggregated attribute values to strings or small value lists."""
+    finalized = {}
+    for key in sorted(bucket):
+        values = bucket.get(key) or []
+        if not values:
+            continue
+        finalized[key] = values[0] if len(values) == 1 else values
+    return finalized
+
+
+def _summarize_asset_observation(asset: dict) -> dict:
+    """Keep a compact, reusable summary of Bronze asset observations."""
+    summary = {}
+    protocols = []
+    for protocol in asset.get("protocols") or []:
+        _append_unique_limited(protocols, protocol, limit=16)
+    if protocols:
+        summary["protocols"] = protocols
+
+    roles = []
+    for role in asset.get("roles") or []:
+        _append_unique_limited(roles, role, limit=12)
+    if roles:
+        summary["roles"] = roles
+
+    hostnames = []
+    for hostname in asset.get("hostnames") or []:
+        _append_unique_limited(hostnames, hostname, limit=8)
+    if hostnames:
+        summary["hostnames"] = hostnames
+
+    identifiers = {}
+    for key, value in sorted((asset.get("identifiers") or {}).items()):
+        text = str(value).strip() if value is not None else ""
+        if text:
+            identifiers[str(key)] = text
+    if identifiers:
+        summary["identifiers"] = identifiers
+
+    for field_name in ("asset_key", "vendor", "model", "firmware"):
+        text = str(asset.get(field_name) or "").strip()
+        if text:
+            summary[field_name] = text
+
+    return summary
+
+
+def _merge_asset_summary(existing: dict, incoming: dict):
+    """Merge compact Bronze asset summaries without losing prior observations."""
+    if not incoming:
+        return
+
+    for list_key, limit in (("protocols", 16), ("roles", 12), ("hostnames", 8)):
+        if incoming.get(list_key):
+            merged = existing.setdefault(list_key, [])
+            for value in incoming[list_key]:
+                _append_unique_limited(merged, value, limit=limit)
+
+    if incoming.get("identifiers"):
+        identifiers = existing.setdefault("identifiers", {})
+        for key, value in incoming["identifiers"].items():
+            text = str(value).strip()
+            if text and not identifiers.get(key):
+                identifiers[key] = text
+
+    for scalar_key in ("asset_key", "vendor", "model", "firmware"):
+        text = str(incoming.get(scalar_key) or "").strip()
+        if text and not existing.get(scalar_key):
+            existing[scalar_key] = text
+
+
 def _normalize_bronze_flow(envelope: dict, tx: dict):
     """Normalize Bronze request/response events to initiator -> responder."""
     protocol_key = (envelope.get("protocol") or "").lower()
@@ -412,6 +507,10 @@ def _register_asset_observation(asset_state: dict, l2_asset_state: dict, event: 
     protocols = set(asset.get("protocols") or [])
     asset_key = asset.get("asset_key") or ""
     ip_key = identifiers.get("ip") or (asset_key if _looks_like_ip(asset_key) else "")
+    asset_summary = _summarize_asset_observation(asset)
+
+    if ip_key and asset_summary:
+        _merge_asset_summary(asset_state.setdefault(ip_key, {}).setdefault("bronze_asset", {}), asset_summary)
 
     if "ethernet_ip" in protocols or "cip" in protocols:
         if ip_key:
@@ -499,6 +598,11 @@ def _apply_topology_observation(conversation_state: dict, l2_asset_state: dict, 
             "dns_query_types": set(),
             "dns_entropy": 0.0,
             "l2_discovery": {},
+            "operations_seen": [],
+            "protocol_attributes": {},
+            "protocol_object_refs": [],
+            "src_asset": {},
+            "dst_asset": {},
         },
     )
 
@@ -561,6 +665,11 @@ def _apply_protocol_transaction(aggregate: dict, tx: dict, flow: dict):
     aggregate["src_ports_seen"].add(flow["src_port"])
     if aggregate["src_port"] == 0 and flow["src_port"]:
         aggregate["src_port"] = flow["src_port"]
+    if operation:
+        _append_unique_limited(aggregate["operations_seen"], operation, limit=32)
+    _merge_bronze_attributes(aggregate["protocol_attributes"], tx.get("attributes") or {})
+    for object_ref in tx.get("object_refs") or []:
+        _append_unique_limited(aggregate["protocol_object_refs"], object_ref, limit=32)
 
     if protocol == "Modbus TCP":
         if operation:
@@ -715,6 +824,11 @@ def _build_conversations_from_bronze(output: dict) -> list:
                 "dns_query_types": set(),
                 "dns_entropy": 0.0,
                 "l2_discovery": {},
+                "operations_seen": [],
+                "protocol_attributes": {},
+                "protocol_object_refs": [],
+                "src_asset": {},
+                "dst_asset": {},
             },
         )
 
@@ -738,6 +852,11 @@ def _build_conversations_from_bronze(output: dict) -> list:
                 modbus_identity = identity["modbus_identity"]
                 if modbus_identity and not aggregate["modbus_functions"]:
                     aggregate["modbus_functions"].add("read_device_identification")
+
+        src_identity = asset_state.get(aggregate["src_ip"], {})
+        dst_identity = asset_state.get(aggregate["dst_ip"], {})
+        _merge_asset_summary(aggregate["src_asset"], src_identity.get("bronze_asset") or {})
+        _merge_asset_summary(aggregate["dst_asset"], dst_identity.get("bronze_asset") or {})
 
         beacon_score, beacon_interval, beacon_jitter = _compute_beacon_score_from_timestamps(aggregate["timestamps"])
         dns_queries = sorted(aggregate["dns_queries"])
@@ -780,6 +899,11 @@ def _build_conversations_from_bronze(output: dict) -> list:
                 dns_query_types=sorted(aggregate["dns_query_types"]),
                 dns_entropy=dns_entropy,
                 l2_discovery=aggregate["l2_discovery"],
+                operations_seen=aggregate["operations_seen"],
+                protocol_attributes=_finalize_bronze_attributes(aggregate["protocol_attributes"]),
+                protocol_object_refs=aggregate["protocol_object_refs"],
+                src_asset=aggregate["src_asset"],
+                dst_asset=aggregate["dst_asset"],
             )
         )
 
@@ -844,6 +968,7 @@ def _dissect_with_selected_engine(pcap_path: str, args, capture_id: str):
                     "version": dpi_output.get("version", ""),
                     "input": dpi_output.get("input", {}),
                     "checkpoint": (dpi_output.get("output") or {}).get("checkpoint", {}),
+                    "schema_version": ((dpi_output.get("output") or {}).get("checkpoint", {}) or {}).get("schema_version", ""),
                 }
                 print(f"[*] marlinspike-dpi parsed {len(conversations):,} conversations")
                 return conversations, port_summary, metadata
@@ -869,11 +994,11 @@ MODULE_META = {
     # ── Identity ──────────────────────────────────────────
     "name": "MarlinSpike",
     "id": "VORACITY-MODULE-MARLINSPIKE",
-    "version": "1.9.1",
+    "version": "2.0.0",
     "author": "River Caudle <danny@riverman.io>",
     "organization": "River Risk Partners",
     "date_created": "2026-02-20",
-    "date_modified": "2026-03-25",
+    "date_modified": "2026-03-27",
 
     # ── Classification ────────────────────────────────────
     "group": "Recon & Discovery",
@@ -1309,6 +1434,11 @@ class Conversation:
     dns_queries: list = field(default_factory=list)
     dns_query_types: list = field(default_factory=list)
     dns_entropy: float = 0.0
+    operations_seen: list = field(default_factory=list)
+    protocol_attributes: dict = field(default_factory=dict)
+    protocol_object_refs: list = field(default_factory=list)
+    src_asset: dict = field(default_factory=dict)
+    dst_asset: dict = field(default_factory=dict)
     # L2 topology discovery fields (LLDP/CDP/STP)
     l2_discovery: dict = field(default_factory=dict)
 
@@ -1395,6 +1525,7 @@ class MarlinSpikeReport:
     attack_targets: list = field(default_factory=list)
     port_summary: dict = field(default_factory=dict)
     c2_indicators: list = field(default_factory=list)
+    malware_findings: list = field(default_factory=list)
 
     # Recon tables
     mac_table: list = field(default_factory=list)  # [{mac, ip, vendor, system_name, capabilities, source}]
@@ -1403,6 +1534,7 @@ class MarlinSpikeReport:
     grassmarlin_used: bool = False
     dpi_engine: str = "python"
     dpi_engine_version: str = ""
+    dpi_schema_version: str = ""
     tshark_version: str = ""
     interrupted: bool = False
     completed_stages: list = field(default_factory=list)
@@ -3711,11 +3843,12 @@ class RiskSurface:
         "S7_PROGRAM_ACCESS": ("CRITICAL", "S7comm program upload/download observed — logic exposed"),
     }
 
-    def __init__(self, topology: dict, conversations: list[Conversation]):
+    def __init__(self, topology: dict, conversations: list[Conversation], skip_c2: bool = False):
         self.topology = topology
         self.conversations = conversations
         self.nodes = {n["ip"]: n for n in topology["nodes"]}
         self.edges = topology["edges"]
+        self.skip_c2 = skip_c2
         self.findings: list[RiskFinding] = []
 
     def score(self) -> dict:
@@ -3732,7 +3865,7 @@ class RiskSurface:
         self._check_opc_security()
         self._check_program_access()
         self._check_port_analysis()
-        c2_indicators = self._check_c2_indicators()
+        c2_indicators = [] if self.skip_c2 else self._check_c2_indicators()
 
         print(f"\n  Risk Summary:")
         severity_counts = defaultdict(int)
@@ -4393,6 +4526,254 @@ class RiskSurface:
 
 
 # ---------------------------------------------------------------------------
+# External malware engine support (marlinspike-malware)
+# ---------------------------------------------------------------------------
+
+def _find_malware_binary() -> Optional[str]:
+    """Locate the marlinspike-malware binary in PATH or common locations."""
+    for candidate in [
+        os.environ.get("MARLINSPIKE_MALWARE_BIN", ""),
+        "marlinspike-malware",
+        os.path.expanduser("~/marlinspike-malware/target/release/marlinspike-malware"),
+        os.path.expanduser("~/marlinspike-malware/target/debug/marlinspike-malware"),
+    ]:
+        if not candidate:
+            continue
+        resolved = shutil.which(candidate) or candidate
+        if os.path.isfile(resolved) and os.access(resolved, os.X_OK):
+            return resolved
+    return None
+
+
+def _find_malware_rules_dir() -> Optional[str]:
+    """Locate a compiled malware bundle or rules directory."""
+    candidates = [
+        os.environ.get("MARLINSPIKE_MALWARE_RULES", ""),
+        os.path.expanduser("~/marlinspike-malware-rules/packs"),
+        "/usr/share/marlinspike-malware/rules/packs",
+        os.path.expanduser("~/marlinspike-malware/rules"),
+    ]
+    for path in candidates:
+        if path and os.path.isdir(path):
+            return path
+    return None
+
+
+def _conversations_to_observed_events(conversations: list, capture_id: str) -> list:
+    """Convert MarlinSpike Conversation objects to marlinspike-malware ObservedEvent JSON."""
+    events = []
+    for i, conv in enumerate(conversations):
+        c = conv if isinstance(conv, dict) else asdict(conv)
+        observables = []
+
+        # DNS queries
+        for qname in (c.get("dns_queries") or []):
+            observables.append({"field": "dns_query", "value": qname})
+
+        # Protocol
+        proto = c.get("protocol", "")
+        if proto:
+            observables.append({"field": "protocol", "value": proto.lower()})
+
+        # IP addresses
+        src_ip = c.get("src_ip", "")
+        dst_ip = c.get("dst_ip", "")
+        if src_ip:
+            observables.append({"field": "src_ip", "value": src_ip})
+        if dst_ip:
+            observables.append({"field": "dst_ip", "value": dst_ip})
+
+        # MAC addresses
+        src_mac = c.get("src_mac", "")
+        dst_mac = c.get("dst_mac", "")
+        if src_mac:
+            observables.append({"field": "src_mac", "value": src_mac})
+        if dst_mac:
+            observables.append({"field": "dst_mac", "value": dst_mac})
+
+        # Bronze passthrough attributes as any_text
+        for key, val in (c.get("protocol_attributes") or {}).items():
+            if isinstance(val, str) and val:
+                observables.append({"field": "any_text", "value": val})
+            elif isinstance(val, list):
+                for item in val:
+                    if isinstance(item, str) and item:
+                        observables.append({"field": "any_text", "value": item})
+
+        # Operations as any_text
+        for op in (c.get("operations_seen") or []):
+            if isinstance(op, str) and op:
+                observables.append({"field": "any_text", "value": op})
+
+        if not observables:
+            continue
+
+        events.append({
+            "event_id": f"conv-{i}",
+            "capture_id": capture_id,
+            "timestamp": c.get("first_seen", "1970-01-01T00:00:00Z"),
+            "family_name": "protocol_transaction",
+            "protocol": proto.lower() if proto else None,
+            "src_ip": src_ip or None,
+            "dst_ip": dst_ip or None,
+            "src_mac": src_mac or None,
+            "dst_mac": dst_mac or None,
+            "observables": observables,
+        })
+
+    return events
+
+
+def _run_malware_engine(binary_path: str, rules_dir: str,
+                        events: list, capture_id: str) -> list:
+    """Feed observed events to marlinspike-malware and collect findings.
+
+    Uses the library's process_observed_batch via a thin JSON-over-stdin
+    protocol.  Falls back to the compile CLI to validate the rule bundle
+    is loadable.
+    """
+    # Write events to a temp file for the engine to consume
+    with tempfile.NamedTemporaryFile(
+        prefix="malware-events-", suffix=".json", mode="w", delete=False
+    ) as ef:
+        json.dump(events, ef)
+        events_path = ef.name
+
+    with tempfile.NamedTemporaryFile(
+        prefix="malware-findings-", suffix=".json", delete=False
+    ) as ff:
+        findings_path = ff.name
+
+    cmd = [
+        binary_path,
+        "scan",
+        "--rules-dir", rules_dir,
+        "--events", events_path,
+        "--output", findings_path,
+    ]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        if result.returncode != 0:
+            stderr = (result.stderr or "").strip()
+            detail = stderr or f"exit code {result.returncode}"
+            print(f"  [!] marlinspike-malware failed: {detail}")
+            return []
+        with open(findings_path) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"  [!] marlinspike-malware binary not found: {binary_path}")
+        return []
+    except subprocess.TimeoutExpired:
+        print("  [!] marlinspike-malware timed out (120s)")
+        return []
+    except (json.JSONDecodeError, IOError) as exc:
+        print(f"  [!] marlinspike-malware output error: {exc}")
+        return []
+    finally:
+        for p in (events_path, findings_path):
+            try:
+                os.unlink(p)
+            except FileNotFoundError:
+                pass
+
+
+def _malware_findings_to_c2_indicators(findings: list) -> list:
+    """Convert marlinspike-malware findings to c2_indicators format."""
+    indicators = []
+    for f in findings:
+        severity = (f.get("severity") or "HIGH").upper()
+        indicator = {
+            "type": "MALWARE_IOC_MATCH",
+            "severity": severity,
+            "src": f.get("src_ip") or f.get("src_mac") or "",
+            "dst": f.get("dst_ip") or f.get("dst_mac") or "",
+            "rule_id": f.get("rule_id", ""),
+            "rule_name": f.get("rule_name", ""),
+            "family": f.get("family", ""),
+            "confidence": f.get("confidence", 0.0),
+            "matched_field": f.get("observable_field", ""),
+            "matched_value": f.get("observable_value", ""),
+            "description": f.get("summary", ""),
+            "references": f.get("references", []),
+            "tags": f.get("tags", []),
+        }
+        indicators.append(indicator)
+    return indicators
+
+
+def _malware_findings_to_risk_findings(findings: list) -> list:
+    """Convert marlinspike-malware findings to RiskFinding objects."""
+    risk_findings = []
+    for f in findings:
+        severity = (f.get("severity") or "HIGH").upper()
+        affected = []
+        if f.get("src_ip"):
+            affected.append(f["src_ip"])
+        if f.get("dst_ip"):
+            affected.append(f["dst_ip"])
+        risk_findings.append(RiskFinding(
+            severity=severity,
+            category="MALWARE_IOC_MATCH",
+            description=f.get("summary", f.get("rule_name", "")),
+            affected_nodes=affected,
+            remediation=(
+                f"IOC match: {f.get('rule_name', '')} ({f.get('family', '')}). "
+                f"Investigate affected hosts and block indicators."
+            ),
+        ))
+    return risk_findings
+
+
+def _run_malware_stage(conversations: list, capture_id: str,
+                       skip: bool = False) -> dict:
+    """Run the malware detection stage.  Returns dict with indicators and findings."""
+    result = {"malware_findings": [], "c2_indicators": [], "risk_findings": []}
+
+    if skip:
+        return result
+
+    binary = _find_malware_binary()
+    rules_dir = _find_malware_rules_dir()
+
+    if not binary:
+        return result
+    if not rules_dir:
+        print("  [!] No malware rules directory found — skipping IOC matching")
+        return result
+
+    print(f"\n  Malware IOC Matching")
+    print(f"  Engine: {binary}")
+    print(f"  Rules:  {rules_dir}")
+
+    events = _conversations_to_observed_events(conversations, capture_id)
+    if not events:
+        print(f"  No observable events to evaluate")
+        return result
+
+    print(f"  Events: {len(events):,}")
+
+    findings = _run_malware_engine(binary, rules_dir, events, capture_id)
+
+    if findings:
+        result["malware_findings"] = findings
+        result["c2_indicators"] = _malware_findings_to_c2_indicators(findings)
+        result["risk_findings"] = _malware_findings_to_risk_findings(findings)
+        # Print summary
+        severity_counts = defaultdict(int)
+        for f in findings:
+            severity_counts[(f.get("severity") or "high").upper()] += 1
+        print(f"  Matches: {len(findings)}")
+        for sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"):
+            if severity_counts[sev]:
+                print(f"    {sev}: {severity_counts[sev]}")
+    else:
+        print(f"  No IOC matches")
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # CLI / Chain Orchestrator
 # ---------------------------------------------------------------------------
 
@@ -4436,6 +4817,7 @@ def run_chain(args):
     # Register signal handlers
     signal.signal(signal.SIGTERM, _shutdown_handler)
     signal.signal(signal.SIGINT, _shutdown_handler)
+    _apply_fast_profile(args)
 
     print(BANNER)
     report = MarlinSpikeReport(
@@ -4507,6 +4889,7 @@ def run_chain(args):
         report.conversations = [asdict(c) for c in conversations]
         report.dpi_engine = dpi_metadata.get("engine", "python")
         report.dpi_engine_version = dpi_metadata.get("version", "")
+        report.dpi_schema_version = dpi_metadata.get("schema_version", "")
 
         proto_counts = defaultdict(int)
         for conv in conversations:
@@ -4557,6 +4940,7 @@ def run_chain(args):
     risk_analyzer = RiskSurface(
         topology=report.topology,
         conversations=conversations if not report.grassmarlin_used else [],
+        skip_c2=getattr(args, "fast", False),
     )
     # Pass capture duration for persistence detection
     if report.capture_info:
@@ -4565,6 +4949,21 @@ def run_chain(args):
     report.risk_findings = risk_report["findings"]
     report.attack_targets = risk_report["attack_targets"]
     report.c2_indicators = risk_report.get("c2_indicators", [])
+
+    # ── Stage 4b: Malware IOC Matching ────────────────────────────
+    capture_id_for_malware = (
+        os.path.splitext(os.path.basename(getattr(args, "pcap", "") or ""))[0]
+        or "capture"
+    )
+    malware_result = _run_malware_stage(
+        conversations if not report.grassmarlin_used else [],
+        capture_id_for_malware,
+        skip=getattr(args, "fast", False),
+    )
+    if malware_result["malware_findings"]:
+        report.malware_findings = malware_result["malware_findings"]
+        report.c2_indicators.extend(malware_result["c2_indicators"])
+        report.risk_findings.extend(malware_result["risk_findings"])
 
     # Port summary from dissector
     _save_intermediate(report, args.output, "Risk Surface Report")
@@ -4636,6 +5035,7 @@ def run_ingest(args):
 def run_dissect(args):
     """Stage 2 only: protocol dissection."""
     print(BANNER)
+    _apply_fast_profile(args)
 
     # Auto-discover PCAP from ingest artifact if not provided
     pcap_path = args.pcap
@@ -4666,6 +5066,7 @@ def run_dissect(args):
         port_summary=port_summary,
         dpi_engine=dpi_metadata.get("engine", "python"),
         dpi_engine_version=dpi_metadata.get("version", ""),
+        dpi_schema_version=dpi_metadata.get("schema_version", ""),
     )
     proto_counts = defaultdict(int)
     for conv in conversations:
@@ -4685,6 +5086,7 @@ def run_dissect(args):
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "engine": report.dpi_engine,
         "engine_version": report.dpi_engine_version,
+        "schema_version": report.dpi_schema_version,
         "data": {
             "conversations": [asdict(c) for c in conversations],
             "protocol_summary": report.protocol_summary,
@@ -4701,6 +5103,7 @@ def run_dissect(args):
 def run_topology(args):
     """Stage 3 only: topology construction."""
     print(BANNER)
+    _apply_fast_profile(args)
 
     # Auto-discover conversations from dissect artifact if not provided
     conversations_data = []
@@ -4771,6 +5174,7 @@ def run_topology(args):
 def run_risk(args):
     """Stage 4 only: risk surface analysis."""
     print(BANNER)
+    _apply_fast_profile(args)
 
     # Auto-discover topology from topology artifact if not provided
     topology_data = None
@@ -4795,6 +5199,7 @@ def run_risk(args):
     risk_analyzer = RiskSurface(
         topology=topology_data,
         conversations=[],  # Risk analysis doesn't need full conversations
+        skip_c2=getattr(args, "fast", False),
     )
     risk_report = risk_analyzer.score()
 
@@ -4809,6 +5214,102 @@ def run_risk(args):
     report.timestamp_end = datetime.now(timezone.utc).isoformat()
     report.save(args.output)
 
+    return report
+
+
+def run_chain_from_conversations(args):
+    """Topology + risk from a merged conversations artifact."""
+    global _active_report, _active_report_path, _shutdown_requested
+
+    signal.signal(signal.SIGTERM, _shutdown_handler)
+    signal.signal(signal.SIGINT, _shutdown_handler)
+    _apply_fast_profile(args)
+
+    print(BANNER)
+    report = MarlinSpikeReport(
+        timestamp_start=datetime.now(timezone.utc).isoformat(),
+    )
+    _active_report = report
+    _active_report_path = args.output
+
+    if not args.conversations:
+        print("[!] --conversations is required for chain-from-conversations")
+        sys.exit(1)
+
+    with open(args.conversations) as f:
+        data = json.load(f)
+
+    conversations_data = data.get("conversations", data.get("data", {}).get("conversations", []))
+    capture_info_data = data.get("capture_info", data.get("data", {}).get("capture_info", {})) or {}
+    conversations = [Conversation(**c_dict) for c_dict in conversations_data]
+
+    print(f"[*] Loaded {len(conversations):,} merged conversations")
+
+    report.conversations = conversations_data
+    report.capture_info = dict(capture_info_data)
+    report.dpi_engine = data.get("engine", report.dpi_engine)
+    report.dpi_engine_version = data.get("engine_version", report.dpi_engine_version)
+    report.dpi_schema_version = data.get("schema_version", report.dpi_schema_version)
+
+    proto_counts = defaultdict(int)
+    all_macs = set()
+    all_ips = set()
+    for conv in conversations:
+        proto_counts[conv.protocol] += 1
+        if conv.src_mac:
+            all_macs.add(conv.src_mac)
+        if conv.dst_mac:
+            all_macs.add(conv.dst_mac)
+        if conv.src_ip:
+            all_ips.add(conv.src_ip)
+        if conv.dst_ip:
+            all_ips.add(conv.dst_ip)
+    report.protocol_summary = dict(proto_counts)
+    report.port_summary = _build_port_summary_from_conversations(conversations)
+    report.capture_info["unique_macs"] = len(all_macs)
+    report.capture_info["unique_ips"] = len(all_ips)
+    report.capture_info["protocols_seen"] = dict(proto_counts)
+
+    if _shutdown_requested:
+        print("[*] Stopped before topology — partial report saved")
+        report.save(args.output)
+        return report
+
+    builder = TopologyBuilder(
+        conversations=conversations,
+        subnet_map=_load_subnet_map(args.subnet_map),
+        skip_ephemeral=args.skip_ephemeral,
+    )
+    topology = builder.build()
+    report.topology = topology
+    report.nodes = topology["nodes"]
+    report.edges = topology["edges"]
+    report.mac_table = topology.get("mac_table", [])
+    _save_intermediate(report, args.output, "Topology Construction")
+
+    if _shutdown_requested:
+        print("[*] Stopped after Stage 3 — partial report saved")
+        return report
+
+    risk_analyzer = RiskSurface(
+        topology=report.topology,
+        conversations=conversations,
+        skip_c2=getattr(args, "fast", False),
+    )
+    if report.capture_info:
+        risk_analyzer._capture_duration = report.capture_info.get("duration_s", 0.0)
+    risk_report = risk_analyzer.score()
+    report.risk_findings = risk_report["findings"]
+    report.attack_targets = risk_report["attack_targets"]
+    report.c2_indicators = risk_report.get("c2_indicators", [])
+    _save_intermediate(report, args.output, "Risk Surface Report")
+
+    report.timestamp_end = datetime.now(timezone.utc).isoformat()
+    report.interrupted = False
+    report.save(args.output)
+
+    _active_report = None
+    _active_report_path = None
     return report
 
 
@@ -5013,6 +5514,15 @@ def _load_subnet_map(path: str) -> dict:
         return json.load(f)
 
 
+def _apply_fast_profile(args) -> None:
+    """Apply low-cost defaults for triage-first, time-bounded scans."""
+    if not getattr(args, "fast", False):
+        return
+    args.skip_ephemeral = True
+    if getattr(args, "collapse_threshold", 50) == 50:
+        args.collapse_threshold = 25
+
+
 def main():
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     parser = argparse.ArgumentParser(
@@ -5039,7 +5549,7 @@ def main():
                        help="Force built-in parser (default: True)")
     parser.add_argument("--conversations", default="",
                        help="Pre-parsed conversations JSON (for topology command)")
-    parser.add_argument("--topology", default="",
+    parser.add_argument("--topology", dest="topology_file", default="",
                        help="Pre-built topology JSON (for risk command)")
     parser.add_argument("-o", "--output",
                        default=f"marlinspike-report-{ts}.json",
@@ -5054,6 +5564,8 @@ def main():
                        help="Collapse port scan conversations when MAC pair has >N unique dest ports (0 = disabled, default: 50)")
     parser.add_argument("--reassembly", action="store_true", default=False,
                        help="Enable TCP reassembly (default: disabled for lower memory usage)")
+    parser.add_argument("--fast", action="store_true", default=False,
+                       help="Fast scan: skip ephemeral edges, lower collapse threshold, and skip C2 heuristics")
     parser.add_argument("--dpi-engine", default="auto",
                        choices=["auto", "python", "marlinspike-dpi"],
                        help="Stage 2 DPI engine to use (default: auto)")
@@ -5067,6 +5579,10 @@ def main():
     sub.add_parser("dissect", help="Stage 2: protocol dissection").set_defaults(func=run_dissect)
     sub.add_parser("topology", help="Stage 3: topology construction").set_defaults(func=run_topology)
     sub.add_parser("risk", help="Stage 4: risk surface analysis").set_defaults(func=run_risk)
+    sub.add_parser("chain-from-conversations", help="Topology + risk from merged conversations").set_defaults(func=run_chain_from_conversations)
+    sub.add_parser("analyze", help="Legacy alias for dissect").set_defaults(func=run_dissect)
+    sub.add_parser("classify", help="Legacy alias for topology").set_defaults(func=run_topology)
+    sub.add_parser("report", help="Legacy alias for risk").set_defaults(func=run_risk)
     sub.add_parser("list-interfaces", help="Enumerate local capture interfaces").set_defaults(func=run_list_interfaces)
 
     args = parser.parse_args()
@@ -5082,7 +5598,7 @@ def main():
     args.oui_db = args.oui_db or ""
     args.grassmarlin = args.grassmarlin or ""
     args.conversations = args.conversations or ""
-    args.topology = args.topology or ""
+    args.topology_file = getattr(args, "topology_file", getattr(args, "topology", "")) or ""
     args.dpi_engine = args.dpi_engine or "auto"
     args.dpi_binary = args.dpi_binary or ""
     if not hasattr(args, "yaml_map"):

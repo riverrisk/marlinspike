@@ -1,6 +1,16 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        MARLINSPIKE_DPI_REPO: ${MARLINSPIKE_DPI_REPO:-https://github.com/riverrisk/marlinspike-dpi.git}
+        MARLINSPIKE_DPI_REF: ${MARLINSPIKE_DPI_REF:-de7ed06a28096a3da482831bc674ef0652c0e479}
+        MARLINSPIKE_MITRE_REPO: ${MARLINSPIKE_MITRE_REPO:-https://github.com/riverrisk/marlinspike-mitre.git}
+        MARLINSPIKE_MITRE_REF: ${MARLINSPIKE_MITRE_REF:-67e759d6b771ee65717c0167bc639d4605da243e}
+        MARLINSPIKE_MALWARE_REPO: ${MARLINSPIKE_MALWARE_REPO:-}
+        MARLINSPIKE_MALWARE_REF: ${MARLINSPIKE_MALWARE_REF:-}
+        MARLINSPIKE_MALWARE_RULES_REPO: ${MARLINSPIKE_MALWARE_RULES_REPO:-}
+        MARLINSPIKE_MALWARE_RULES_REF: ${MARLINSPIKE_MALWARE_RULES_REF:-}
     container_name: marlinspike-app
     restart: unless-stopped
     ports:
@@ -9,6 +19,9 @@ services:
       - DATABASE_URL=postgresql://marlinspike:${DB_PASSWORD}@db:5432/marlinspike
       - SECRET_KEY=${SECRET_KEY}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - MARLINSPIKE_DPI_BIN=/usr/local/bin/marlinspike-dpi
+      - MARLINSPIKE_MALWARE_BIN=/opt/marlinspike-malware/bin/marlinspike-malware
+      - MARLINSPIKE_MALWARE_RULES=/usr/share/marlinspike-malware/rules/packs
     depends_on:
       db:
         condition: service_healthy

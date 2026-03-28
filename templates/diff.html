@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MarlinSpike Diff</title>
+<title>MarlinSpike Baseline Drift</title>
 <style>
 :root {
   --bg: #0f1923;
@@ -41,6 +41,24 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-ui); f
 .diff-legend { display: flex; gap: 12px; margin-left: auto; font-size: 0.78em; font-family: var(--font-mono); color: var(--text-dim); }
 .diff-legend-item { display: flex; align-items: center; gap: 4px; }
 .diff-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+.diff-drift {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  font-family: var(--font-mono);
+  font-size: 0.78em;
+  color: var(--text-dim);
+}
+.diff-drift .score { color: var(--text); font-weight: 700; }
+.diff-drift.stable { border-color: rgba(34,197,94,0.3); color: #86efac; }
+.diff-drift.minor { border-color: rgba(59,130,246,0.3); color: #93c5fd; }
+.diff-drift.moderate { border-color: rgba(245,158,11,0.3); color: #fcd34d; }
+.diff-drift.major,
+.diff-drift.severe { border-color: rgba(239,68,68,0.3); color: #fca5a5; }
 
 #diff-viewport { position: relative; overflow: hidden; background: var(--bg-deep); }
 #diff-svg-container { width: 100%; height: 100%; cursor: grab; }
@@ -73,6 +91,15 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-ui); f
 .detail-label { color: var(--text-dim); font-size: 0.9em; text-transform: uppercase; letter-spacing: 0.3px; }
 .detail-value { color: var(--text); text-align: right; }
 .diff-tooltip { position: fixed; pointer-events: none; z-index: 100; background: var(--panel); border: 1px solid var(--border); padding: 6px 10px; border-radius: 4px; font-size: 0.82em; font-family: var(--font-mono); color: var(--text); white-space: nowrap; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+.diff-side-card { background: var(--bg-surface); border: 1px solid var(--border-dim); border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; }
+.diff-side-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-family: var(--font-mono); font-size: 0.82em; color: var(--text-dim); }
+.diff-side-row strong { color: var(--text); font-weight: 600; }
+.diff-side-note { margin-top: 8px; font-size: 0.8em; color: var(--text-dim); line-height: 1.5; }
+.diff-find-item { padding: 8px 10px; margin: 4px 0; border-radius: 4px; background: var(--bg-surface); border: 1px solid var(--border-dim); }
+.diff-find-item .title { color: var(--text); font-size: 0.9em; }
+.diff-find-item .meta { margin-top: 3px; font-family: var(--font-mono); font-size: 0.78em; color: var(--text-dim); }
+.diff-find-item .delta-up { color: var(--color-added); }
+.diff-find-item .delta-down { color: var(--color-removed); }
 </style>
 </head>
 <body>
@@ -80,8 +107,9 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-ui); f
 <div id="diff-app">
   <div id="diff-header">
     <a href="/" class="diff-back-link">&#8592; Dashboard</a>
-    <h1><span>&#9876;</span> MarlinSpike Diff</h1>
+    <h1><span>&#9876;</span> MarlinSpike Baseline Drift</h1>
     <div class="diff-summary" id="diff-stats"></div>
+    <div class="diff-drift" id="diff-drift"></div>
     <div class="diff-legend">
       <div class="diff-legend-item"><div class="diff-legend-dot" style="background:var(--color-added)"></div>New</div>
       <div class="diff-legend-item"><div class="diff-legend-dot" style="background:var(--color-removed)"></div>Removed</div>
@@ -122,7 +150,7 @@ var DIFF = (function() {
   var PURDUE_COLORS = { '-1': '#64748b', 0: '#f59e0b', 1: '#22c55e', 2: '#3b82f6', 3: '#a855f7', 4: '#06b6d4', 5: '#ef4444' };
   var DIFF_COLORS = { added: '#22c55e', removed: '#ef4444', changed: '#f59e0b', unchanged: '#64748b' };
 
-  function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   function init() {
     nodes.forEach(function(n) {
@@ -144,18 +172,61 @@ var DIFF = (function() {
   }
 
   function renderStats() {
-    var s = data.summary; var el = document.getElementById('diff-stats');
+    var s = data.summary; var drift = data.drift || {}; var el = document.getElementById('diff-stats');
     var parts = [];
+    parts.push('baseline ' + (s.node_total_a || 0) + ' assets');
+    parts.push('candidate ' + (s.node_total_b || 0) + ' assets');
     parts.push('<b class="added">+' + (s.nodes_added||0) + '</b> new');
     parts.push('<b class="removed">-' + (s.nodes_removed||0) + '</b> removed');
     parts.push('<b class="changed">' + (s.nodes_changed||0) + '</b> changed');
     parts.push((s.nodes_unchanged||0) + ' unchanged');
     parts.push('<b class="added">+' + (s.edges_added||0) + '</b> / <b class="removed">-' + (s.edges_removed||0) + '</b> edges');
+    parts.push('findings ' + (s.finding_total_a || 0) + ' -> ' + (s.finding_total_b || 0));
     el.innerHTML = parts.join(' &middot; ');
+    var driftEl = document.getElementById('diff-drift');
+    driftEl.className = 'diff-drift ' + (drift.tone || 'stable');
+    driftEl.innerHTML = '<span>Drift</span><span class="score">' + (drift.score || 0) + '/100</span><span>' + esc(drift.label || 'Stable baseline') + '</span>';
   }
 
   function renderSidebar() {
     var html = '';
+    var s = data.summary || {};
+    var f = data.findings || {};
+    var drift = data.drift || {};
+    html += '<div class="diff-side-card">';
+    html += '<h3 style="margin-top:0">Baseline Review</h3>';
+    html += '<div class="diff-side-row"><span>Baseline</span><strong>' + esc(data.a_name || '--') + '</strong></div>';
+    if (data.a_time) html += '<div class="diff-side-row"><span>Baseline time</span><strong>' + esc(data.a_time) + '</strong></div>';
+    html += '<div class="diff-side-row"><span>Candidate</span><strong>' + esc(data.b_name || '--') + '</strong></div>';
+    if (data.b_time) html += '<div class="diff-side-row"><span>Candidate time</span><strong>' + esc(data.b_time) + '</strong></div>';
+    html += '<div class="diff-side-row"><span>Drift score</span><strong>' + esc((drift.score || 0) + '/100') + '</strong></div>';
+    html += '<div class="diff-side-row"><span>Critical/High</span><strong>' + esc((f.critical_high_before || 0) + ' -> ' + (f.critical_high_after || 0)) + '</strong></div>';
+    html += '<div class="diff-side-row"><span>Finding delta</span><strong>' + esc('+' + (f.added || 0) + ' / -' + (f.cleared || 0)) + '</strong></div>';
+    if (drift.detail) html += '<div class="diff-side-note">' + esc(drift.detail) + '</div>';
+    html += '</div>';
+
+    if ((f.expanded || []).length) {
+      html += '<h3>Finding Increases (' + f.expanded.length + ')</h3>';
+      f.expanded.forEach(function(item) {
+        html += '<div class="diff-find-item">';
+        html += '<div class="title">' + esc(item.detection_id ? item.detection_id + ' ' : '') + esc(item.title || item.category) + '</div>';
+        html += '<div class="meta"><span class="delta-up">+' + esc(item.delta) + '</span> &middot; ' + esc(item.from) + ' -> ' + esc(item.to);
+        if (item.severity_profile) html += ' &middot; ' + esc(item.severity_profile);
+        html += '</div></div>';
+      });
+    }
+
+    if ((f.reduced || []).length) {
+      html += '<h3>Finding Reductions (' + f.reduced.length + ')</h3>';
+      f.reduced.forEach(function(item) {
+        html += '<div class="diff-find-item">';
+        html += '<div class="title">' + esc(item.detection_id ? item.detection_id + ' ' : '') + esc(item.title || item.category) + '</div>';
+        html += '<div class="meta"><span class="delta-down">' + esc(item.delta) + '</span> &middot; ' + esc(item.from) + ' -> ' + esc(item.to);
+        if (item.severity_profile) html += ' &middot; ' + esc(item.severity_profile);
+        html += '</div></div>';
+      });
+    }
+
     var diffGroups = [{key:'added',label:'New Devices'},{key:'removed',label:'Removed Devices'},{key:'changed',label:'Changed Devices'}];
     diffGroups.forEach(function(g) {
       var items = nodes.filter(function(n){return n._diff===g.key;});

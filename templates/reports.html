@@ -69,8 +69,8 @@
     </div>
     <div class="panel-body">
       <div class="compare-bar" id="compare-bar">
-        <span>Compare: <b id="compare-a">&mdash;</b> vs <b id="compare-b">&mdash;</b></span>
-        <button class="btn btn-primary btn-sm" onclick="RP.compareDiff()">View Diff</button>
+        <span>Baseline: <b id="compare-a">&mdash;</b> vs <b id="compare-b">&mdash;</b></span>
+        <button class="btn btn-primary btn-sm" onclick="RP.compareDiff()">View Drift</button>
         <button class="btn btn-sm" onclick="RP.clearCompare()">Clear</button>
       </div>
       <table class="ms-table" id="reports-table">
@@ -168,7 +168,7 @@ var RP = (function() {
     if (cb.checked) {
       if (!compareA) compareA = fn;
       else if (!compareB) compareB = fn;
-      else { cb.checked = false; msToast('Select only 2 reports to compare', true); return; }
+      else { cb.checked = false; msToast('Select only 2 reports for baseline and drift review', true); return; }
     } else {
       if (compareA === fn) compareA = null;
       if (compareB === fn) compareB = null;

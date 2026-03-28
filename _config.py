@@ -1,12 +1,35 @@
 """MarlinSpike standalone — configuration constants."""
 
 import os
+import sys
 
-# Database
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql://marlinspike:marlinspike@localhost:5432/marlinspike",
-)
+
+_TRUE_VALUES = {"true", "1", "yes", "on"}
+
+
+def _env_bool(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in _TRUE_VALUES
+
+
+def _sqlite_url(path):
+    normalized = os.path.abspath(path).replace("\\", "/")
+    if len(normalized) > 1 and normalized[1] == ":":
+        return f"sqlite:///{normalized}"
+    return f"sqlite:////{normalized.lstrip('/')}"
+
+
+def _default_database_url():
+    desktop_or_windows = DESKTOP_MODE or IS_WINDOWS or "MARLINSPIKE_HOME" in os.environ
+    if desktop_or_windows:
+        return _sqlite_url(os.path.join(DATA_DIR, "marlinspike.db"))
+    return "postgresql://marlinspike:marlinspike@localhost:5432/marlinspike"
+
+
+IS_WINDOWS = os.name == "nt"
+DESKTOP_MODE = _env_bool("MARLINSPIKE_DESKTOP_MODE", default=IS_WINDOWS)
 
 # Secret key for Flask sessions
 SECRET_KEY = os.environ.get("SECRET_KEY", "")
@@ -16,13 +39,21 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 
 # Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+APP_HOME = os.path.abspath(os.environ.get("MARLINSPIKE_HOME", BASE_DIR))
+DATA_DIR = os.path.abspath(os.environ.get("MARLINSPIKE_DATA_DIR", os.path.join(APP_HOME, "data")))
 REPORTS_DIR = os.path.join(DATA_DIR, "reports")
 UPLOADS_DIR = os.path.join(DATA_DIR, "uploads")
 SUBMISSIONS_DIR = os.path.join(DATA_DIR, "submissions")
 
 # MarlinSpike module path
 MARLINSPIKE_PY = os.path.join(BASE_DIR, "marlinspike.py")
+PYTHON_EXE = os.environ.get("MARLINSPIKE_PYTHON", sys.executable or "python")
+MARLINSPIKE_MITRE_ENABLED = os.environ.get("MARLINSPIKE_MITRE_ENABLED", "true").lower() in ("true", "1", "yes")
+MARLINSPIKE_MITRE_MODULE = os.environ.get("MARLINSPIKE_MITRE_MODULE", "plugins.marlinspike_mitre")
+MARLINSPIKE_MITRE_RULES = os.environ.get(
+    "MARLINSPIKE_MITRE_RULES",
+    os.path.join(BASE_DIR, "rules", "mitre", "base.yaml"),
+)
 
 # Preset PCAPs (volume-backed, admin-editable at runtime)
 PRESETS_DIR = os.path.join(DATA_DIR, "presets")
@@ -34,12 +65,18 @@ PRESETS_BAKED_DIR = os.path.join(BASE_DIR, "presets")
 PCAP_MAX_SIZE = int(os.environ.get("PCAP_MAX_SIZE", 200 * 1024 * 1024))  # 200 MB
 PCAP_PROCESS_SIZE = int(os.environ.get("PCAP_PROCESS_SIZE", 100 * 1024 * 1024))  # 100 MB
 
+# Database
+DATABASE_URL = os.environ.get("DATABASE_URL") or _default_database_url()
+
 # Server
 PORT = int(os.environ.get("PORT", 5001))
-HOST = os.environ.get("HOST", "0.0.0.0")
+HOST = os.environ.get("HOST", "127.0.0.1" if DESKTOP_MODE else "0.0.0.0")
+SESSION_COOKIE_SECURE = _env_bool("SESSION_COOKIE_SECURE", default=not DESKTOP_MODE)
+WSGI_THREADS = int(os.environ.get("MARLINSPIKE_WSGI_THREADS", 8))
+WIRESHARK_BIN_DIR = os.environ.get("WIRESHARK_BIN_DIR", "")
 
 # Run cleanup
 RUN_CLEANUP_SECONDS = 3600
 
 # Feature flags
-ENABLE_LIVE_CAPTURE = os.environ.get("ENABLE_LIVE_CAPTURE", "false").lower() in ("true", "1", "yes")
+ENABLE_LIVE_CAPTURE = _env_bool("ENABLE_LIVE_CAPTURE", default=False)

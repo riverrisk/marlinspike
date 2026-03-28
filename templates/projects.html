@@ -487,9 +487,16 @@
                 <select id="proj-scan-cmd">
                   <option value="chain">Full Chain</option>
                   <option value="ingest">Ingest Only</option>
-                  <option value="analyze">Analyze Only</option>
-                  <option value="classify">Classify Only</option>
-                  <option value="report">Report Only</option>
+                  <option value="dissect">Dissect Only</option>
+                  <option value="topology">Topology Only</option>
+                  <option value="risk">Risk Only</option>
+                </select>
+              </div>
+              <div class="scan-field">
+                <label>Profile</label>
+                <select id="proj-scan-profile">
+                  <option value="fast">Fast</option>
+                  <option value="full">Full</option>
                 </select>
               </div>
               <button class="btn btn-success" onclick="PROJ.scanSelected()">Scan Selected</button>
@@ -514,8 +521,8 @@
           <!-- Reports tab -->
           <div class="proj-tab-panel" id="tab-reports">
             <div class="proj-compare-bar" id="proj-compare-bar">
-              <span>Compare: <b id="proj-compare-a">--</b> vs <b id="proj-compare-b">--</b></span>
-              <button class="btn btn-primary btn-sm" onclick="PROJ.compareDiff()">View Diff</button>
+              <span>Baseline: <b id="proj-compare-a">--</b> vs <b id="proj-compare-b">--</b></span>
+              <button class="btn btn-primary btn-sm" onclick="PROJ.compareDiff()">View Drift</button>
               <button class="btn btn-sm" onclick="PROJ.clearCompare()">Clear</button>
             </div>
             <table class="ms-table" id="proj-reports-table">
@@ -917,10 +924,11 @@ var PROJ = (function() {
     var pcap = document.getElementById('proj-pcap-select').value;
     if (!pcap) { msToast('Select a PCAP file first', true); return; }
     var cmd = document.getElementById('proj-scan-cmd').value;
+    var scanProfile = document.getElementById('proj-scan-profile').value;
     fetch('/api/scans/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ command: cmd, pcap_file: pcap, project_id: currentProject.id }),
+      body: JSON.stringify({ command: cmd, scan_profile: scanProfile, pcap_file: pcap, project_id: currentProject.id }),
     }).then(function(r) { return r.json(); }).then(function(d) {
       if (d.ok) {
         msToast('Scan started (run ' + d.run_id.substring(0, 8) + ')');
@@ -1045,7 +1053,7 @@ var PROJ = (function() {
     if (cb.checked) {
       if (!compareA) compareA = fn;
       else if (!compareB) compareB = fn;
-      else { cb.checked = false; msToast('Select only 2 reports to compare', true); return; }
+      else { cb.checked = false; msToast('Select only 2 reports for baseline and drift review', true); return; }
     } else {
       if (compareA === fn) compareA = null;
       if (compareB === fn) compareB = null;

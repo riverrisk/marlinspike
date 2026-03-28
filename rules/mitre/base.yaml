@@ -1,0 +1,180 @@
+schema_version: 1
+pack_id: marlinspike-mitre-base
+pack_version: "2026.03"
+plugin_id: marlinspike-mitre
+default_domain: enterprise-attack
+description: Base ATT&CK mappings for the current MarlinSpike passive report surface.
+rules:
+  - id: platform-network-sniffing
+    kind: coverage
+    enabled: true
+    technique_id: T1040
+    title: Network Sniffing
+    family: Passive Recon
+    publication: Platform mapping
+    basis: platform
+    confidence: 1.0
+    when:
+      has_capture: true
+      min_nodes: 1
+    rationale: Passive PCAP ingestion and review provide network-sniffing coverage context for the report.
+    response_guidance:
+      - Use this technique as a coverage lens when reviewing collector placement and packet visibility gaps.
+      - Validate that capture points see the east-west and north-south paths required for the investigation.
+  - id: platform-network-service-discovery
+    kind: coverage
+    enabled: true
+    technique_id: T1046
+    title: Network Service Discovery
+    family: Passive Recon
+    publication: Platform mapping
+    basis: platform
+    confidence: 1.0
+    when:
+      has_edges: true
+      min_nodes: 2
+    rationale: Parsed conversations and exposed listeners provide passive network-service discovery context.
+    response_guidance:
+      - Compare exposed listeners and peer counts with the approved service inventory for critical assets.
+      - Use the matrix hit to drive follow-up review of unexpected ports, protocols, and service roles.
+  - id: platform-system-network-configuration-discovery
+    kind: coverage
+    enabled: true
+    technique_id: T1016
+    title: System Network Configuration Discovery
+    family: Passive Recon
+    publication: Platform mapping
+    basis: platform
+    confidence: 1.0
+    when:
+      has_nodes: true
+      min_nodes: 1
+    rationale: Addressing, topology, Purdue, and role inference provide system-network-configuration context.
+    response_guidance:
+      - Pivot from this technique into addressing, routing, VLAN, and Purdue inferences for the affected segment.
+      - Check whether the observed topology matches the expected design for control and supervisory assets.
+  - id: platform-gather-victim-network-information
+    kind: coverage
+    enabled: true
+    technique_id: T1590
+    title: Gather Victim Network Information
+    family: Passive Recon
+    publication: Platform mapping
+    basis: platform
+    confidence: 1.0
+    when:
+      has_nodes: true
+      min_nodes: 1
+    rationale: Asset, topology, and communication inventory provide gather-victim-network-information coverage.
+    response_guidance:
+      - Use this coverage hit to organize asset inventory review before investigating higher-confidence ATT&CK findings.
+      - Validate that external hosts and supervisory nodes are correctly labeled before escalating suspicious behavior.
+  - id: finding-application-layer-protocol
+    kind: classification
+    enabled: true
+    technique_id: T1071
+    title: Application Layer Protocol
+    family: Command and Control
+    publication: Published on report findings
+    basis: observed
+    confidence: 0.9
+    when:
+      any_of:
+        - finding_categories:
+            - C2_BEACONING
+            - C2_DNS_TUNNEL_SUSPECT
+            - C2_SUSPECT_CHANNEL
+        - indicator_types:
+            - C2_BEACONING
+            - C2_DNS_TUNNEL_SUSPECT
+            - C2_SUSPECT_CHANNEL
+    rationale: Beaconing, DNS tunneling, and suspect external channels indicate probable command traffic over application protocols.
+    response_guidance:
+      - Validate the protocol, destination, and session cadence against approved outbound communication paths.
+      - Review packet samples and endpoint context to determine whether the channel is interactive C2, tunneling, or benign management traffic.
+      - If the flow is unauthorized, contain the endpoint long enough to capture process, DNS, and persistence evidence.
+  - id: finding-encrypted-channel
+    kind: classification
+    enabled: true
+    technique_id: T1573
+    title: Encrypted Channel
+    family: Command and Control
+    publication: Published on report findings
+    basis: observed
+    confidence: 0.82
+    when:
+      any_of:
+        - finding_categories:
+            - C2_SUSPECT_CHANNEL
+        - indicator_types:
+            - C2_SUSPECT_CHANNEL
+    rationale: External unknown-port channels may be hiding command traffic behind encryption.
+    response_guidance:
+      - Inspect JA3, TLS, certificate, port-label, and destination context to decide whether the encrypted flow is sanctioned.
+      - Prioritize hosts using rare encrypted channels to external infrastructure or cross-zone peers.
+  - id: finding-exfiltration-over-alternative-protocol
+    kind: classification
+    enabled: true
+    technique_id: T1048
+    title: Exfiltration Over Alternative Protocol
+    family: Exfiltration
+    publication: Published on report findings
+    basis: observed
+    confidence: 0.95
+    when:
+      any_of:
+        - finding_categories:
+            - C2_DNS_EXFIL
+            - C2_DATA_EXFIL
+        - indicator_types:
+            - C2_DNS_EXFIL
+            - C2_DATA_EXFIL
+    rationale: DNS exfiltration and asymmetric external transfer findings indicate probable exfiltration over non-primary channels.
+    response_guidance:
+      - Quantify bytes, peers, and timing to determine whether data movement is staged, bursty, or ongoing.
+      - Compare the destination and protocol against approved data-transfer paths before containment.
+      - If exfiltration is plausible, preserve packet evidence and isolate the source asset from external egress.
+  - id: finding-data-encoding
+    kind: classification
+    enabled: true
+    technique_id: T1132
+    title: Data Encoding
+    family: Exfiltration
+    publication: Published on report findings
+    basis: observed
+    confidence: 0.82
+    when:
+      any_of:
+        - finding_categories:
+            - C2_DNS_EXFIL
+            - C2_DNS_TUNNEL_SUSPECT
+            - C2_DNS_HIGH_ENTROPY
+        - indicator_types:
+            - C2_DNS_EXFIL
+            - C2_DNS_TUNNEL_SUSPECT
+            - C2_DNS_HIGH_ENTROPY
+    rationale: Encoded or high-entropy DNS labels suggest staged or covert data encoding.
+    response_guidance:
+      - Review queried domains, entropy, label length, and subdomain churn to distinguish encoded data from unusual but benign traffic.
+      - Compare DNS behavior across peer assets to see whether the pattern is isolated or systemic.
+  - id: finding-scheduled-transfer
+    kind: classification
+    enabled: true
+    technique_id: T1029
+    title: Scheduled Transfer
+    family: Command and Control
+    publication: Published on report findings
+    basis: observed
+    confidence: 0.86
+    when:
+      any_of:
+        - finding_categories:
+            - C2_BEACONING
+            - C2_PERSISTENCE
+        - indicator_types:
+            - C2_BEACONING
+            - C2_PERSISTENCE
+    rationale: Recurring beacon intervals and persistent external sessions suggest scheduled transfer behavior.
+    response_guidance:
+      - Validate interval, jitter, and persistence against backup, polling, and monitoring jobs that normally run on the asset.
+      - If the cadence is unexplained, collect host scheduling artifacts and preserve packet timing evidence for scoping.

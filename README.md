@@ -1,5 +1,7 @@
 # MarlinSpike
 
+Current release target: `2.0.0`
+
 MarlinSpike is a ground-up passive OT/ICS network analysis platform built in the tradition of GrassMarlin-style topology mapping, but wrapped in a multi-user web workbench designed for real engagements. It analyzes PCAP and PCAPNG captures, builds a topology graph, infers Purdue levels, fingerprints vendors, and surfaces responder-grade risk indicators such as cross-zone communication, cleartext services, beaconing, suspicious external communications, and DNS exfiltration, then exports everything as portable JSON report artifacts that travel with the team.
 
 ![MarlinSpike Hero](docs/screenshots/00-hero.png)
@@ -31,6 +33,7 @@ MarlinSpike is built around a few practical constraints:
 - The report artifact is the handoff between packet analysis and downstream review.
 - The primary workflow is `project -> scan -> report -> workbench -> triage actions`.
 - Core web workflows remain usable without client-side JavaScript.
+- The codebase stays intentionally extensible for working OT/ICS responders, not just systems programmers.
 
 Interactive browser features can improve speed and convenience, but the core triage experience should still be accessible directly from rendered HTML.
 
@@ -39,10 +42,12 @@ Interactive browser features can improve speed and convenience, but the core tri
 - Passive analysis only: no active scanning or packet transmission
 - OT protocol parsing for Modbus, EtherNet/IP, S7, DNP3, PROFINET, OPC UA, BACnet, and more
 - Topology construction with Purdue-level inference and vendor fingerprinting
-- Risk surfacing for remote access exposure, C2-like beaconing, suspicious external channels, DNS entropy anomalies, policy violations, selected MITRE ATT&CK mappings, and IEC 62443 SR-oriented remediation guidance
-- Flask web UI with project management, report viewer, diff viewer, asset inventory, scan history, and optional local live capture mode
+- Risk surfacing for remote access exposure, C2-like beaconing, suspicious external channels, DNS entropy anomalies, policy violations, full MITRE ATT&CK mapping with tactics, sub-techniques, matrix views, response guidance, and IEC 62443 SR-oriented remediation guidance
+- Flask web UI with an upgraded multi-mode analyst workbench, project management, report viewer, baseline/drift comparison, asset inventory, scan history, optional local live capture mode, and a source-backed `/findings` detection coverage catalog
 - Docker Compose deployment with PostgreSQL backing the application
-- Optional Rust DPI stage via [`marlinspike-dpi`](https://github.com/riverrisk/marlinspike-dpi), with Python analysis and report shaping retained above it
+- Optional Rust DPI stage via [`marlinspike-dpi`](https://github.com/riverrisk/marlinspike-dpi), built into the image from a pinned GitHub ref while Python analysis and report shaping remain above it
+- MITRE ATT&CK runtime surfaces sourced from the standalone [`marlinspike-mitre`](https://github.com/riverrisk/marlinspike-mitre) repo at a pinned GitHub ref during image build
+- Optional Stage 4b malware IOC runtime sourced from standalone `marlinspike-malware` and `marlinspike-malware-rules` repos when their build args are provided
 
 ## Quick Start
 
@@ -70,6 +75,61 @@ docker compose up -d --build
 On first boot, MarlinSpike creates an admin user. If `ADMIN_PASSWORD` is empty, a random password is generated and printed to the container logs.
 
 See [INSTALL.md](INSTALL.md) for a generic deployment walkthrough.
+
+## Documentation
+
+If you are looking for the main repository docs, start here:
+
+- Getting started: [INSTALL.md](INSTALL.md)
+- Repo family and suite structure: [docs/repo-family.md](docs/repo-family.md)
+- Compatibility model: [COMPATIBILITY.md](COMPATIBILITY.md)
+- Architecture and extension boundaries: [docs/extensibility-contracts.md](docs/extensibility-contracts.md)
+- Zipped report bundle format proposal: [docs/msbundle-format.md](docs/msbundle-format.md)
+- End-user ATT&CK guide: [docs/mitre-attack-guide.md](docs/mitre-attack-guide.md)
+- Shared MITRE plugin repo: `/Users/butterbones/marlinspike-mitre`
+- Vendored ATT&CK runtime copy: [`plugins/marlinspike_mitre/`](plugins/marlinspike_mitre/) and [`rules/mitre/base.yaml`](rules/mitre/base.yaml)
+- MITRE bootstrap sync helper: [`scripts/sync-mitre-bootstrap.sh`](scripts/sync-mitre-bootstrap.sh)
+- Suite subtree helper: [`scripts/update-subtrees.sh`](scripts/update-subtrees.sh)
+- Bootstrap engine sync helper: [`scripts/sync-msengine-bootstrap.sh`](scripts/sync-msengine-bootstrap.sh)
+- Contribution and development workflow: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Engine and product release history: [releases.md](releases.md)
+- Live viewer and streaming release history: [releases-live.md](releases-live.md)
+- Analyst workspace product direction: [docs/analyst-workspace-roadmap.md](docs/analyst-workspace-roadmap.md)
+- Public fingerprinting research corpus: [docs/public-fingerprint-corpus.md](docs/public-fingerprint-corpus.md)
+- Preset sample library notes: [presets/README.md](presets/README.md)
+
+The key extensibility terminology in this repository is:
+
+- Rust engines: packet-facing and event-heavy components such as DPI
+- Python plugins: report-facing analysis, enrichment, and triage logic
+- YAML rule packs: declarative mappings, suppressions, and local policy
+
+The key repo-family terminology is:
+
+- `marlinspike`: suite repo that vendors selected component repos as subtree-based subrepos and can pin standalone build dependencies
+- `marlinspike-msengine`: core engine repo, internal package and CLI name `msengine`
+- `marlinspike-workbench`: web UI repo that can review reports with or without invoking the local engine
+- `marlinspike-mitre`: standalone shared MITRE ATT&CK plugin repo consumed as a pinned build dependency for runtime plugin and rule surfaces
+- `marlinspike-dpi`: standalone shared Rust DPI repo consumed as a pinned build dependency in the app image
+- `marlinspike-malware`: standalone shared Rust IOC engine repo consumed as an optional pinned build dependency in the app image
+- `marlinspike-malware-rules`: standalone shared rule-content repo consumed as an optional pinned build dependency for published IOC packs, manifests, and compiled bundle artifacts
+
+The component repos are intended to be authoritative. The suite repo exists to pin and vendor a known-good combination for teams that want one clone with all updated parts.
+The initial `msengine/` subtree prefix now exists in bootstrap form. Until full extraction completes, the root `_ms_engine.py` remains the operational engine source and [`scripts/sync-msengine-bootstrap.sh`](scripts/sync-msengine-bootstrap.sh) mirrors it into the subtree copy.
+The current Docker build pins `marlinspike-dpi` to `de7ed06a28096a3da482831bc674ef0652c0e479` by default via `MARLINSPIKE_DPI_REF`, and pins `marlinspike-mitre` to `67e759d6b771ee65717c0167bc639d4605da243e` via `MARLINSPIKE_MITRE_REF`; override those build args in your environment if you need newer known-good refs. The malware path is split on purpose: `MARLINSPIKE_MALWARE_REPO` and `MARLINSPIKE_MALWARE_REF` pin the engine binary, while `MARLINSPIKE_MALWARE_RULES_REPO` and `MARLINSPIKE_MALWARE_RULES_REF` pin the published rule content. The app now prefers the published `packs/` surface over the engine repo's dev/test copy when discovering rules.
+
+## ATT&CK Walkthrough
+
+MarlinSpike now includes a full ATT&CK implementation in the report workflow,
+including ATT&CK version metadata, tactic-grouped matrix views, sub-techniques,
+mitigations, and response guidance.
+
+See the user-facing walkthrough here:
+
+- [docs/mitre-attack-guide.md](docs/mitre-attack-guide.md)
+
+The guide includes screenshots and explains how to move between findings,
+ATT&CK mappings, assets, and topology during triage.
 
 ## Positioning: Analyst Workbench vs Desktop Tool
 
@@ -102,7 +162,7 @@ MarlinSpike is meant to replace the core passive-mapping workflow people histori
 | Risk surfacing from passive traffic | Yes | Cleartext engineering, write-capable paths, suspicious external communications, beaconing, DNS exfiltration, and Purdue violations |
 | Local live capture | Yes, optional | Exposed as an optional deployment feature rather than the main product contract |
 | Exportable outputs | Yes | Portable JSON report artifacts, plus PDF/PNG/CSV export paths from the UI |
-| Team analyst workflow | Exceeds | Project-scoped collaboration, shared URL access, history, diffing, and admin controls are first-class instead of bolted on |
+| Team analyst workflow | Exceeds | Project-scoped collaboration, shared URL access, history, baseline/drift review, and admin controls are first-class instead of bolted on |
 | Headless analysis contract | Exceeds | The engine can run independently, emit portable report artifacts, and be reviewed later in the workbench or elsewhere |
 | Thick desktop client | Different by design | Replaced with a browser-based workbench and zero-JS core workflows for temporary, shared field deployment |
 
@@ -150,15 +210,50 @@ The Rust path is intentionally scoped as a standalone DPI engine. MarlinSpike ca
 
 That is deliberate. MarlinSpike's value is not just decoding packets quickly. Its value is turning passive OT traffic into topology, findings, and responder decisions a team can actually use.
 
+### Extensibility Model
+
+MarlinSpike uses three extension surfaces on purpose:
+
+- Rust engines: packet-facing or event-heavy components where throughput, memory safety, and parser reuse matter most. Today this primarily means DPI-style engines such as [`marlinspike-dpi`](https://github.com/riverrisk/marlinspike-dpi).
+- Python plugins: report-facing analysis, enrichment, triage logic, and post-processing that operate on the portable MarlinSpike JSON artifact rather than raw packets.
+- YAML rule packs: declarative mappings, enable/disable controls, site overrides, and other policy content used by plugins without turning configuration into another programming language.
+
+In short:
+
+- Rust finds facts in raw traffic.
+- Python turns those facts into responder-facing judgments.
+- YAML declares mappings and local policy.
+
+This split is intentional. MarlinSpike is not written as "Rust for everything" because the primary app is meant to be easy to extend by the broader OT/ICS community, including responders, defenders, and consultants who may need to adjust logic during an active remediation event. Rust is excellent for memory-safe, reusable packet engines. Python remains a better fit for fast iteration, site-specific extension, and field-friendly report logic when a team is actively triaging an environment.
+
+Current shipped example:
+
+- `marlinspike-mitre`: authoritative sister repo at `/Users/butterbones/marlinspike-mitre`, with the app image now overlaying the runtime plugin and rule surfaces from the pinned standalone repo into [`plugins/marlinspike_mitre/`](plugins/marlinspike_mitre/) and [`rules/mitre/base.yaml`](rules/mitre/base.yaml) during build. Successful scans can emit a `-mitre.json` sidecar artifact, and the workbench viewer can load it from the report `extensions` surface.
+  The current runtime exposes full ATT&CK metadata and versioning, tactics, sub-techniques, matrix-ready tactic groupings, mitigations, ATT&CK URLs, and rich response guidance in the viewer.
+  User-facing interpretation notes live in [docs/mitre-attack-guide.md](docs/mitre-attack-guide.md).
+- `marlinspike-malware`: authoritative sister repo at `/Users/butterbones/marlinspike-malware`, with `_ms_engine.py` invoking it as an optional Stage 4b engine. When `MARLINSPIKE_MALWARE_REPO` and `MARLINSPIKE_MALWARE_REF` are supplied during image build, the runtime binary is layered into `/opt/marlinspike-malware/bin/`.
+- `marlinspike-malware-rules`: authoritative sister repo at `/Users/butterbones/marlinspike-malware-rules`, holding the published `packs/`, `manifests/index.yaml`, and compiled bundle artifacts. When `MARLINSPIKE_MALWARE_RULES_REPO` and `MARLINSPIKE_MALWARE_RULES_REF` are supplied during image build, those assets are layered into `/usr/share/marlinspike-malware/rules/`, and the engine points at `/usr/share/marlinspike-malware/rules/packs`.
+
+See [`docs/extensibility-contracts.md`](docs/extensibility-contracts.md) for the concrete contract boundaries for Rust engines, Python plugins, and YAML rule packs.
+
+If you are deciding where new work belongs, use this rule of thumb:
+
+- If it consumes raw `pcap`, packet streams, or high-volume protocol events, it probably belongs in a Rust engine.
+- If it consumes the finished MarlinSpike report artifact, it probably belongs in a Python plugin.
+- If analysts should be able to tune it without code changes, it probably belongs in a YAML rule pack.
+
 ## Detection and Standards Coverage
 
 MarlinSpike's current public detection and standards story is intentionally bounded to what the engine already emits today.
 
-- Selected MITRE ATT&CK mappings are already present for C2 and exfiltration-oriented findings, including `T1071`, `T1573`, `T1048`, `T1132`, and `T1029`
+- Full MITRE ATT&CK implementation is now present through the shared `marlinspike-mitre` runtime, including ATT&CK version metadata, tactic-aware matrix output, sub-techniques, parent-technique context, mitigations, and response guidance
 - Purdue Model inference and cross-level communication checks are part of the core triage workflow
 - Stage 4 remediation guidance is aligned to IEC 62443 SR requirements for the finding classes currently produced by the engine
+- Deployed instances publish a built-in detection coverage catalog at `/findings` that is explicitly framed as what MarlinSpike can detect, not what it has already detected in a given environment
+- The `/findings` page now groups current report finding classes, `marlinspike-dpi` parser coverage, `marlinspike-malware` observable and rule coverage, and the current ATT&CK mapping set behind filterable source, type, family, severity, and search controls
+- The current `marlinspike-malware` section reflects the tracked bootstrap rule pack, and the ATT&CK section now reflects the vendored full ATT&CK implementation shipped by `marlinspike-mitre`
 
-This is not yet positioned as a full ATT&CK-for-ICS rule library or a full compliance control crosswalk. The current value is targeted, responder-facing mapping tied to the findings MarlinSpike can defend from passive traffic.
+This is now positioned as a full ATT&CK implementation for MarlinSpike's report-facing workflow. It is still intentionally scoped to passive-traffic evidence and analyst triage rather than a broader compliance crosswalk or every possible ATT&CK analytic.
 
 ## Feature Overview
 
@@ -176,7 +271,7 @@ MarlinSpike turns raw packet captures into a workflow an OT operator, asset owne
 - Ad hoc scan execution from the web UI
 - Multi-capture handling, including large-PCAP processing with streaming progress
 - Project-scoped organization for captures and reports
-- Report history, retry support, and report-to-report diff viewing
+- Report history, retry support, and baseline-versus-drift review between report artifacts
 - Portable JSON report artifacts that can be reviewed inside MarlinSpike or elsewhere
 
 ### Administration
@@ -196,7 +291,7 @@ The report workflow supports export directly from the UI:
 
 ## Additional Capabilities
 
-- Report-to-report diffing with added, removed, changed, and unchanged topology comparison
+- Baseline and drift review with added, removed, changed, and unchanged topology comparison
 - Live topology viewing during active scans
 - Scan-stage progress streaming with ingest, analyze, classify, and report state visibility
 - Per-user administration controls including password resets and upload limits
@@ -269,10 +364,86 @@ Click any thumbnail for the full-size image.
     </td>
     <td width="50%">
       <a href="docs/screenshots/11-diff-viewer.png">
-        <img src="docs/screenshots/11-diff-viewer.png" alt="Diff viewer" width="100%">
+        <img src="docs/screenshots/11-diff-viewer.png" alt="Baseline and drift viewer" width="100%">
       </a>
       <br>
-      <sub>Report-to-report diffing</sub>
+      <sub>Baseline and drift review</sub>
+    </td>
+  </tr>
+</table>
+
+### Upgraded Analyst Workbench
+
+The analyst workbench is now structured as a full operator shell instead of a single crowded viewer. A persistent left rail carries workbench identity, report context, mode navigation, and utilities, while the center stage and right-side inspector stay focused on active triage work.
+
+The current shell supports `Dashboard`, `Map`, `Findings`, `Evidence`, `Assets`, `Intel`, `Risk`, and `Reports` surfaces without trying to cram every workflow into the topology canvas.
+
+This screenshot comes from a live validated report artifact after the public `marlinspike-dpi` update and shows the denser operator shell now used by the viewer.
+
+<table>
+  <tr>
+    <td width="100%">
+      <a href="docs/screenshots/21-workbench-operator-shell.png">
+        <img src="docs/screenshots/21-workbench-operator-shell.png" alt="Operator shell with left navigation, compact status strip, and persistent inspector" width="100%">
+      </a>
+      <br>
+      <sub>The operator shell uses a full-height navigation rail, compact status strip, single-row command bar, and persistent inspector so the first viewport stays focused on responder work.</sub>
+    </td>
+  </tr>
+</table>
+
+Additional screenshots show the mode-based workbench surfaces in detail.
+
+<table>
+  <tr>
+    <td width="33%">
+      <a href="docs/screenshots/18-workbench-evidence-mode.png">
+        <img src="docs/screenshots/18-workbench-evidence-mode.png" alt="Evidence mode in the upgraded analyst workbench" width="100%">
+      </a>
+      <br>
+      <sub>Evidence mode surfaces enriched sessions, identity clues, hunt pivots, and preserved DPI observables.</sub>
+    </td>
+    <td width="33%">
+      <a href="docs/screenshots/19-workbench-findings-mode.png">
+        <img src="docs/screenshots/19-workbench-findings-mode.png" alt="Findings mode in the upgraded analyst workbench" width="100%">
+      </a>
+      <br>
+      <sub>Findings mode gives responders a dedicated triage surface instead of forcing everything into the map.</sub>
+    </td>
+    <td width="33%">
+      <a href="docs/screenshots/20-workbench-assets-mode.png">
+        <img src="docs/screenshots/20-workbench-assets-mode.png" alt="Assets mode in the upgraded analyst workbench" width="100%">
+      </a>
+      <br>
+      <sub>Assets mode turns the workbench into a searchable ledger with evidence density and asset context.</sub>
+    </td>
+  </tr>
+</table>
+
+The older live screenshots are still useful as protocol-specific validation examples:
+
+<table>
+  <tr>
+    <td width="33%">
+      <a href="docs/screenshots/15-live-workbench-mqtt.png">
+        <img src="docs/screenshots/15-live-workbench-mqtt.png" alt="Live MQTT analyst workbench view" width="100%">
+      </a>
+      <br>
+      <sub>Live MQTT workbench with preserved client, topic, and asset enrichment.</sub>
+    </td>
+    <td width="33%">
+      <a href="docs/screenshots/16-live-workbench-radius.png">
+        <img src="docs/screenshots/16-live-workbench-radius.png" alt="Live RADIUS analyst workbench view" width="100%">
+      </a>
+      <br>
+      <sub>Live RADIUS workbench with auth metadata, object refs, and triage context.</sub>
+    </td>
+    <td width="33%">
+      <a href="docs/screenshots/17-live-workbench-ftp.png">
+        <img src="docs/screenshots/17-live-workbench-ftp.png" alt="Live FTP analyst workbench view" width="100%">
+      </a>
+      <br>
+      <sub>Live FTP workbench after the public parser panic fix shipped to production.</sub>
     </td>
   </tr>
 </table>

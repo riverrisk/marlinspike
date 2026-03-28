@@ -81,7 +81,7 @@ body {
 #ms-app {
   display: grid;
   grid-template-rows: auto auto 1fr;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: 188px minmax(0, 1fr) 360px;
   flex: 1;
   min-height: 0;
 }
@@ -92,98 +92,65 @@ body {
 
 #ms-header,
 #ms-toolbar {
-  grid-column: 1 / -1;
+  grid-column: 2 / -1;
+}
+
+#ms-left-rail {
+  grid-column: 1;
+  grid-row: 1 / -1;
 }
 
 #ms-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px 16px;
-  padding: 14px 18px 12px;
+  display: block;
+  padding: 10px 18px 8px;
   background: linear-gradient(180deg, rgba(24, 38, 58, 0.94), rgba(20, 31, 48, 0.98));
   border-bottom: 1px solid var(--border);
-  align-items: start;
 }
 
 .ms-header-main {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
 .ms-title-row {
   display: flex;
-  align-items: flex-start;
-  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .ms-title-copy {
-  min-width: 0;
+  min-width: 320px;
+  flex: 1 1 420px;
 }
-
-.ms-back-link {
-  color: var(--text-dim);
-  text-decoration: none;
-  font-size: 0.86em;
-  white-space: nowrap;
-  padding-top: 2px;
-}
-
-.ms-back-link:hover { color: var(--text); }
-
-#ms-header h1 {
-  font-size: 1.06em;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-#ms-header h1 span { color: var(--color-vor-accent); }
 
 .ms-subtitle {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: wrap;
-  margin-top: 5px;
   color: var(--text-dim);
-  font-size: 0.84em;
-}
-
-.ms-file-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: rgba(91, 138, 240, 0.14);
-  border: 1px solid rgba(91, 138, 240, 0.24);
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: 0.95em;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 0.8em;
+  line-height: 1.35;
 }
 
 .ms-stats {
   display: flex;
-  gap: 14px;
+  gap: 10px;
   flex-wrap: wrap;
   font-size: 0.82em;
   color: var(--text-dim);
   font-family: var(--font-mono);
+  flex: 0 1 auto;
+  justify-content: flex-end;
+  white-space: nowrap;
 }
 
 .ms-stats b { color: var(--text); }
-
-.ms-controls {
-  display: flex;
-  gap: 8px;
-  align-self: start;
-  justify-self: end;
-  flex-wrap: wrap;
-}
 
 .ms-btn {
   display: inline-flex;
@@ -225,18 +192,20 @@ body {
 
 .ms-overview-strip {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
 
 .ms-kpi-card {
   min-width: 0;
   text-align: left;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
   border: 1px solid var(--border-dim);
   background: linear-gradient(180deg, rgba(16, 26, 42, 0.96), rgba(12, 21, 33, 0.98));
   cursor: pointer;
+  display: grid;
+  gap: 3px;
 }
 
 .ms-kpi-card:hover { border-color: rgba(91, 138, 240, 0.4); }
@@ -246,52 +215,53 @@ body {
 .ms-kpi-card.danger .ms-kpi-value { color: var(--color-danger); }
 
 .ms-kpi-value {
-  display: block;
+  display: inline-block;
   font-family: var(--font-mono);
-  font-size: 1.24em;
+  font-size: 1.02em;
   font-weight: 700;
   color: var(--accent);
 }
 
 .ms-kpi-label {
   display: block;
-  margin-top: 3px;
   color: var(--text-dim);
-  font-size: 0.76em;
+  font-size: 0.72em;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.06em;
+  line-height: 1.25;
 }
 
 .ms-kpi-detail {
-  display: block;
-  margin-top: 5px;
-  color: var(--text-muted);
-  font-size: 0.8em;
-  line-height: 1.35;
+  display: none;
 }
 
 #ms-toolbar {
   display: none;
   align-items: center;
-  gap: 14px;
-  padding: 10px 18px;
+  gap: 12px 16px;
+  padding: 6px 18px;
   background: rgba(15, 24, 39, 0.94);
   border-bottom: 1px solid var(--border);
-  flex-wrap: wrap;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.js #ms-toolbar { display: flex; }
+.js #ms-toolbar { display: grid; }
 .no-js .ms-controls button { display: none; }
 .no-js .ms-report-close,
 .no-js .ms-report-tabs { display: none; }
 .no-js .ms-report-tab-content { display: block; }
 
 .ms-toolbar-main {
-  display: flex;
+  display: block;
+  min-width: 0;
+}
+
+.ms-toolbar-controls {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) 228px auto;
+  gap: 8px;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  flex: 1;
+  min-width: 0;
 }
 
 .ms-search-field,
@@ -299,10 +269,11 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 7px 10px;
   border-radius: 8px;
   background: var(--panel-alt);
   border: 1px solid var(--border-dim);
+  min-height: 40px;
 }
 
 .ms-search-field span,
@@ -322,10 +293,25 @@ body {
   color: var(--text);
   font-family: var(--font-ui);
   font-size: 0.92em;
+  min-width: 0;
 }
 
-.ms-search-field input { min-width: 220px; }
-.ms-select-field select { min-width: 210px; cursor: pointer; }
+.ms-search-field {
+  min-width: 0;
+}
+
+.ms-search-field input {
+  width: 100%;
+}
+
+.ms-select-field {
+  min-width: 0;
+}
+
+.ms-select-field select {
+  width: 100%;
+  cursor: pointer;
+}
 
 .ms-toolbar-status {
   display: flex;
@@ -333,7 +319,10 @@ body {
   gap: 8px;
   flex-wrap: wrap;
   color: var(--text-dim);
-  font-size: 0.84em;
+  font-size: 0.8em;
+  justify-content: flex-end;
+  width: auto;
+  flex: 0 1 auto;
 }
 
 .ms-status-pill {
@@ -352,13 +341,415 @@ body {
   font-family: var(--font-mono);
 }
 
+#ms-left-rail {
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, rgba(17, 26, 41, 0.98), rgba(11, 18, 30, 0.98)),
+    var(--bg-deep);
+  padding: 14px 12px;
+}
+
+.ms-nav-brand {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 4px 2px 0;
+}
+
+.ms-nav-brand-mark {
+  font-size: 1.18em;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #f5f7fb;
+}
+
+.ms-nav-brand-mark span {
+  color: var(--color-vor-accent);
+}
+
+.ms-nav-brand-name {
+  color: var(--text-dim);
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+}
+
+.ms-nav-brand-file {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  padding: 7px 9px;
+  border-radius: 10px;
+  border: 1px solid rgba(91, 138, 240, 0.2);
+  background: rgba(91, 138, 240, 0.08);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.76em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ms-nav-divider {
+  height: 1px;
+  margin: 0 0 12px;
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.55), rgba(36, 52, 71, 0.9));
+}
+
+.ms-nav-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ms-nav-section-label {
+  color: var(--text-muted);
+  font-size: 0.7em;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  padding: 0 2px;
+}
+
+.ms-nav-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ms-nav-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 40px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(15, 24, 39, 0.62);
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.76em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+  font-family: var(--font-ui);
+}
+
+.ms-nav-action:hover {
+  border-color: rgba(91, 138, 240, 0.32);
+  background: rgba(91, 138, 240, 0.08);
+  color: var(--text);
+}
+
+.ms-nav-action.accent {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f7b0b0;
+}
+
+.ms-nav-action.accent:hover {
+  border-color: rgba(239, 68, 68, 0.72);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.ms-nav-rail {
+  display: grid;
+  gap: 10px;
+}
+
+.ms-nav-btn,
+.ms-nav-link {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-dim);
+  background: rgba(15, 24, 39, 0.82);
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+  min-height: 50px;
+  position: relative;
+}
+
+.ms-nav-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.ms-nav-btn:hover,
+.ms-nav-link:hover {
+  border-color: rgba(239, 68, 68, 0.34);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.ms-nav-btn.active,
+.ms-nav-link.active {
+  border-color: rgba(239, 68, 68, 0.72);
+  background:
+    linear-gradient(180deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.08)),
+    rgba(15, 24, 39, 0.92);
+  box-shadow: inset 2px 0 0 rgba(239, 68, 68, 0.72);
+}
+
+.ms-nav-label {
+  font-size: 0.9em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-nav-note {
+  display: none;
+}
+
+.ms-nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(50, 184, 198, 0.14);
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+  font-size: 0.74em;
+}
+
+.ms-nav-btn.active .ms-nav-badge {
+  background: rgba(239, 68, 68, 0.22);
+  color: #ffb4b4;
+}
+
+.ms-module-block {
+  margin-top: 12px;
+}
+
+.ms-module-block:first-child {
+  margin-top: 0;
+}
+
+.ms-module-note {
+  margin-top: 6px;
+  color: var(--text-dim);
+  font-size: 0.82em;
+  line-height: 1.5;
+}
+
+.ms-module-record {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-dim);
+  background: var(--panel-alt);
+}
+
+.ms-module-record-subtitle {
+  margin-top: 4px;
+  color: var(--text-dim);
+  font-size: 0.8em;
+  font-family: var(--font-mono);
+}
+
+.ms-module-record-body {
+  margin-top: 8px;
+  color: var(--text-dim);
+  font-size: 0.84em;
+  line-height: 1.5;
+}
+
+.ms-module-markdown {
+  color: var(--text-dim);
+  font-size: 0.84em;
+  line-height: 1.6;
+}
+
 #ms-viewport {
+  grid-column: 2;
   position: relative;
   overflow: hidden;
   min-height: 320px;
   background:
     linear-gradient(180deg, rgba(8, 13, 21, 0.94), rgba(10, 18, 29, 0.98)),
     var(--bg-deep);
+}
+
+#ms-stage {
+  position: absolute;
+  inset: 0;
+}
+
+.ms-workbench-pane {
+  display: none;
+  position: absolute;
+  inset: 0;
+}
+
+.ms-workbench-pane.active {
+  display: block;
+}
+
+.ms-stage-pane {
+  overflow: auto;
+  padding: 18px;
+  background:
+    linear-gradient(180deg, rgba(12, 20, 32, 0.98), rgba(10, 18, 29, 0.98)),
+    var(--bg-deep);
+}
+
+.ms-stage-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.9fr);
+  gap: 16px;
+  min-height: 100%;
+}
+
+.ms-stage-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.ms-stage-section {
+  border: 1px solid var(--border-dim);
+  border-radius: 12px;
+  background: rgba(15, 24, 39, 0.84);
+  overflow: hidden;
+}
+
+.ms-stage-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-dim);
+  background: rgba(24, 38, 58, 0.66);
+}
+
+.ms-stage-section-head h3 {
+  font-size: 0.9em;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ms-stage-section-meta {
+  color: var(--text-dim);
+  font-size: 0.8em;
+  font-family: var(--font-mono);
+}
+
+.ms-stage-section-body {
+  padding: 14px;
+}
+
+.ms-stage-note {
+  color: var(--text-dim);
+  font-size: 0.84em;
+  line-height: 1.5;
+}
+
+.ms-stage-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.ms-stage-table-wrap {
+  overflow: auto;
+}
+
+.ms-stage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84em;
+}
+
+.ms-stage-table th,
+.ms-stage-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-dim);
+  vertical-align: top;
+}
+
+.ms-stage-table th {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75em;
+  font-weight: 700;
+  background: rgba(24, 38, 58, 0.4);
+}
+
+.ms-stage-table tr:hover td {
+  background: rgba(91, 138, 240, 0.05);
+}
+
+.ms-stage-row-btn {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+
+.ms-stage-hero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.ms-stage-hero-card {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-dim);
+  background: var(--panel-alt);
+}
+
+.ms-stage-hero-card .val {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 1.18em;
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+
+.ms-stage-hero-card .lbl {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-dim);
+  font-size: 0.78em;
+}
+
+.ms-stage-collection {
+  display: grid;
+  gap: 10px;
+}
+
+.ms-stage-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ms-inline-code {
+  font-family: var(--font-mono);
+  color: var(--text);
 }
 
 #ms-svg-container {
@@ -370,7 +761,23 @@ body {
 #ms-svg-container:active { cursor: grabbing; }
 #ms-svg-container svg { width: 100%; height: 100%; }
 
+.ms-map-module-views {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  max-height: min(42%, 420px);
+  overflow: auto;
+  display: none;
+  padding-right: 6px;
+}
+
+.ms-map-module-views.active {
+  display: block;
+}
+
 #ms-sidebar {
+  grid-column: 3;
   overflow-y: auto;
   background: linear-gradient(180deg, rgba(20, 31, 48, 0.98), rgba(14, 23, 36, 0.98));
   border-left: 1px solid var(--border);
@@ -647,6 +1054,17 @@ body {
   font-size: 0.8em;
 }
 
+.ms-chip-action {
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.ms-chip-action:hover {
+  border-color: rgba(91, 138, 240, 0.45);
+  background: rgba(91, 138, 240, 0.14);
+  color: #fff;
+}
+
 .ms-service-list,
 .ms-connection-list {
   display: grid;
@@ -718,6 +1136,77 @@ body {
   letter-spacing: 0.5px;
 }
 
+.ms-evidence-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ms-evidence-kpi {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-dim);
+  background: var(--panel-alt);
+}
+
+.ms-evidence-kpi .val {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 1.05em;
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+
+.ms-evidence-kpi .lbl {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-dim);
+  font-size: 0.78em;
+}
+
+.ms-evidence-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.ms-evidence-card {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-dim);
+  background: var(--panel-alt);
+}
+
+.ms-evidence-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.ms-evidence-title {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ms-evidence-meta {
+  font-size: 0.8em;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+.ms-evidence-copy {
+  margin-top: 6px;
+  font-size: 0.84em;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+.ms-evidence-copy strong {
+  color: var(--text);
+}
+
 .ms-risk-item.sev-CRITICAL .ms-risk-sev { color: #ef4444; }
 .ms-risk-item.sev-HIGH .ms-risk-sev { color: #f59e0b; }
 .ms-risk-item.sev-MEDIUM .ms-risk-sev { color: #3b82f6; }
@@ -757,7 +1246,7 @@ body {
 
 #ms-report-pane {
   display: block;
-  grid-column: 1 / -1;
+  grid-column: 2 / -1;
   background: var(--panel);
   border-top: 1px solid var(--border);
   overflow-y: auto;
@@ -968,6 +1457,32 @@ body {
 
 .ms-finding-desc { margin: 4px 0; color: var(--text); }
 
+.ms-finding-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.ms-finding-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.74em;
+  color: var(--accent);
+  background: rgba(91, 138, 240, 0.1);
+  border: 1px solid rgba(91, 138, 240, 0.18);
+}
+
+.ms-finding-context {
+  margin-top: 6px;
+  font-size: 0.84em;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
 .ms-finding-remediation {
   margin-top: 6px;
   padding: 6px 8px;
@@ -1027,11 +1542,32 @@ body {
   #ms-app,
   #ms-app.report-open {
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto minmax(320px, 45vh) minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(320px, 45vh) minmax(0, 1fr);
   }
 
   #ms-app.report-open {
-    grid-template-rows: auto auto minmax(320px, 45vh) minmax(0, 1fr) minmax(220px, 42vh);
+    grid-template-rows: auto auto auto minmax(320px, 45vh) minmax(0, 1fr) minmax(220px, 42vh);
+  }
+
+  #ms-left-rail {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px;
+  }
+
+  .ms-nav-rail {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  }
+
+  .ms-overview-strip {
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  }
+
+  .ms-nav-btn,
+  .ms-nav-link {
+    min-height: 50px;
   }
 
   #ms-sidebar {
@@ -1040,6 +1576,23 @@ body {
   }
 
   .ms-report-columns { grid-template-columns: 1fr; }
+  .ms-stage-shell,
+  .ms-stage-split { grid-template-columns: 1fr; }
+
+  #ms-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+  }
+
+  .ms-toolbar-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .ms-toolbar-status {
+    justify-content: flex-start;
+    width: 100%;
+  }
 }
 
 @media print {
@@ -1058,7 +1611,8 @@ body {
   }
 
   #ms-header h1 span { color: #c00; }
-  .ms-controls { display: none; }
+  .ms-nav-actions { display: none; }
+  #ms-left-rail { display: none; }
   .ms-overview-strip { grid-template-columns: repeat(3, 1fr); }
   #ms-viewport { height: 600px; position: relative; }
   #ms-sidebar { border-color: #ccc; background: #fafafa; }
@@ -1086,25 +1640,22 @@ body {
   <div id="ms-header">
     <div class="ms-header-main">
       <div class="ms-title-row">
-        <a href="/dashboard" class="ms-back-link">&#8592; Dashboard</a>
         <div class="ms-title-copy">
-          <h1><span>MarlinSpike</span> Analyst Workbench</h1>
           <div class="ms-subtitle">
-            <span class="ms-file-badge">{{ filename }}</span>
             <span>Breach triage, topology, and portable report review from a single report artifact.</span>
           </div>
         </div>
-      </div>
-      <div class="ms-stats" id="ms-stats">
-        {% if viewer_context.summary.packet_count %}
-        <span><b>{{ "{:,}".format(viewer_context.summary.packet_count) }}</b> packets</span>
-        {% endif %}
-        {% if viewer_context.summary.duration_seconds %}
-        <span><b>{{ "%.1f"|format(viewer_context.summary.duration_seconds) }}s</b> duration</span>
-        {% endif %}
-        <span><b>{{ viewer_context.summary.asset_count }}</b> nodes</span>
-        <span><b>{{ viewer_context.summary.edge_count }}</b> edges</span>
-        <span><b>{{ viewer_context.summary.protocol_count }}</b> protocols</span>
+        <div class="ms-stats" id="ms-stats">
+          {% if viewer_context.summary.packet_count %}
+          <span><b>{{ "{:,}".format(viewer_context.summary.packet_count) }}</b> packets</span>
+          {% endif %}
+          {% if viewer_context.summary.duration_seconds %}
+          <span><b>{{ "%.1f"|format(viewer_context.summary.duration_seconds) }}s</b> duration</span>
+          {% endif %}
+          <span><b>{{ viewer_context.summary.asset_count }}</b> nodes</span>
+          <span><b>{{ viewer_context.summary.edge_count }}</b> edges</span>
+          <span><b>{{ viewer_context.summary.protocol_count }}</b> protocols</span>
+        </div>
       </div>
       <div class="ms-overview-strip" id="ms-overview-strip">
         <div class="ms-kpi-card healthy">
@@ -1134,46 +1685,107 @@ body {
         </div>
       </div>
     </div>
-    <div class="ms-controls">
-      <button class="ms-btn ms-btn-accent" id="ms-btn-risk" onclick="MS.toggleRisk()">Risk Overlay</button>
-      <button class="ms-btn" id="ms-btn-report" onclick="MS.toggleReport()">Assessment Report</button>
-      <a class="ms-btn" href="/api/reports/{{ filename }}/assets" target="_blank">Assets</a>
-      <button class="ms-btn" onclick="MS.printReport()">Print</button>
-      <button class="ms-btn" onclick="MS.exportPng()">PNG</button>
-    </div>
   </div>
 
   <div id="ms-toolbar">
     <div class="ms-toolbar-main">
-      <label class="ms-search-field">
-        <span>Find Asset</span>
-        <input id="ms-search" type="search" autocomplete="off" placeholder="IP, vendor, role, product, protocol">
-      </label>
-      <label class="ms-select-field">
-        <span>Focus Queue</span>
-        <select id="ms-focus">
-          <option value="all">All assets</option>
-          <option value="priority">Priority targets</option>
-          <option value="risk">Assets with findings</option>
-          <option value="auth-gap">Auth gaps</option>
-          <option value="writes">Write-capable paths</option>
-          <option value="unclassified">Needs classification review</option>
-          <option value="ot">OT levels 0-2</option>
-          <option value="external">External / Level 5</option>
-          <option value="level-1">Purdue Level 1</option>
-          <option value="level-2">Purdue Level 2</option>
-          <option value="level-3">Purdue Level 3</option>
-        </select>
-      </label>
-      <button class="ms-btn" onclick="MS.clearFilters()">Clear Focus</button>
+      <div class="ms-toolbar-controls">
+        <label class="ms-search-field">
+          <span>Find Asset</span>
+          <input id="ms-search" type="search" autocomplete="off" placeholder="IP, vendor, role, product, protocol">
+        </label>
+        <label class="ms-select-field">
+          <span>Focus Queue</span>
+          <select id="ms-focus">
+            <option value="all">All assets</option>
+            <option value="priority">Priority targets</option>
+            <option value="risk">Assets with findings</option>
+            <option value="auth-gap">Auth gaps</option>
+            <option value="writes">Write-capable paths</option>
+            <option value="unclassified">Needs classification review</option>
+            <option value="ot">OT levels 0-2</option>
+            <option value="external">External / Level 5</option>
+            <option value="level-1">Purdue Level 1</option>
+            <option value="level-2">Purdue Level 2</option>
+            <option value="level-3">Purdue Level 3</option>
+          </select>
+        </label>
+        <button class="ms-btn" onclick="MS.clearFilters()">Clear Focus</button>
+      </div>
     </div>
     <div class="ms-toolbar-status" id="ms-toolbar-status"></div>
   </div>
 
+  <div id="ms-left-rail">
+    <div class="ms-nav-brand">
+      <div class="ms-nav-brand-mark">Marlin<span>Spike</span></div>
+      <div class="ms-nav-brand-name">Analyst Workbench</div>
+      <div class="ms-nav-brand-file">{{ filename }}</div>
+    </div>
+    <div class="ms-nav-divider"></div>
+    <div class="ms-nav-rail" id="ms-nav-rail">
+      <button class="ms-nav-btn active" data-mode="dashboard" onclick="MS.setWorkbenchMode('dashboard')">
+        <div class="ms-nav-head"><span class="ms-nav-label">Dashboard</span><span class="ms-nav-badge">{{ viewer_context.summary.priority_count }}</span></div>
+        <span class="ms-nav-note">Operator snapshot, queues, and first-pass triage.</span>
+      </button>
+      <button class="ms-nav-btn" data-mode="map" onclick="MS.setWorkbenchMode('map')">
+        <div class="ms-nav-head"><span class="ms-nav-label">Map</span><span class="ms-nav-badge">{{ viewer_context.summary.asset_count }}</span></div>
+        <span class="ms-nav-note">Topology view, path review, and live node selection.</span>
+      </button>
+      <button class="ms-nav-btn" data-mode="findings" onclick="MS.setWorkbenchMode('findings')">
+        <div class="ms-nav-head"><span class="ms-nav-label">Findings</span><span class="ms-nav-badge">{{ viewer_context.top_findings|length + viewer_context.c2_indicators|length }}</span></div>
+        <span class="ms-nav-note">Responder findings, suspicious channels, and action queues.</span>
+      </button>
+      <button class="ms-nav-btn" data-mode="evidence" onclick="MS.setWorkbenchMode('evidence')">
+        <div class="ms-nav-head"><span class="ms-nav-label">Evidence</span><span class="ms-nav-badge">{{ viewer_context.dpi_highlights|length }}</span></div>
+        <span class="ms-nav-note">DPI-enriched sessions, identities, hunt pivots, and module views.</span>
+      </button>
+      <button class="ms-nav-btn" data-mode="assets" onclick="MS.setWorkbenchMode('assets')">
+        <div class="ms-nav-head"><span class="ms-nav-label">Assets</span><span class="ms-nav-badge">{{ viewer_context.assets_sorted|length }}</span></div>
+        <span class="ms-nav-note">Asset ledger, identity depth, and evidence-heavy hosts.</span>
+      </button>
+      <button class="ms-nav-btn" data-mode="intel" onclick="MS.setWorkbenchMode('intel')">
+        <div class="ms-nav-head"><span class="ms-nav-label">Intel</span><span class="ms-nav-badge">{{ viewer_context.mitre_classifications|length + viewer_context.protocol_items|length }}</span></div>
+        <span class="ms-nav-note">Protocol coverage, ATT&CK mapping, and extension intelligence.</span>
+      </button>
+      <button class="ms-nav-btn" data-mode="risk" onclick="MS.setWorkbenchMode('risk')">
+        <div class="ms-nav-head"><span class="ms-nav-label">Risk</span><span class="ms-nav-badge">{{ viewer_context.summary.critical_high_count }}</span></div>
+        <span class="ms-nav-note">High-severity findings, Purdue violations, and writable exposure.</span>
+      </button>
+      <button class="ms-nav-btn" data-mode="reports" onclick="MS.setWorkbenchMode('reports')">
+        <div class="ms-nav-head"><span class="ms-nav-label">Reports</span><span class="ms-nav-badge">{{ viewer_context.summary.module_view_total }}</span></div>
+        <span class="ms-nav-note">Portable artifact review, exports, and extension supplements.</span>
+      </button>
+    </div>
+    <div class="ms-nav-divider" style="margin-top:12px"></div>
+    <div class="ms-nav-actions">
+      <div class="ms-nav-section-label">Utilities</div>
+      <button class="ms-nav-action accent" id="ms-btn-risk" onclick="MS.toggleRisk()">Risk Overlay</button>
+      <button class="ms-nav-action" id="ms-btn-report" onclick="MS.toggleReport()">Assessment Report</button>
+      <div class="ms-nav-actions-grid">
+        <a class="ms-nav-action" href="/api/reports/{{ filename }}/assets" target="_blank">Assets</a>
+        <button class="ms-nav-action" onclick="MS.printReport()">Print</button>
+        <button class="ms-nav-action" onclick="MS.exportPng()">PNG</button>
+      </div>
+    </div>
+  </div>
+
   <div id="ms-viewport">
-    <div id="ms-svg-container"></div>
-    <div id="ms-tooltip"></div>
-    <div id="ms-empty"><h2>No topology data</h2><p>Report contains no discovered nodes.</p></div>
+    <div id="ms-stage">
+      <div id="ms-pane-dashboard" class="ms-workbench-pane active ms-stage-pane"></div>
+      <div id="ms-pane-map" class="ms-workbench-pane">
+        <div id="ms-svg-container"></div>
+        <div id="ms-tooltip"></div>
+        <div id="ms-empty"><h2>No topology data</h2><p>Report contains no discovered nodes.</p></div>
+        <div id="ms-map-module-views" class="ms-map-module-views"></div>
+      </div>
+      <div id="ms-pane-findings" class="ms-workbench-pane ms-stage-pane"></div>
+      <div id="ms-pane-evidence" class="ms-workbench-pane ms-stage-pane"></div>
+      <div id="ms-pane-assets" class="ms-workbench-pane ms-stage-pane"></div>
+      <div id="ms-pane-intel" class="ms-workbench-pane ms-stage-pane"></div>
+      <div id="ms-pane-risk" class="ms-workbench-pane ms-stage-pane"></div>
+      <div id="ms-pane-reports" class="ms-workbench-pane ms-stage-pane"></div>
+    </div>
     <noscript>
       <div class="ms-noscript-note" style="position:absolute;left:16px;right:16px;bottom:16px;z-index:2;">
         Interactive topology controls are unavailable without JavaScript. The rendered triage queues, findings, writable paths, external communications, and full assessment sections below remain fully usable.
@@ -1325,6 +1937,15 @@ body {
                 <div class="ms-summary-card"><div class="val">{{ "%.1f"|format(viewer_context.summary.duration_seconds) }}s</div><div class="lbl">Duration</div></div>
                 {% endif %}
                 <div class="ms-summary-card"><div class="val" style="color:{{ 'var(--color-danger)' if viewer_context.summary.critical_high_count else 'var(--accent-green)' }}">{{ viewer_context.summary.critical_high_count }}</div><div class="lbl">Critical/High</div></div>
+                {% if viewer_context.summary.mitre_classification_total or viewer_context.summary.mitre_platform_total %}
+                <div class="ms-summary-card"><div class="val">{{ viewer_context.summary.mitre_classification_total }}</div><div class="lbl">ATT&CK Hits</div></div>
+                {% endif %}
+                {% if viewer_context.summary.mitre_platform_total %}
+                <div class="ms-summary-card"><div class="val">{{ viewer_context.summary.mitre_platform_total }}</div><div class="lbl">Coverage</div></div>
+                {% endif %}
+                {% if viewer_context.summary.mitre_tactic_total %}
+                <div class="ms-summary-card"><div class="val">{{ viewer_context.summary.mitre_tactic_total }}</div><div class="lbl">ATT&CK Tactics</div></div>
+                {% endif %}
               </div>
               {% if report.timestamp_start %}
               <div style="font-size:0.82em;color:var(--text-dim);margin-top:4px;">Scan: {{ report.timestamp_start }}{% if report.timestamp_end %} — {{ report.timestamp_end }}{% endif %}</div>
@@ -1342,6 +1963,19 @@ body {
                 <div class="ms-finding-card sev-{{ finding.severity }}">
                   <div class="ms-finding-head"><span class="ms-finding-sev">{{ finding.severity }}</span><span class="ms-finding-cat">{{ finding.category }}</span></div>
                   <div class="ms-finding-desc">{{ finding.description }}</div>
+                  {% if finding.detection_id or finding.attack_ids %}
+                  <div class="ms-finding-meta">
+                    {% if finding.detection_id %}
+                    <span class="ms-finding-chip">{{ finding.detection_id }}</span>
+                    {% endif %}
+                    {% for attack_id in finding.attack_ids or [] %}
+                    <span class="ms-finding-chip">{{ attack_id }}</span>
+                    {% endfor %}
+                  </div>
+                  {% endif %}
+                  {% if finding.purdue_context %}
+                  <div class="ms-finding-context"><strong>Purdue:</strong> {{ finding.purdue_context }}</div>
+                  {% endif %}
                   {% if finding.remediation %}
                   <div class="ms-finding-remediation"><strong>Recommendation:</strong> {{ finding.remediation }}</div>
                   {% endif %}
@@ -1400,6 +2034,37 @@ body {
                 {% if node.recommended_modules %}
                 <div style="margin-bottom:6px;font-size:0.82em"><span style="color:var(--text-dim)">Recommended Modules:</span> {{ node.recommended_modules | join(', ') }}</div>
                 {% endif %}
+                {% if node._dpi and node._dpi.conversation_count %}
+                <div style="margin:8px 0 6px;padding-top:8px;border-top:1px solid var(--border-dim)">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+                    <span style="font-size:0.74em;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent-cyan);font-weight:700">Protocol Evidence</span>
+                    <span class="ms-finding-chip">{{ node._dpi.conversation_count }} enriched sessions</span>
+                    {% for proto in node._dpi.protocols or [] %}
+                    <span class="ms-finding-chip">{{ proto }}</span>
+                    {% endfor %}
+                  </div>
+                  {% if node._dpi.identities %}
+                  <div style="margin-bottom:6px">
+                    {% for pair in node._dpi.identities[:4] %}
+                    <span style="display:inline-block;padding:2px 6px;margin:2px;border-radius:999px;font-size:0.78em;font-family:var(--font-mono);background:rgba(50,184,198,0.12);color:var(--accent-cyan);border:1px solid rgba(50,184,198,0.24)">{{ pair.label }}: {{ pair.value }}</span>
+                    {% endfor %}
+                  </div>
+                  {% endif %}
+                  {% if node._dpi.operations %}
+                  <div style="margin-bottom:6px;font-size:0.82em"><span style="color:var(--text-dim)">Operations:</span> {{ node._dpi.operations[:6] | join(', ') }}</div>
+                  {% endif %}
+                  {% if node._dpi.objects %}
+                  <div style="margin-bottom:6px;font-size:0.82em"><span style="color:var(--text-dim)">Objects / Pivots:</span> {{ node._dpi.objects[:4] | join(', ') }}</div>
+                  {% endif %}
+                  {% if node._dpi.asset_hints %}
+                  <div class="ms-service-list" style="margin-top:4px">
+                    {% for pair in node._dpi.asset_hints[:3] %}
+                    <div class="ms-service-item"><strong>{{ pair.label }}:</strong> <span style="font-family:var(--font-mono)">{{ pair.value }}</span></div>
+                    {% endfor %}
+                  </div>
+                  {% endif %}
+                </div>
+                {% endif %}
                 {% if node._top_risk %}
                 <div class="ms-risk-item sev-{{ node._top_risk.severity }}" style="margin:3px 0 0">
                   <div class="ms-risk-sev">{{ node._top_risk.severity }} — {{ node._top_risk.category }}</div>
@@ -1408,6 +2073,66 @@ body {
                 {% endif %}
               </div>
               {% endfor %}
+            </div>
+          </div>
+          <div id="ms-rpt-dpi" class="ms-section">
+            <button class="ms-section-toggle" onclick="MS.toggleSection('ms-rpt-dpi')"><span class="chevron">&#9654;</span>Protocol Observables & Hunt Pivots ({{ viewer_context.dpi_highlights|length }})</button>
+            <div class="ms-section-body">
+              {% if viewer_context.dpi_summary.enriched_conversation_count %}
+              <div class="ms-evidence-summary">
+                <div class="ms-evidence-kpi"><span class="val">{{ viewer_context.dpi_summary.enriched_conversation_count }}</span><span class="lbl">Enriched sessions</span></div>
+                <div class="ms-evidence-kpi"><span class="val">{{ viewer_context.dpi_summary.asset_count }}</span><span class="lbl">Assets with pivots</span></div>
+                <div class="ms-evidence-kpi"><span class="val">{{ viewer_context.dpi_summary.identity_count }}</span><span class="lbl">Identity clues</span></div>
+                <div class="ms-evidence-kpi"><span class="val">{{ viewer_context.dpi_summary.hunt_term_count }}</span><span class="lbl">Search pivots</span></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+                {% if viewer_context.dpi_summary.engine %}
+                <span class="ms-finding-chip">{{ viewer_context.dpi_summary.engine }}</span>
+                {% endif %}
+                {% if viewer_context.dpi_summary.engine_version %}
+                <span class="ms-finding-chip">v{{ viewer_context.dpi_summary.engine_version }}</span>
+                {% endif %}
+                {% if viewer_context.dpi_summary.schema_version %}
+                <span class="ms-finding-chip">schema {{ viewer_context.dpi_summary.schema_version }}</span>
+                {% endif %}
+                {% for proto in viewer_context.dpi_summary.top_protocols or [] %}
+                <span class="ms-finding-chip">{{ proto.name }} {{ proto.count }}</span>
+                {% endfor %}
+              </div>
+              <div class="ms-evidence-grid">
+                {% for item in viewer_context.dpi_highlights %}
+                <div class="ms-evidence-card">
+                  <div class="ms-evidence-head">
+                    <span class="ms-finding-chip" style="background:rgba(50,184,198,0.12);color:var(--accent-cyan);border:1px solid rgba(50,184,198,0.24)">{{ item.protocol }}</span>
+                    <span class="ms-evidence-title">{{ item.src }} → {{ item.dst }}</span>
+                    <span class="ms-evidence-meta">{{ item.packet_count }} pkts · {{ "{:,}".format(item.bytes_total or 0) }} bytes</span>
+                  </div>
+                  {% if item.identities %}
+                  <div class="ms-chip-row" style="margin-bottom:6px">
+                    {% for pair in item.identities %}
+                    <span class="ms-chip" style="border-color:rgba(50,184,198,0.28);background:rgba(50,184,198,0.12);color:var(--accent-cyan)">{{ pair.label }}: {{ pair.value }}</span>
+                    {% endfor %}
+                  </div>
+                  {% endif %}
+                  {% if item.operations %}
+                  <div class="ms-evidence-copy"><strong>Operations:</strong> {{ item.operations | join(', ') }}</div>
+                  {% endif %}
+                  {% if item.object_refs %}
+                  <div class="ms-evidence-copy"><strong>Objects:</strong> {{ item.object_refs | join(', ') }}</div>
+                  {% endif %}
+                  {% if item.asset_hints %}
+                  <div class="ms-evidence-copy"><strong>Asset Clues:</strong>
+                    {% for pair in item.asset_hints[:4] %}
+                    {% if not loop.first %} · {% endif %}{{ pair.label }}: {{ pair.value }}
+                    {% endfor %}
+                  </div>
+                  {% endif %}
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div style="color:var(--text-dim);padding:8px 0;">No enriched DPI observables were preserved in this report.</div>
+              {% endif %}
             </div>
           </div>
           <div id="ms-rpt-protocols" class="ms-section">
@@ -1458,10 +2183,189 @@ body {
                 <div class="ms-finding-card sev-{{ indicator.severity }}">
                   <div class="ms-finding-head"><span class="ms-finding-sev">{{ indicator.severity }}</span><span class="ms-finding-cat">{{ indicator.type }}</span></div>
                   <div class="ms-finding-desc">{{ indicator.description }}</div>
+                  {% if indicator.detection_id or indicator.attack_ids %}
+                  <div class="ms-finding-meta">
+                    {% if indicator.detection_id %}
+                    <span class="ms-finding-chip">{{ indicator.detection_id }}</span>
+                    {% endif %}
+                    {% for attack_id in indicator.attack_ids or [] %}
+                    <span class="ms-finding-chip">{{ attack_id }}</span>
+                    {% endfor %}
+                  </div>
+                  {% endif %}
                 </div>
                 {% endfor %}
               {% else %}
               <div style="color:var(--accent-green);padding:8px 0;">No C2 indicators detected.</div>
+              {% endif %}
+            </div>
+          </div>
+          <div id="ms-rpt-mitre" class="ms-section">
+            <button class="ms-section-toggle" onclick="MS.toggleSection('ms-rpt-mitre')"><span class="chevron">&#9654;</span>MITRE ATT&CK Mapping ({{ viewer_context.mitre_classifications|length + viewer_context.mitre_platform_coverage|length }})</button>
+            <div class="ms-section-body">
+              {% if viewer_context.mitre_classifications or viewer_context.mitre_platform_coverage %}
+                {% if viewer_context.mitre_domains %}
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+                  {% for domain in viewer_context.mitre_domains %}
+                  <span class="ms-finding-chip" style="background:rgba(50,184,198,0.12);color:var(--accent-cyan);border:1px solid rgba(50,184,198,0.28);">{{ domain.name or domain.domain }} v{{ domain.attack_version }}</span>
+                  {% endfor %}
+                  {% if viewer_context.summary.mitre_subtechnique_total %}
+                  <span class="ms-finding-chip">{{ viewer_context.summary.mitre_subtechnique_total }} sub-techniques</span>
+                  {% endif %}
+                  {% if viewer_context.summary.mitre_tactic_total %}
+                  <span class="ms-finding-chip">{{ viewer_context.summary.mitre_tactic_total }} tactics represented</span>
+                  {% endif %}
+                </div>
+                {% endif %}
+                {% if viewer_context.mitre_matrix_domains %}
+                <div style="font-size:0.78em;color:var(--text-dim);margin:0 0 8px;text-transform:uppercase;letter-spacing:0.08em;">Tactic Matrix</div>
+                {% for domain in viewer_context.mitre_matrix_domains %}
+                {% set mapped_tactics = domain.tactics | selectattr('mapped_total') | list %}
+                {% if mapped_tactics %}
+                <div style="margin-bottom:12px;">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+                    <strong style="font-size:0.9em;color:var(--text);">{{ domain.name or domain.domain }}</strong>
+                    {% if domain.attack_version %}
+                    <span class="ms-finding-chip">ATT&CK {{ domain.attack_version }}</span>
+                    {% endif %}
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">
+                    {% for tactic in mapped_tactics %}
+                    <div class="ms-finding-card" style="border-left:3px solid var(--accent-cyan);padding:10px;">
+                      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                        {% if tactic.url %}
+                        <a href="{{ tactic.url }}" target="_blank" rel="noopener noreferrer" style="font-weight:600;color:var(--text);text-decoration:none;">{{ tactic.name }}</a>
+                        {% else %}
+                        <strong style="font-size:0.95em;color:var(--text);">{{ tactic.name }}</strong>
+                        {% endif %}
+                        <span class="ms-finding-chip">{{ tactic.mapped_total }}/{{ tactic.technique_total }}</span>
+                      </div>
+                      {% for entry in tactic.entries[:6] %}
+                      <div style="font-size:0.82em;color:var(--text);margin-bottom:4px;">
+                        {% if entry.technique_url %}
+                        <a href="{{ entry.technique_url }}" target="_blank" rel="noopener noreferrer" style="font-family:var(--font-mono);color:var(--accent-cyan);text-decoration:none;">{{ entry.technique_id }}</a>
+                        {% else %}
+                        <span style="font-family:var(--font-mono);color:var(--accent-cyan);">{{ entry.technique_id }}</span>
+                        {% endif %}
+                        <span style="color:var(--text-dim);">{{ entry.attack_name or entry.title }}</span>
+                      </div>
+                      {% endfor %}
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+                {% endif %}
+                {% if viewer_context.mitre_classifications %}
+                <div style="font-size:0.82em;color:var(--text-dim);margin-bottom:8px;">
+                  Techniques inferred from passive findings and external communication indicators.
+                </div>
+                {% for classification in viewer_context.mitre_classifications %}
+                {% set tone = 'var(--color-danger)' if classification.basis == 'observed' else ('var(--accent-cyan)' if classification.basis == 'platform' else 'var(--color-warning)') %}
+                {% set tone_fill = 'rgba(239,68,68,0.12)' if classification.basis == 'observed' else ('rgba(50,184,198,0.12)' if classification.basis == 'platform' else 'rgba(245,158,11,0.12)') %}
+                {% set tone_border = 'rgba(239,68,68,0.28)' if classification.basis == 'observed' else ('rgba(50,184,198,0.28)' if classification.basis == 'platform' else 'rgba(245,158,11,0.28)') %}
+                <div class="ms-finding-card" style="border-left:3px solid {{ tone }};">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                    <span class="ms-finding-chip" style="background:{{ tone_fill }};color:{{ tone }};border:1px solid {{ tone_border }};">{{ classification.technique_id }}</span>
+                    {% if classification.technique_url %}
+                    <a href="{{ classification.technique_url }}" target="_blank" rel="noopener noreferrer" style="font-size:0.95em;font-weight:600;color:var(--text);text-decoration:none;">{{ classification.attack_name or classification.title }}</a>
+                    {% else %}
+                    <strong style="font-size:0.95em;color:var(--text);">{{ classification.attack_name or classification.title }}</strong>
+                    {% endif %}
+                    {% if classification.family %}
+                    <span class="ms-finding-chip">{{ classification.family }}</span>
+                    {% endif %}
+                    <span class="ms-finding-chip">{{ classification.domain }}</span>
+                    {% if classification.attack_version %}
+                    <span class="ms-finding-chip">ATT&CK {{ classification.attack_version }}</span>
+                    {% endif %}
+                    <span class="ms-finding-chip">{{ classification.basis or 'inferred' }}</span>
+                    <span class="ms-finding-chip">{{ ((classification.confidence or 0) * 100)|round|int }}% confidence</span>
+                  </div>
+                  {% if classification.tactics %}
+                  <div style="margin-top:4px;font-size:0.82em;color:var(--text-dim);"><strong>Tactics:</strong>
+                    {% for tactic in classification.tactics %}
+                    {% if tactic.url %}<a href="{{ tactic.url }}" target="_blank" rel="noopener noreferrer" style="color:var(--accent-cyan);text-decoration:none;">{{ tactic.name }}</a>{% else %}{{ tactic.name }}{% endif %}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                  </div>
+                  {% endif %}
+                  {% if classification.is_subtechnique and classification.parent_technique_id %}
+                  <div style="margin-top:4px;font-size:0.82em;color:var(--text-dim);"><strong>Parent:</strong> {{ classification.parent_technique_id }}{% if classification.parent_technique_name %} · {{ classification.parent_technique_name }}{% endif %}</div>
+                  {% endif %}
+                  {% if classification.response_guidance and classification.response_guidance.analyst_summary %}
+                  <div class="ms-finding-desc">{{ classification.response_guidance.analyst_summary }}</div>
+                  {% elif classification.rationale %}
+                  <div class="ms-finding-desc">{{ classification.rationale }}</div>
+                  {% endif %}
+                  {% if classification.mapped_from %}
+                  <div style="margin-top:6px;font-size:0.82em;color:var(--text-dim);"><strong>Signals:</strong> {{ classification.mapped_from | join(', ') }}</div>
+                  {% endif %}
+                  {% if classification.affected_nodes %}
+                  <div class="ms-finding-nodes">Affected: {{ classification.affected_nodes | join(', ') }}</div>
+                  {% endif %}
+                  {% if classification.evidence_refs %}
+                  <div style="margin-top:4px;font-size:0.78em;color:var(--text-muted);font-family:var(--font-mono);word-break:break-word;">Evidence: {{ classification.evidence_refs | join(', ') }}</div>
+                  {% endif %}
+                  {% if classification.platforms %}
+                  <div style="margin-top:6px;font-size:0.82em;color:var(--text-dim);"><strong>Platforms:</strong> {{ classification.platforms | join(', ') }}</div>
+                  {% endif %}
+                  {% if classification.response_guidance and classification.response_guidance.next_steps %}
+                  <div style="margin-top:8px;padding:8px 10px;background:rgba(50,184,198,0.08);border:1px solid rgba(50,184,198,0.18);border-radius:4px;">
+                    <div style="font-size:0.78em;color:var(--accent-cyan);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Response Guidance</div>
+                    <ul style="margin:0;padding-left:18px;color:var(--text-dim);font-size:0.82em;">
+                      {% for step in classification.response_guidance.next_steps[:4] %}
+                      <li style="margin:3px 0;">{{ step }}</li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                  {% endif %}
+                  {% if classification.mitigations %}
+                  <div style="margin-top:6px;font-size:0.82em;color:var(--text-dim);"><strong>Mitigations:</strong> {{ classification.mitigations[:5] | map(attribute='name') | join(', ') }}</div>
+                  {% endif %}
+                </div>
+                {% endfor %}
+                {% else %}
+                <div style="color:var(--text-dim);padding:8px 0;">No ATT&CK techniques were inferred from the observed findings.</div>
+                {% endif %}
+                {% if viewer_context.mitre_platform_coverage %}
+                <div style="font-size:0.78em;color:var(--text-dim);margin:12px 0 8px;text-transform:uppercase;letter-spacing:0.08em;">Platform Coverage</div>
+                {% for coverage in viewer_context.mitre_platform_coverage %}
+                <div class="ms-finding-card" style="border-left:3px solid var(--accent-cyan);">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                    <span class="ms-finding-chip" style="background:rgba(50,184,198,0.12);color:var(--accent-cyan);border:1px solid rgba(50,184,198,0.28);">{{ coverage.technique_id }}</span>
+                    {% if coverage.technique_url %}
+                    <a href="{{ coverage.technique_url }}" target="_blank" rel="noopener noreferrer" style="font-size:0.95em;font-weight:600;color:var(--text);text-decoration:none;">{{ coverage.attack_name or coverage.title }}</a>
+                    {% else %}
+                    <strong style="font-size:0.95em;color:var(--text);">{{ coverage.attack_name or coverage.title }}</strong>
+                    {% endif %}
+                    {% if coverage.family %}
+                    <span class="ms-finding-chip">{{ coverage.family }}</span>
+                    {% endif %}
+                    <span class="ms-finding-chip">{{ coverage.domain }}</span>
+                    {% if coverage.attack_version %}
+                    <span class="ms-finding-chip">ATT&CK {{ coverage.attack_version }}</span>
+                    {% endif %}
+                    <span class="ms-finding-chip">platform</span>
+                  </div>
+                  {% if coverage.tactics %}
+                  <div style="margin-top:4px;font-size:0.82em;color:var(--text-dim);"><strong>Tactics:</strong> {{ coverage.tactics | map(attribute='name') | join(', ') }}</div>
+                  {% endif %}
+                  {% if coverage.response_guidance and coverage.response_guidance.analyst_summary %}
+                  <div class="ms-finding-desc">{{ coverage.response_guidance.analyst_summary }}</div>
+                  {% elif coverage.rationale %}
+                  <div class="ms-finding-desc">{{ coverage.rationale }}</div>
+                  {% endif %}
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% if viewer_context.mitre_summary.unmapped_category_total %}
+                <div style="margin-top:8px;font-size:0.82em;color:var(--text-dim);">
+                  {{ viewer_context.mitre_summary.unmapped_category_total }} finding categories remain unmapped in the active ATT&CK pack.
+                </div>
+                {% endif %}
+              {% else %}
+              <div style="color:var(--text-dim);padding:8px 0;">No MITRE ATT&CK mappings available.</div>
               {% endif %}
             </div>
           </div>
@@ -1499,6 +2403,8 @@ var MS = (function() {
   'use strict';
 
   var REPORT = {{ report_json | tojson }};
+  var VIEWER_CONTEXT = {{ viewer_context | tojson }};
+  var REPORT_FILENAME = {{ filename | tojson }};
 
   var ROLE_STYLES = {
     'PLC': { color: '#d4943a', label: 'PLC', level: 1 },
@@ -1578,10 +2484,13 @@ var MS = (function() {
   var riskOverlay = false;
   var reportOpen = false;
   var macTableRendered = false;
+  var workbenchMode = 'dashboard';
   var nodes = [];
   var edges = [];
   var nodeByIp = {};
   var selectedNode = null;
+  var assetEvidenceByIp = (VIEWER_CONTEXT.asset_evidence || {});
+  var moduleViewsByLocation = (VIEWER_CONTEXT.module_views_by_location || {});
   var svgEl = null;
   var viewBox = { x: 0, y: 0, w: 1000, h: 600 };
 
@@ -1624,6 +2533,11 @@ var MS = (function() {
 
   function toArray(value) {
     return Array.isArray(value) ? value : [];
+  }
+
+  function dpiPairText(pair) {
+    if (!pair || !pair.label || !pair.value) return '';
+    return String(pair.label) + ': ' + String(pair.value);
   }
 
   function formatBytes(bytes) {
@@ -1669,6 +2583,7 @@ var MS = (function() {
   }
 
   function buildNodeSearchBlob(n) {
+    var dpi = n._dpi || {};
     var parts = [
       n._ip,
       n._role,
@@ -1681,7 +2596,12 @@ var MS = (function() {
       toArray(n.capabilities).join(' '),
       toArray(n.vlans).join(' '),
       toArray(n._protocols).join(' '),
-      toArray(n.recommended_modules).join(' ')
+      toArray(n.recommended_modules).join(' '),
+      toArray(dpi.hunt_terms).join(' '),
+      toArray(dpi.objects).join(' '),
+      toArray(dpi.operations).join(' '),
+      toArray(dpi.identities).map(dpiPairText).join(' '),
+      toArray(dpi.asset_hints).map(dpiPairText).join(' ')
     ];
     return parts.join(' ').toLowerCase();
   }
@@ -1710,6 +2630,7 @@ var MS = (function() {
       n._edges = [];
       n._riskFindings = [];
       n._hasWrites = false;
+      n._dpi = assetEvidenceByIp[ip] || {};
       n._searchBlob = '';
       nodeByIp[ip] = n;
     });
@@ -1850,6 +2771,640 @@ var MS = (function() {
     return (n.vendor && n.vendor !== 'Unknown' ? n.vendor : 'Unknown vendor') + ' · ' + (n.device_type || 'Unknown device');
   }
 
+  function renderSearchChip(value, accent) {
+    var text = String(value || '').trim();
+    if (!text) return '';
+    var style = accent
+      ? ' style="border-color:rgba(50,184,198,0.28);background:rgba(50,184,198,0.12);color:var(--accent-cyan)"'
+      : '';
+    return '<button type="button" class="ms-chip ms-chip-action"' + style + ' onclick="MS.applySearchTerm(\'' + escjs(text) + '\')">' + esc(text) + '</button>';
+  }
+
+  function renderPairChips(pairs, accent) {
+    return toArray(pairs).map(function(pair) {
+      var text = dpiPairText(pair);
+      return text ? renderSearchChip(text, accent) : '';
+    }).join('');
+  }
+
+  function renderNodeDpiEvidence(n, interactive) {
+    var dpi = n && n._dpi ? n._dpi : {};
+    if (!dpi.conversation_count) return '';
+
+    var html = '';
+    html += '<div class="ms-section-label">Protocol Evidence</div>';
+    html += '<div class="ms-service-item">Observed in <strong>' + esc(dpi.conversation_count) + '</strong> enriched sessions';
+    if (toArray(dpi.protocols).length) {
+      html += ' across <span style="font-family:var(--font-mono)">' + dpi.protocols.map(esc).join(', ') + '</span>';
+    }
+    html += '.</div>';
+
+    if (toArray(dpi.identities).length) {
+      html += '<div class="ms-section-label">Identity Clues</div><div class="ms-chip-row">';
+      html += interactive ? renderPairChips(dpi.identities, true) : toArray(dpi.identities).map(function(pair) {
+        return '<span class="ms-chip" style="border-color:rgba(50,184,198,0.28);background:rgba(50,184,198,0.12);color:var(--accent-cyan)">' + esc(dpiPairText(pair)) + '</span>';
+      }).join('');
+      html += '</div>';
+    }
+
+    if (toArray(dpi.operations).length) {
+      html += '<div class="ms-section-label">Observed Operations</div><div class="ms-chip-row">';
+      html += toArray(dpi.operations).map(function(op) {
+        return '<span class="ms-chip">' + esc(op) + '</span>';
+      }).join('');
+      html += '</div>';
+    }
+
+    var pivotTerms = [];
+    toArray(dpi.objects).forEach(function(item) {
+      if (pivotTerms.indexOf(item) === -1) pivotTerms.push(item);
+    });
+    toArray(dpi.hunt_terms).forEach(function(item) {
+      if (pivotTerms.indexOf(item) === -1) pivotTerms.push(item);
+    });
+    if (pivotTerms.length) {
+      html += '<div class="ms-section-label">Hunt Pivots</div><div class="ms-chip-row">';
+      html += pivotTerms.slice(0, 8).map(function(term) {
+        if (interactive) return renderSearchChip(term, false);
+        return '<span class="ms-chip">' + esc(term) + '</span>';
+      }).join('');
+      html += '</div>';
+    }
+
+    if (toArray(dpi.asset_hints).length) {
+      html += '<div class="ms-section-label">Asset Clues</div><div class="ms-service-list">';
+      toArray(dpi.asset_hints).slice(0, 4).forEach(function(pair) {
+        html += '<div class="ms-service-item"><strong>' + esc(pair.label) + ':</strong> <span style="font-family:var(--font-mono)">' + esc(pair.value) + '</span></div>';
+      });
+      html += '</div>';
+    }
+
+    if (toArray(dpi.peers).length) {
+      html += '<div class="ms-section-label">Peer Evidence</div><div class="ms-connection-list">';
+      toArray(dpi.peers).slice(0, 4).forEach(function(peer) {
+        html += '<div class="ms-connection-item"><code>' + esc(peer.peer) + '</code> · ';
+        html += esc(toArray(peer.protocols).join(', ') || 'Unknown') + ' · ';
+        html += esc(peer.conversation_count || 0) + ' sessions';
+        if (toArray(peer.operations).length) html += ' · ' + esc(peer.operations.join(', '));
+        if (toArray(peer.objects).length) html += '<div style="margin-top:4px;color:var(--text-dim)">Objects: ' + peer.objects.map(esc).join(', ') + '</div>';
+        if (toArray(peer.notes).length) html += '<div style="margin-top:4px;color:var(--text-dim)">Clues: ' + peer.notes.map(esc).join(' · ') + '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    return html;
+  }
+
+  function renderDpiReportSection() {
+    var summary = VIEWER_CONTEXT.dpi_summary || {};
+    var highlights = toArray(VIEWER_CONTEXT.dpi_highlights);
+    if (!summary.enriched_conversation_count) {
+      return '<div style="color:var(--text-dim);padding:8px 0;">No enriched DPI observables were preserved in this report.</div>';
+    }
+
+    var html = '<div class="ms-evidence-summary">';
+    html += '<div class="ms-evidence-kpi"><span class="val">' + esc(summary.enriched_conversation_count) + '</span><span class="lbl">Enriched sessions</span></div>';
+    html += '<div class="ms-evidence-kpi"><span class="val">' + esc(summary.asset_count || 0) + '</span><span class="lbl">Assets with pivots</span></div>';
+    html += '<div class="ms-evidence-kpi"><span class="val">' + esc(summary.identity_count || 0) + '</span><span class="lbl">Identity clues</span></div>';
+    html += '<div class="ms-evidence-kpi"><span class="val">' + esc(summary.hunt_term_count || 0) + '</span><span class="lbl">Search pivots</span></div>';
+    html += '</div>';
+
+    html += '<div class="ms-chip-row" style="margin-bottom:10px">';
+    if (summary.engine) html += '<span class="ms-chip">' + esc(summary.engine) + '</span>';
+    if (summary.engine_version) html += '<span class="ms-chip">v' + esc(summary.engine_version) + '</span>';
+    if (summary.schema_version) html += '<span class="ms-chip">schema ' + esc(summary.schema_version) + '</span>';
+    toArray(summary.top_protocols).forEach(function(proto) {
+      html += '<span class="ms-chip">' + esc(proto.name + ' ' + proto.count) + '</span>';
+    });
+    html += '</div>';
+
+    html += '<div class="ms-evidence-grid">';
+    highlights.forEach(function(item) {
+      html += '<div class="ms-evidence-card">';
+      html += '<div class="ms-evidence-head">';
+      html += '<span class="ms-chip" style="border-color:rgba(50,184,198,0.28);background:rgba(50,184,198,0.12);color:var(--accent-cyan)">' + esc(item.protocol || 'Unknown') + '</span>';
+      html += '<span class="ms-evidence-title">' + esc((item.src || 'Unknown') + ' → ' + (item.dst || 'Unknown')) + '</span>';
+      html += '<span class="ms-evidence-meta">' + esc(item.packet_count || 0) + ' pkts · ' + esc(Number(item.bytes_total || 0).toLocaleString()) + ' bytes</span>';
+      html += '</div>';
+      if (toArray(item.identities).length) {
+        html += '<div class="ms-chip-row" style="margin-bottom:6px">' + renderPairChips(item.identities, true) + '</div>';
+      }
+      if (toArray(item.operations).length) {
+        html += '<div class="ms-evidence-copy"><strong>Operations:</strong> ' + item.operations.map(esc).join(', ') + '</div>';
+      }
+      if (toArray(item.object_refs).length) {
+        html += '<div class="ms-section-label" style="margin-top:8px">Objects</div><div class="ms-chip-row">';
+        html += item.object_refs.map(function(ref) {
+          return renderSearchChip(ref, false);
+        }).join('');
+        html += '</div>';
+      }
+      if (toArray(item.asset_hints).length) {
+        html += '<div class="ms-evidence-copy"><strong>Asset Clues:</strong> ' + item.asset_hints.slice(0, 4).map(function(pair) {
+          return esc(dpiPairText(pair));
+        }).join(' · ') + '</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function workbenchModeTitle(mode) {
+    return {
+      dashboard: 'Operator Dashboard',
+      map: 'Topology Map',
+      findings: 'Findings & Response',
+      evidence: 'Protocol Evidence',
+      assets: 'Asset Ledger',
+      intel: 'Protocol & ATT&CK Intel',
+      risk: 'Risk Surface',
+      reports: 'Assessment Report'
+    }[mode || 'dashboard'] || 'Operator Dashboard';
+  }
+
+  function stageSection(title, body, meta) {
+    var metaHtml = meta ? '<div class="ms-stage-section-meta">' + esc(meta) + '</div>' : '';
+    return '<section class="ms-stage-section"><div class="ms-stage-section-head"><h3>' + esc(title) + '</h3>' + metaHtml + '</div><div class="ms-stage-section-body">' + body + '</div></section>';
+  }
+
+  function moduleViewsForLocation(location) {
+    return toArray(moduleViewsByLocation[location]);
+  }
+
+  function renderWorkbenchNav() {
+    document.querySelectorAll('.ms-nav-btn').forEach(function(btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-mode') === workbenchMode);
+    });
+  }
+
+  function renderModuleBlock(block) {
+    if (!block || !block.type) return '';
+    var html = '';
+    if (block.title) html += '<div class="ms-section-label">' + esc(block.title) + '</div>';
+
+    if (block.type === 'metric_strip') {
+      html += '<div class="ms-stage-hero">';
+      toArray(block.items).forEach(function(item) {
+        var tone = String(item.tone || '').toLowerCase();
+        var color = 'var(--accent-cyan)';
+        if (tone === 'warn' || tone === 'warning') color = 'var(--color-warning)';
+        if (tone === 'danger' || tone === 'critical') color = 'var(--color-danger)';
+        if (tone === 'positive' || tone === 'healthy') color = 'var(--accent-green)';
+        html += '<div class="ms-stage-hero-card"><span class="val" style="color:' + color + '">' + esc(item.value) + '</span><span class="lbl">' + esc(item.label) + '</span></div>';
+      });
+      html += '</div>';
+    } else if (block.type === 'key_value') {
+      html += '<div class="ms-service-list">';
+      toArray(block.items).forEach(function(item) {
+        html += '<div class="ms-service-item"><strong>' + esc(item.label) + ':</strong> <span style="font-family:var(--font-mono)">' + esc(item.value) + '</span></div>';
+      });
+      html += '</div>';
+    } else if (block.type === 'chip_list') {
+      html += '<div class="ms-chip-row">';
+      toArray(block.items).forEach(function(item) {
+        html += renderSearchChip(item, false);
+      });
+      html += '</div>';
+    } else if (block.type === 'table') {
+      html += '<div class="ms-stage-table-wrap"><table class="ms-stage-table"><thead><tr>';
+      toArray(block.columns).forEach(function(column) {
+        html += '<th>' + esc(column) + '</th>';
+      });
+      html += '</tr></thead><tbody>';
+      toArray(block.rows).forEach(function(row) {
+        html += '<tr>';
+        toArray(row).forEach(function(cell) {
+          html += '<td>' + esc(cell) + '</td>';
+        });
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+    } else if (block.type === 'records') {
+      html += '<div class="ms-stage-collection">';
+      toArray(block.items).forEach(function(item) {
+        html += '<div class="ms-module-record"><strong>' + esc(item.title) + '</strong>';
+        if (item.subtitle) html += '<div class="ms-module-record-subtitle">' + esc(item.subtitle) + '</div>';
+        if (item.body) html += '<div class="ms-module-record-body">' + esc(item.body) + '</div>';
+        if (toArray(item.chips).length) {
+          html += '<div class="ms-chip-row" style="margin-top:10px">';
+          toArray(item.chips).forEach(function(chip) {
+            html += '<span class="ms-chip">' + esc(chip) + '</span>';
+          });
+          html += '</div>';
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+    } else if (block.type === 'markdown') {
+      html += '<div class="ms-module-markdown">' + esc(block.text).replace(/\n/g, '<br>') + '</div>';
+    }
+
+    if (block.note) html += '<div class="ms-module-note">' + esc(block.note) + '</div>';
+    return '<div class="ms-module-block">' + html + '</div>';
+  }
+
+  function renderModuleViewSection(view) {
+    var meta = [];
+    if (view.source_extension) meta.push(view.source_extension);
+    if (view.badge) meta.push(view.badge);
+    var body = '';
+    if (view.summary) body += '<div class="ms-stage-note">' + esc(view.summary) + '</div>';
+    body += toArray(view.blocks).map(renderModuleBlock).join('');
+    return stageSection(view.title, body, meta.join(' · '));
+  }
+
+  function renderModuleStage(location) {
+    var views = moduleViewsForLocation(location);
+    if (!views.length) return '';
+    return '<div class="ms-stage-stack">' + views.map(renderModuleViewSection).join('') + '</div>';
+  }
+
+  function renderDashboardWorkbench() {
+    var state = getOverviewState();
+    var mitreData = (((REPORT.extensions || {})['marlinspike-mitre']) || {}).data || {};
+    var signalAttackMap = buildSignalAttackMap(toArray(mitreData.classifications));
+    var hero = '<div class="ms-stage-hero">'
+      + '<div class="ms-stage-hero-card"><span class="val">' + esc(state.priority) + '</span><span class="lbl">Priority Targets</span></div>'
+      + '<div class="ms-stage-hero-card"><span class="val">' + esc(state.critHigh) + '</span><span class="lbl">Critical / High</span></div>'
+      + '<div class="ms-stage-hero-card"><span class="val">' + esc(state.authGap) + '</span><span class="lbl">Auth Gaps</span></div>'
+      + '<div class="ms-stage-hero-card"><span class="val">' + esc(state.writeNodes) + '</span><span class="lbl">Write-Capable Nodes</span></div>'
+      + '</div>';
+
+    var queueBody = '<div class="ms-stage-collection">';
+    ['priority', 'risk', 'auth-gap', 'writes', 'unclassified'].forEach(function(queue) {
+      var queueNodes = getQueueNodes(queue).slice(0, 3);
+      if (!queueNodes.length) return;
+      queueBody += '<div class="ms-service-item"><strong>' + esc(queueTitle(queue)) + ':</strong> ' + esc(queueNodes.map(function(node) { return node._ip; }).join(', ')) + '</div>';
+    });
+    if (VIEWER_CONTEXT.summary.module_view_total) {
+      queueBody += '<div class="ms-service-item"><strong>Extension Views:</strong> ' + esc(VIEWER_CONTEXT.summary.module_view_total) + ' contributed analyst panels across ' + esc(VIEWER_CONTEXT.summary.module_location_total) + ' workbench surfaces.</div>';
+    }
+    queueBody += '</div>';
+
+    var findingsBody = '';
+    var findingCandidates = attachAttackIds(REPORT.risk_findings, 'category', signalAttackMap).sort(function(a, b) {
+      return severityRank(a.severity) - severityRank(b.severity);
+    }).slice(0, 6);
+    if (!findingCandidates.length) {
+      findingsBody = '<div class="ms-stage-note">No responder findings were generated for this report.</div>';
+    } else {
+      findingsBody = '<div class="ms-stage-collection">';
+      findingCandidates.forEach(function(item) {
+        findingsBody += '<button class="ms-queue-item ms-stage-row-btn" onclick="MS.selectNodeByIp(\'' + escjs((toArray(item.affected_nodes)[0]) || '') + '\', true)"><div class="ms-queue-copy"><div class="ms-queue-ip">' + esc(item.category || item.type || 'Finding') + '</div><div class="ms-queue-note">' + esc(item.description || 'Responder review recommended') + '</div></div><span class="ms-queue-priority">' + esc(item.severity || 'INFO') + '</span></button>';
+      });
+      findingsBody += '</div>';
+    }
+
+    return '<div class="ms-stage-shell">'
+      + '<div class="ms-stage-stack">'
+      + stageSection('Operator Snapshot', hero + '<div class="ms-stage-note">Use the rail to pivot between topology, risk, evidence, and extension intelligence without losing report context.</div>', workbenchModeTitle('dashboard'))
+      + stageSection('Focus Queues', queueBody, queueTitle(filterState.focus))
+      + '</div>'
+      + '<div class="ms-stage-stack">'
+      + stageSection('First-Pass Findings', findingsBody, (REPORT.risk_findings || []).length + ' findings')
+      + '</div>'
+      + renderModuleStage('dashboard')
+      + '</div>';
+  }
+
+  function renderFindingsWorkbench() {
+    var mitreData = (((REPORT.extensions || {})['marlinspike-mitre']) || {}).data || {};
+    var signalAttackMap = buildSignalAttackMap(toArray(mitreData.classifications));
+    var risks = attachAttackIds(REPORT.risk_findings, 'category', signalAttackMap).sort(function(a, b) {
+      return severityRank(a.severity) - severityRank(b.severity);
+    });
+    var c2 = attachAttackIds(REPORT.c2_indicators, 'type', signalAttackMap).sort(function(a, b) {
+      return severityRank(a.severity) - severityRank(b.severity);
+    });
+    var findingsBody = '';
+    if (!risks.length && !c2.length) {
+      findingsBody = '<div class="ms-stage-note">No responder findings or suspicious communications were produced for this report.</div>';
+    } else {
+      findingsBody += '<div class="ms-stage-collection">';
+      risks.slice(0, 10).forEach(function(item) {
+        var targetIp = toArray(item.affected_nodes)[0];
+        findingsBody += '<div class="ms-finding-card sev-' + esc(item.severity) + '"' + (targetIp && nodeByIp[targetIp] ? ' style="cursor:pointer"' : '') + (targetIp && nodeByIp[targetIp] ? ' onclick="MS.selectNodeByIp(\'' + escjs(targetIp) + '\', true)"' : '') + '>';
+        findingsBody += '<div class="ms-finding-head"><span class="ms-finding-sev">' + esc(item.severity) + '</span><span class="ms-finding-cat">' + esc(item.category) + '</span></div>';
+        findingsBody += '<div class="ms-finding-desc">' + esc(item.description) + '</div>';
+        if (item.remediation) findingsBody += '<div class="ms-finding-remediation"><strong>Recommendation:</strong> ' + esc(item.remediation) + '</div>';
+        if (toArray(item.attack_ids).length) findingsBody += '<div class="ms-finding-meta">' + toArray(item.attack_ids).map(function(id) { return '<span class="ms-finding-chip">' + esc(id) + '</span>'; }).join('') + '</div>';
+        if (toArray(item.affected_nodes).length) findingsBody += '<div class="ms-finding-nodes">Affected: ' + toArray(item.affected_nodes).map(esc).join(', ') + '</div>';
+        findingsBody += '</div>';
+      });
+      if (c2.length) {
+        findingsBody += '<div class="ms-section-label" style="margin-top:10px">Suspicious External Communications</div>';
+        c2.slice(0, 8).forEach(function(item) {
+          findingsBody += '<div class="ms-finding-card sev-' + esc(item.severity) + '">';
+          findingsBody += '<div class="ms-finding-head"><span class="ms-finding-sev">' + esc(item.severity) + '</span><span class="ms-finding-cat">' + esc(item.type) + '</span></div>';
+          findingsBody += '<div class="ms-finding-desc">' + esc(item.description) + '</div>';
+          if (toArray(item.attack_ids).length) findingsBody += '<div class="ms-finding-meta">' + toArray(item.attack_ids).map(function(id) { return '<span class="ms-finding-chip">' + esc(id) + '</span>'; }).join('') + '</div>';
+          findingsBody += '</div>';
+        });
+      }
+      findingsBody += '</div>';
+    }
+
+    var queueBody = '<div class="ms-stage-collection">';
+    queueBody += '<div class="ms-service-item"><strong>' + esc(String(getQueueNodes('priority').length)) + '</strong> priority targets are ready for first-pass review.</div>';
+    queueBody += '<div class="ms-service-item"><strong>' + esc(String(getQueueNodes('writes').length)) + '</strong> assets sit on writable or programming-capable paths.</div>';
+    queueBody += '<div class="ms-service-item"><strong>' + esc(String(getQueueNodes('auth-gap').length)) + '</strong> assets did not show authentication in captured traffic.</div>';
+    toArray(VIEWER_CONTEXT.purdue_violations).slice(0, 5).forEach(function(item) {
+      queueBody += '<div class="ms-purdue-item">' + esc(typeof item === 'string' ? item : JSON.stringify(item)) + '</div>';
+    });
+    queueBody += '</div>';
+
+    var priorityBody = '';
+    var priorityNodes = getQueueNodes('priority');
+    if (!priorityNodes.length) {
+      priorityBody = '<div class="ms-stage-note">No priority targets are available under the current filters.</div>';
+    } else {
+      priorityBody = '<div class="ms-stage-collection">';
+      priorityNodes.slice(0, 8).forEach(function(node) {
+        priorityBody += '<button class="ms-queue-item ms-stage-row-btn" onclick="MS.selectNodeByIp(\'' + escjs(node._ip) + '\', true)">';
+        priorityBody += '<div class="ms-queue-copy"><div class="ms-queue-ip">' + esc(node._ip) + '</div><div class="ms-queue-role">' + esc(node._role) + '</div>';
+        priorityBody += '<div class="ms-queue-note">' + esc(describeNodeForFocus(node, 'priority')) + '</div></div>';
+        priorityBody += '<span class="ms-queue-priority">' + esc(node.attack_priority || 0) + '</span></button>';
+      });
+      priorityBody += '</div>';
+    }
+
+    return '<div class="ms-stage-shell">'
+      + '<div class="ms-stage-stack">'
+      + stageSection('Responder Findings', findingsBody, risks.length + c2.length + ' surfaced items')
+      + '</div>'
+      + '<div class="ms-stage-stack">'
+      + stageSection('Response Queues', queueBody, queueTitle(filterState.focus))
+      + stageSection('Priority Assets', priorityBody, priorityNodes.length + ' assets')
+      + '</div>'
+      + renderModuleStage('findings')
+      + '</div>';
+  }
+
+  function renderEvidenceWorkbench() {
+    var summary = VIEWER_CONTEXT.dpi_summary || {};
+    var highlights = toArray(VIEWER_CONTEXT.dpi_highlights);
+    var richNodes = getFilteredNodes().filter(function(n) { return n._dpi && n._dpi.conversation_count; });
+    var hero = '<div class="ms-stage-hero">'
+      + '<div class="ms-stage-hero-card"><span class="val">' + esc(summary.enriched_conversation_count || 0) + '</span><span class="lbl">Enriched sessions</span></div>'
+      + '<div class="ms-stage-hero-card"><span class="val">' + esc(summary.asset_count || 0) + '</span><span class="lbl">Assets with evidence</span></div>'
+      + '<div class="ms-stage-hero-card"><span class="val">' + esc(summary.identity_count || 0) + '</span><span class="lbl">Identity clues</span></div>'
+      + '<div class="ms-stage-hero-card"><span class="val">' + esc(summary.hunt_term_count || 0) + '</span><span class="lbl">Search pivots</span></div>'
+      + '</div>';
+
+    var highlightsBody = hero;
+    if (!highlights.length) {
+      highlightsBody += '<div class="ms-stage-note">No enriched protocol observables were preserved in this report.</div>';
+    } else {
+      highlightsBody += '<div class="ms-stage-collection">';
+      highlights.forEach(function(item) {
+        highlightsBody += '<div class="ms-evidence-card">';
+        highlightsBody += '<div class="ms-evidence-head"><span class="ms-chip" style="border-color:rgba(50,184,198,0.28);background:rgba(50,184,198,0.12);color:var(--accent-cyan)">' + esc(item.protocol || 'Unknown') + '</span>';
+        highlightsBody += '<span class="ms-evidence-title">' + esc((item.src || 'Unknown') + ' → ' + (item.dst || 'Unknown')) + '</span>';
+        highlightsBody += '<span class="ms-evidence-meta">' + esc(item.packet_count || 0) + ' pkts · ' + esc(Number(item.bytes_total || 0).toLocaleString()) + ' bytes</span></div>';
+        if (toArray(item.identities).length) highlightsBody += '<div class="ms-chip-row" style="margin-bottom:8px">' + renderPairChips(item.identities, true) + '</div>';
+        if (toArray(item.operations).length) highlightsBody += '<div class="ms-evidence-copy"><strong>Operations:</strong> ' + item.operations.map(esc).join(', ') + '</div>';
+        if (toArray(item.object_refs).length) highlightsBody += '<div class="ms-section-label" style="margin-top:8px">Objects</div><div class="ms-chip-row">' + item.object_refs.map(function(ref) { return renderSearchChip(ref, false); }).join('') + '</div>';
+        if (toArray(item.asset_hints).length) highlightsBody += '<div class="ms-evidence-copy"><strong>Asset clues:</strong> ' + item.asset_hints.slice(0, 4).map(function(pair) { return esc(dpiPairText(pair)); }).join(' · ') + '</div>';
+        highlightsBody += '</div>';
+      });
+      highlightsBody += '</div>';
+    }
+
+    var pivotsBody = '';
+    if (toArray(summary.top_identities).length) {
+      pivotsBody += '<div class="ms-section-label" style="margin-top:0">Top Identities</div><div class="ms-chip-row">';
+      pivotsBody += toArray(summary.top_identities).map(function(item) {
+        return renderSearchChip(item.label, true);
+      }).join('');
+      pivotsBody += '</div>';
+    }
+    if (richNodes.length) {
+      pivotsBody += '<div class="ms-section-label">Assets with richest evidence</div><div class="ms-stage-collection">';
+      richNodes.slice(0, 10).forEach(function(node) {
+        pivotsBody += '<button class="ms-queue-item ms-stage-row-btn" onclick="MS.selectNodeByIp(\'' + escjs(node._ip) + '\', true)">';
+        pivotsBody += '<div class="ms-queue-copy"><div class="ms-queue-ip">' + esc(node._ip) + '</div><div class="ms-queue-role">' + esc(node._role) + '</div>';
+        pivotsBody += '<div class="ms-queue-note">' + esc((node._dpi.identities || []).slice(0, 2).map(dpiPairText).join(' · ') || (node._dpi.operations || []).slice(0, 3).join(', ')) + '</div></div>';
+        pivotsBody += '<span class="ms-queue-priority">' + esc(node._dpi.conversation_count || 0) + '</span></button>';
+      });
+      pivotsBody += '</div>';
+    } else {
+      pivotsBody += '<div class="ms-stage-note">No assets match the current focus with preserved DPI evidence.</div>';
+    }
+
+    return '<div class="ms-stage-shell">'
+      + '<div class="ms-stage-stack">'
+      + stageSection('Protocol Evidence', highlightsBody, (summary.engine || 'dpi') + (summary.engine_version ? ' v' + summary.engine_version : ''))
+      + '</div>'
+      + '<div class="ms-stage-stack">'
+      + stageSection('Identity & Hunt Pivots', pivotsBody, (summary.hunt_term_count || 0) + ' searchable terms')
+      + '</div>'
+      + renderModuleStage('evidence')
+      + '</div>';
+  }
+
+  function renderAssetsWorkbench() {
+    var list = getFilteredNodes();
+    var table = '';
+    if (!list.length) {
+      table = '<div class="ms-stage-note">No assets match the current focus and search.</div>';
+    } else {
+      table += '<div class="ms-stage-table-wrap"><table class="ms-stage-table"><thead><tr><th>Asset</th><th>Role</th><th>Identity</th><th>Protocols</th><th>Risk</th><th>Evidence</th></tr></thead><tbody>';
+      list.forEach(function(node) {
+        table += '<tr><td><button class="ms-stage-row-btn" onclick="MS.selectNodeByIp(\'' + escjs(node._ip) + '\', true)"><span class="ms-inline-code">' + esc(node._ip) + '</span></button></td>';
+        table += '<td>' + esc(node._role) + '<br><span class="ms-stage-note">' + esc(PURDUE_LABELS[node._level] || ('Level ' + node._level)) + '</span></td>';
+        table += '<td>' + esc((node.vendor && node.vendor !== 'Unknown' ? node.vendor : 'Unknown vendor') + ' · ' + (node.device_type || 'Unknown')) + '</td>';
+        table += '<td>' + esc(toArray(node._protocols).slice(0, 4).join(', ') || '—') + '</td>';
+        table += '<td>' + esc(nodeRiskFindings(node).length) + ' findings</td>';
+        table += '<td>' + esc((node._dpi && node._dpi.conversation_count) || 0) + ' sessions</td></tr>';
+      });
+      table += '</tbody></table></div>';
+    }
+
+    var evidenceLeaders = getFilteredNodes().filter(function(node) { return node._dpi && node._dpi.conversation_count; });
+    var side = '<div class="ms-stage-collection">';
+    evidenceLeaders.slice(0, 8).forEach(function(node) {
+      side += '<button class="ms-queue-item ms-stage-row-btn" onclick="MS.selectNodeByIp(\'' + escjs(node._ip) + '\', true)">';
+      side += '<div class="ms-queue-copy"><div class="ms-queue-ip">' + esc(node._ip) + '</div><div class="ms-queue-role">' + esc(node._role) + '</div>';
+      side += '<div class="ms-queue-note">' + esc((node._dpi.objects || []).slice(0, 2).join(' · ') || (node._dpi.hunt_terms || []).slice(0, 3).join(' · ') || 'Evidence preserved') + '</div></div>';
+      side += '<span class="ms-queue-priority">' + esc(node._dpi.conversation_count || 0) + '</span></button>';
+    });
+    if (!evidenceLeaders.length) side += '<div class="ms-stage-note">No DPI-enriched assets match the current view.</div>';
+    side += '</div>';
+
+    return '<div class="ms-stage-shell">'
+      + '<div class="ms-stage-stack">'
+      + stageSection('Asset Ledger', table, list.length + ' assets in view')
+      + '</div>'
+      + '<div class="ms-stage-stack">'
+      + stageSection('Evidence Leaders', side, evidenceLeaders.length + ' enriched assets')
+      + '</div>'
+      + renderModuleStage('assets')
+      + '</div>';
+  }
+
+  function renderIntelWorkbench() {
+    var mitreExt = ((REPORT.extensions || {})['marlinspike-mitre']) || {};
+    var mitreData = mitreExt.data || {};
+    var mitreSummary = mitreExt.summary || {};
+    var mitreClassifications = toArray(mitreData.classifications);
+    var mitrePlatformCoverage = toArray(mitreData.platform_coverage);
+    var protocolSummary = REPORT.protocol_summary || {};
+    var portSummary = REPORT.port_summary || {};
+    var protoKeys = Object.keys(protocolSummary).sort(function(a, b) { return protocolSummary[b] - protocolSummary[a]; });
+    var portKeys = Object.keys(portSummary).sort(function(a, b) { return (portSummary[b].connections || 0) - (portSummary[a].connections || 0); });
+
+    var left = '<div class="ms-stage-hero">'
+      + '<div class="ms-stage-hero-card"><span class="val">' + esc(protoKeys.length) + '</span><span class="lbl">Protocols</span></div>'
+      + '<div class="ms-stage-hero-card"><span class="val">' + esc(mitreClassifications.length) + '</span><span class="lbl">ATT&CK hits</span></div>'
+      + '<div class="ms-stage-hero-card"><span class="val">' + esc(mitrePlatformCoverage.length) + '</span><span class="lbl">Coverage records</span></div>'
+      + '<div class="ms-stage-hero-card"><span class="val">' + esc(mitreSummary.tactic_total || 0) + '</span><span class="lbl">Tactics</span></div>'
+      + '</div>';
+    left += '<div class="ms-stage-split">';
+    left += stageSection('Protocol Mix', protoKeys.length ? '<div class="ms-stage-table-wrap"><table class="ms-stage-table"><thead><tr><th>Protocol</th><th>Conversations</th></tr></thead><tbody>' + protoKeys.slice(0, 12).map(function(key) {
+      return '<tr><td>' + esc(key) + '</td><td>' + esc(protocolSummary[key]) + '</td></tr>';
+    }).join('') + '</tbody></table></div>' : '<div class="ms-stage-note">No protocol summary available.</div>', protoKeys.length + ' protocols');
+    left += stageSection('Port Surface', portKeys.length ? '<div class="ms-stage-table-wrap"><table class="ms-stage-table"><thead><tr><th>Port</th><th>Protocol</th><th>Category</th><th>Connections</th></tr></thead><tbody>' + portKeys.slice(0, 12).map(function(key) {
+      var item = portSummary[key] || {};
+      return '<tr><td><span class="ms-inline-code">' + esc(key) + '</span></td><td>' + esc(item.protocol || 'Unknown') + '</td><td>' + esc(item.category || 'Unknown') + '</td><td>' + esc(item.connections || 0) + '</td></tr>';
+    }).join('') + '</tbody></table></div>' : '<div class="ms-stage-note">No port summary available.</div>', portKeys.length + ' port groupings');
+    left += '</div>';
+
+    var right = '';
+    if (!mitreClassifications.length && !mitrePlatformCoverage.length) {
+      right = '<div class="ms-stage-note">No ATT&CK enrichment is available for this report.</div>';
+    } else {
+      right += '<div class="ms-stage-collection">';
+      mitreClassifications.slice(0, 6).forEach(function(item) {
+        right += mitreCardHtml(item);
+      });
+      right += '</div>';
+    }
+
+    return '<div class="ms-stage-shell">'
+      + '<div class="ms-stage-stack">' + stageSection('Protocol & Coverage', left, workbenchModeTitle('intel')) + '</div>'
+      + '<div class="ms-stage-stack">' + stageSection('ATT&CK Intelligence', right, mitreClassifications.length + mitrePlatformCoverage.length + ' mapped records') + '</div>'
+      + renderModuleStage('intel')
+      + '</div>';
+  }
+
+  function renderRiskWorkbench() {
+    var risks = toArray(REPORT.risk_findings).slice().sort(function(a, b) {
+      return severityRank(a.severity) - severityRank(b.severity);
+    });
+    var writePaths = toArray(VIEWER_CONTEXT.write_paths);
+    var external = toArray(VIEWER_CONTEXT.external_indicators);
+    var authGaps = getQueueNodes('auth-gap');
+    var purdue = toArray(VIEWER_CONTEXT.purdue_violations);
+
+    var left = '';
+    if (!risks.length && !external.length) {
+      left = '<div class="ms-stage-note">No high-signal risk or suspicious communications were produced for this report.</div>';
+    } else {
+      left += '<div class="ms-stage-collection">';
+      risks.slice(0, 8).forEach(function(item) {
+        left += '<div class="ms-risk-item sev-' + esc(item.severity) + '"><div class="ms-risk-sev">' + esc(item.severity) + ' · ' + esc(item.category) + '</div><div style="margin-top:6px">' + esc(item.description) + '</div></div>';
+      });
+      if (external.length) {
+        left += '<div class="ms-section-label">Suspicious External Communications</div>';
+        external.slice(0, 6).forEach(function(item) {
+          left += '<div class="ms-risk-item sev-' + esc(item.severity) + '"><div class="ms-risk-sev">' + esc(item.severity) + ' · ' + esc(item.type) + '</div><div style="margin-top:6px">' + esc(item.description) + '</div></div>';
+        });
+      }
+      left += '</div>';
+    }
+
+    var right = '<div class="ms-stage-collection">';
+    if (writePaths.length) {
+      right += '<div class="ms-section-label" style="margin-top:0">Writable Paths</div>';
+      writePaths.slice(0, 8).forEach(function(edge) {
+        right += '<button class="ms-queue-item ms-stage-row-btn" onclick="MS.selectNodeByIp(\'' + escjs(edge.src || '') + '\', true)"><div class="ms-queue-copy"><div class="ms-queue-ip">' + esc((edge.src || 'Unknown') + ' → ' + (edge.dst || 'Unknown')) + '</div><div class="ms-queue-note">' + esc((edge.protocol || 'Unknown') + ' · ' + (edge.conversation_count || 0) + ' conversations') + '</div></div><span class="ms-queue-priority">' + esc(edge.includes_program_access ? 'PROGRAM' : 'WRITE') + '</span></button>';
+      });
+    }
+    if (authGaps.length) {
+      right += '<div class="ms-section-label">Auth Gaps</div>';
+      authGaps.slice(0, 6).forEach(function(node) {
+        right += '<button class="ms-queue-item ms-stage-row-btn" onclick="MS.selectNodeByIp(\'' + escjs(node._ip) + '\', true)"><div class="ms-queue-copy"><div class="ms-queue-ip">' + esc(node._ip) + '</div><div class="ms-queue-note">' + esc(node._role + ' · ' + (node._protocols[0] || 'review services')) + '</div></div><span class="ms-queue-priority">AUTH</span></button>';
+      });
+    }
+    if (purdue.length) {
+      right += '<div class="ms-section-label">Purdue Violations</div>';
+      purdue.slice(0, 6).forEach(function(item) {
+        right += '<div class="ms-purdue-item">' + esc(typeof item === 'string' ? item : JSON.stringify(item)) + '</div>';
+      });
+    }
+    if (!writePaths.length && !authGaps.length && !purdue.length) {
+      right += '<div class="ms-stage-note">No writable paths, auth gaps, or Purdue violations are available.</div>';
+    }
+    right += '</div>';
+
+    return '<div class="ms-stage-shell">'
+      + '<div class="ms-stage-stack">' + stageSection('Risk Surface', left, risks.length + external.length + ' surfaced items') + '</div>'
+      + '<div class="ms-stage-stack">' + stageSection('Exposure Queues', right, writePaths.length + authGaps.length + purdue.length + ' queued records') + '</div>'
+      + renderModuleStage('risk')
+      + '</div>';
+  }
+
+  function renderReportsWorkbench() {
+    var reportBody = '<div class="ms-stage-collection">';
+    reportBody += '<div class="ms-service-item"><strong>Artifact:</strong> <span style="font-family:var(--font-mono)">' + esc(REPORT_FILENAME) + '</span></div>';
+    reportBody += '<div class="ms-service-item"><strong>Portable Review:</strong> The full assessment report remains exportable and printable from this workbench.</div>';
+    reportBody += '<div class="ms-service-item"><strong>Extensions:</strong> ' + esc(VIEWER_CONTEXT.summary.module_view_total || 0) + ' workbench views contributed by report extensions.</div>';
+    reportBody += '<div style="margin-top:10px"><button class="ms-btn ms-btn-accent" onclick="MS.toggleReport()">Open Assessment Report</button></div>';
+    reportBody += '</div>';
+
+    var supplements = '';
+    var reportViews = moduleViewsForLocation('reports');
+    if (!reportViews.length) {
+      supplements = '<div class="ms-stage-note">No report-only supplements were contributed by extensions.</div>';
+    } else {
+      supplements = '<div class="ms-stage-note">Extension supplements stay declarative so they can travel with the report artifact without taking over the viewer shell.</div>';
+    }
+
+    return '<div class="ms-stage-shell">'
+      + '<div class="ms-stage-stack">' + stageSection('Assessment Artifact', reportBody, workbenchModeTitle('reports')) + '</div>'
+      + '<div class="ms-stage-stack">' + stageSection('Extension Supplements', supplements, reportViews.length + ' views') + '</div>'
+      + renderModuleStage('reports')
+      + '</div>';
+  }
+
+  function renderWorkbenchStage() {
+    renderWorkbenchNav();
+    var mapModuleViews = document.getElementById('ms-map-module-views');
+    ['dashboard', 'map', 'findings', 'evidence', 'assets', 'intel', 'risk', 'reports'].forEach(function(mode) {
+      var pane = document.getElementById('ms-pane-' + mode);
+      if (pane) pane.classList.toggle('active', workbenchMode === mode);
+    });
+    if (mapModuleViews) {
+      var mapSupplements = renderModuleStage('map');
+      mapModuleViews.innerHTML = mapSupplements;
+      mapModuleViews.classList.toggle('active', workbenchMode === 'map' && !!mapSupplements);
+    }
+    if (workbenchMode === 'dashboard') {
+      document.getElementById('ms-pane-dashboard').innerHTML = renderDashboardWorkbench();
+    } else if (workbenchMode === 'findings') {
+      document.getElementById('ms-pane-findings').innerHTML = renderFindingsWorkbench();
+    } else if (workbenchMode === 'evidence') {
+      document.getElementById('ms-pane-evidence').innerHTML = renderEvidenceWorkbench();
+    } else if (workbenchMode === 'assets') {
+      document.getElementById('ms-pane-assets').innerHTML = renderAssetsWorkbench();
+    } else if (workbenchMode === 'intel') {
+      document.getElementById('ms-pane-intel').innerHTML = renderIntelWorkbench();
+    } else if (workbenchMode === 'risk') {
+      document.getElementById('ms-pane-risk').innerHTML = renderRiskWorkbench();
+    } else if (workbenchMode === 'reports') {
+      document.getElementById('ms-pane-reports').innerHTML = renderReportsWorkbench();
+    }
+  }
+
+  function setWorkbenchMode(mode) {
+    workbenchMode = mode || 'dashboard';
+    renderWorkbenchStage();
+    renderToolbarStatus();
+    if (workbenchMode === 'map' && svgEl) SVG2D.syncState();
+  }
+
   function renderHeader() {
     var ci = REPORT.capture_info || {};
     var stats = document.getElementById('ms-stats');
@@ -1910,10 +3465,8 @@ var MS = (function() {
 
   function renderToolbarStatus() {
     var filtered = getFilteredNodes();
-    var focusLabel = queueTitle(filterState.focus);
     var parts = [];
     parts.push('<span class="ms-status-pill"><strong>' + filtered.length + '</strong> visible</span>');
-    parts.push('<span class="ms-status-pill">Focus <strong>' + esc(focusLabel) + '</strong></span>');
     if (filterState.query) {
       parts.push('<span class="ms-status-pill">Search <strong>' + esc(filterState.query) + '</strong></span>');
     }
@@ -1926,7 +3479,7 @@ var MS = (function() {
 
   function renderSelectionPanel() {
     if (!selectedNode) {
-      return '<div class="ms-sidebar-panel"><h3>Selected Asset</h3><div class="ms-empty-panel"><strong>No asset selected.</strong><br>Select a node, queue item, or finding to pull its classification, services, and connected paths into view.</div></div>';
+      return '<div class="ms-sidebar-panel"><h3>Selected Asset</h3><div class="ms-empty-panel"><strong>No asset selected.</strong><br>Select a node, queue item, or finding to pull its classification, services, paths, and protocol evidence into view.</div></div>';
     }
 
     var n = selectedNode;
@@ -1946,6 +3499,8 @@ var MS = (function() {
     html += '<button class="ms-mini-btn" onclick="MS.centerOnSelected()">Center</button>';
     html += '<button class="ms-mini-btn" onclick="MS.deselectNode()">Clear</button>';
     html += '</div></div>';
+
+    html += renderNodeDpiEvidence(n, true);
 
     html += '<div class="ms-selection-grid">';
     var fields = [
@@ -2129,6 +3684,7 @@ var MS = (function() {
     html += renderFindingsPanel();
     html += renderProtocolPanel();
     document.getElementById('ms-sidebar-content').innerHTML = html;
+    renderWorkbenchStage();
     renderToolbarStatus();
   }
 
@@ -2480,8 +4036,19 @@ var MS = (function() {
 
   function setSearch(query) {
     filterState.query = String(query || '').trim().toLowerCase();
+    var searchEl = document.getElementById('ms-search');
+    if (searchEl && searchEl.value !== String(query || '')) searchEl.value = String(query || '');
     renderSidebar();
     if (svgEl) SVG2D.syncState();
+  }
+
+  function applySearchTerm(term) {
+    setSearch(term || '');
+    var searchEl = document.getElementById('ms-search');
+    if (searchEl) {
+      searchEl.focus();
+      searchEl.select();
+    }
   }
 
   function clearFilters() {
@@ -2585,8 +4152,194 @@ var MS = (function() {
     if (el) el.classList.toggle('open');
   }
 
+  function truncateText(value, limit) {
+    var text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (!text || !limit || text.length <= limit) return text;
+    return text.slice(0, Math.max(0, limit - 3)).trim() + '...';
+  }
+
+  function buildSignalAttackMap(items) {
+    var out = {};
+    toArray(items).forEach(function(item) {
+      var techniqueId = String(item.technique_id || '').trim().toUpperCase();
+      if (!techniqueId) return;
+      toArray(item.mapped_from).forEach(function(signal) {
+        var key = String(signal || '').trim().toUpperCase();
+        if (!key) return;
+        if (!out[key]) out[key] = [];
+        if (out[key].indexOf(techniqueId) === -1) out[key].push(techniqueId);
+      });
+    });
+    return out;
+  }
+
+  function attachAttackIds(items, keyName, signalAttackMap) {
+    return toArray(items).map(function(item) {
+      var clone = Object.assign({}, item || {});
+      var merged = [];
+      toArray(clone.attack_ids).concat(signalAttackMap[String(clone[keyName] || '').trim().toUpperCase()] || []).forEach(function(value) {
+        var normalized = String(value || '').trim().toUpperCase();
+        if (normalized && merged.indexOf(normalized) === -1) merged.push(normalized);
+      });
+      clone.attack_ids = merged;
+      return clone;
+    });
+  }
+
+  function mitreMetadataHtml(attackMeta, mitreSummary) {
+    var html = '';
+    var domains = Object.keys(attackMeta.domains || {}).map(function(key) { return attackMeta.domains[key]; });
+    if (domains.length) {
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">';
+      domains.forEach(function(domain) {
+        html += '<span class="ms-finding-chip" style="background:rgba(50,184,198,0.12);color:var(--accent-cyan);border:1px solid rgba(50,184,198,0.28)">' + esc((domain.name || domain.domain || 'ATT&CK') + ' v' + (domain.attack_version || '?')) + '</span>';
+      });
+      if (Number(mitreSummary.subtechnique_total || 0) > 0) html += '<span class="ms-finding-chip">' + esc(mitreSummary.subtechnique_total) + ' sub-techniques</span>';
+      if (Number(mitreSummary.tactic_total || 0) > 0) html += '<span class="ms-finding-chip">' + esc(mitreSummary.tactic_total) + ' tactics represented</span>';
+      html += '</div>';
+      if (attackMeta.source_index_url) {
+        html += '<div style="margin:-2px 0 10px;font-size:0.78em;color:var(--text-dim)">Source: <a href="' + esc(attackMeta.source_index_url) + '" target="_blank" rel="noopener noreferrer" style="color:var(--accent-cyan);text-decoration:none">official ATT&CK catalog index</a></div>';
+      }
+    }
+    return html;
+  }
+
+  function mitreMatrixHtml(matrix) {
+    var html = '';
+    var domains = toArray((matrix || {}).domains);
+    var renderedAny = false;
+    domains.forEach(function(domain) {
+      var mappedTactics = toArray(domain.tactics).filter(function(tactic) { return Number(tactic.mapped_total || 0) > 0; });
+      if (!mappedTactics.length) return;
+      renderedAny = true;
+      html += '<div style="margin-bottom:12px">';
+      html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">';
+      html += '<strong style="font-size:0.9em;color:var(--text)">' + esc(domain.name || domain.domain || 'ATT&CK') + '</strong>';
+      if (domain.attack_version) html += '<span class="ms-finding-chip">ATT&CK ' + esc(domain.attack_version) + '</span>';
+      html += '</div>';
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">';
+      mappedTactics.forEach(function(tactic) {
+        html += '<div class="ms-finding-card" style="border-left:3px solid var(--accent-cyan);padding:10px">';
+        html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">';
+        if (tactic.url) {
+          html += '<a href="' + esc(tactic.url) + '" target="_blank" rel="noopener noreferrer" style="font-weight:600;color:var(--text);text-decoration:none">' + esc(tactic.name || tactic.tactic_id || 'Tactic') + '</a>';
+        } else {
+          html += '<strong style="font-size:0.95em;color:var(--text)">' + esc(tactic.name || tactic.tactic_id || 'Tactic') + '</strong>';
+        }
+        html += '<span class="ms-finding-chip">' + esc(String(tactic.mapped_total || 0) + '/' + String(tactic.technique_total || 0)) + '</span>';
+        html += '</div>';
+        toArray(tactic.entries).slice(0, 6).forEach(function(entry) {
+          html += '<div style="font-size:0.82em;color:var(--text);margin-bottom:4px">';
+          if (entry.technique_url) {
+            html += '<a href="' + esc(entry.technique_url) + '" target="_blank" rel="noopener noreferrer" style="font-family:var(--font-mono);color:var(--accent-cyan);text-decoration:none">' + esc(entry.technique_id || 'TBD') + '</a>';
+          } else {
+            html += '<span style="font-family:var(--font-mono);color:var(--accent-cyan)">' + esc(entry.technique_id || 'TBD') + '</span>';
+          }
+          html += ' <span style="color:var(--text-dim)">' + esc(entry.attack_name || entry.title || '') + '</span></div>';
+        });
+        html += '</div>';
+      });
+      html += '</div></div>';
+    });
+    if (renderedAny) {
+      return '<div style="font-size:0.78em;color:var(--text-dim);margin:0 0 8px;text-transform:uppercase;letter-spacing:0.08em;">Tactic Matrix</div>' + html;
+    }
+    return '';
+  }
+
+  function mitreCardHtml(item) {
+    var basis = String(item.basis || 'inferred').toLowerCase();
+    var tone = basis === 'observed'
+      ? 'var(--color-danger)'
+      : basis === 'platform'
+        ? 'var(--accent-cyan)'
+        : 'var(--color-warning)';
+    var fill = basis === 'observed'
+      ? 'rgba(239,68,68,0.12)'
+      : basis === 'platform'
+        ? 'rgba(50,184,198,0.12)'
+        : 'rgba(245,158,11,0.12)';
+    var border = basis === 'observed'
+      ? 'rgba(239,68,68,0.28)'
+      : basis === 'platform'
+        ? 'rgba(50,184,198,0.28)'
+        : 'rgba(245,158,11,0.28)';
+    var html = '<div class="ms-finding-card" style="border-left:3px solid ' + tone + '">';
+    html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">';
+    html += '<span class="ms-finding-chip" style="background:' + fill + ';color:' + tone + ';border:1px solid ' + border + '">' + esc(item.technique_id || 'TBD') + '</span>';
+    if (item.technique_url) {
+      html += '<a href="' + esc(item.technique_url) + '" target="_blank" rel="noopener noreferrer" style="font-size:0.95em;font-weight:600;color:var(--text);text-decoration:none">' + esc(item.attack_name || item.title || 'Unknown Technique') + '</a>';
+    } else {
+      html += '<strong style="font-size:0.95em;color:var(--text)">' + esc(item.attack_name || item.title || 'Unknown Technique') + '</strong>';
+    }
+    if (item.family) html += '<span class="ms-finding-chip">' + esc(item.family) + '</span>';
+    if (item.domain) html += '<span class="ms-finding-chip">' + esc(item.domain) + '</span>';
+    if (item.attack_version) html += '<span class="ms-finding-chip">ATT&CK ' + esc(item.attack_version) + '</span>';
+    html += '<span class="ms-finding-chip">' + esc(basis) + '</span>';
+    html += '<span class="ms-finding-chip">' + esc(Math.round(Number(item.confidence || 0) * 100)) + '% confidence</span>';
+    html += '</div>';
+    if (toArray(item.tactics).length) {
+      html += '<div style="margin-top:4px;font-size:0.82em;color:var(--text-dim)"><strong>Tactics:</strong> ' + toArray(item.tactics).map(function(tactic) {
+        if (tactic.url) return '<a href="' + esc(tactic.url) + '" target="_blank" rel="noopener noreferrer" style="color:var(--accent-cyan);text-decoration:none">' + esc(tactic.name || tactic.id || 'Tactic') + '</a>';
+        return esc(tactic.name || tactic.id || 'Tactic');
+      }).join(', ') + '</div>';
+    }
+    if (item.is_subtechnique && item.parent_technique_id) {
+      html += '<div style="margin-top:4px;font-size:0.82em;color:var(--text-dim)"><strong>Parent:</strong> ' + esc(item.parent_technique_id);
+      if (item.parent_technique_name) html += ' · ' + esc(item.parent_technique_name);
+      html += '</div>';
+    }
+    if (item.response_guidance && item.response_guidance.analyst_summary) {
+      html += '<div class="ms-finding-desc">' + esc(item.response_guidance.analyst_summary) + '</div>';
+    } else if (item.rationale) {
+      html += '<div class="ms-finding-desc">' + esc(item.rationale) + '</div>';
+    }
+    if (toArray(item.mapped_from).length) {
+      html += '<div style="margin-top:6px;font-size:0.82em;color:var(--text-dim)"><strong>Signals:</strong> ' + toArray(item.mapped_from).map(esc).join(', ') + '</div>';
+    }
+    if (toArray(item.affected_nodes).length) {
+      html += '<div class="ms-finding-nodes">Affected: ' + toArray(item.affected_nodes).map(esc).join(', ') + '</div>';
+    }
+    if (toArray(item.evidence_refs).length) {
+      html += '<div style="margin-top:4px;font-size:0.78em;color:var(--text-muted);font-family:var(--font-mono);word-break:break-word">Evidence: ' + toArray(item.evidence_refs).map(esc).join(', ') + '</div>';
+    }
+    if (toArray(item.platforms).length) {
+      html += '<div style="margin-top:6px;font-size:0.82em;color:var(--text-dim)"><strong>Platforms:</strong> ' + toArray(item.platforms).map(esc).join(', ') + '</div>';
+    }
+    if (item.response_guidance && toArray(item.response_guidance.next_steps).length) {
+      html += '<div style="margin-top:8px;padding:8px 10px;background:rgba(50,184,198,0.08);border:1px solid rgba(50,184,198,0.18);border-radius:4px">';
+      html += '<div style="font-size:0.78em;color:var(--accent-cyan);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Response Guidance</div>';
+      html += '<ul style="margin:0;padding-left:18px;color:var(--text-dim);font-size:0.82em">';
+      toArray(item.response_guidance.next_steps).slice(0, 4).forEach(function(step) {
+        html += '<li style="margin:3px 0">' + esc(step) + '</li>';
+      });
+      html += '</ul></div>';
+    } else if (item.detection) {
+      html += '<div style="margin-top:8px;font-size:0.82em;color:var(--text-dim)"><strong>Detection:</strong> ' + esc(truncateText(item.detection, 320)) + '</div>';
+    }
+    if (toArray(item.mitigations).length) {
+      html += '<div style="margin-top:6px;font-size:0.82em;color:var(--text-dim)"><strong>Mitigations:</strong> ' + toArray(item.mitigations).slice(0, 5).map(function(mitigation) {
+        return esc(mitigation.name || mitigation.id || '');
+      }).join(', ') + '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
   function renderReport() {
     var ci = REPORT.capture_info || {};
+    var mitreExt = ((REPORT.extensions || {})['marlinspike-mitre']) || {};
+    var mitreData = mitreExt.data || {};
+    var mitreSummary = mitreExt.summary || {};
+    var mitreAttackMeta = mitreExt.attack_metadata || {};
+    var mitreMatrix = mitreData.matrix || {};
+    var mitreClassifications = toArray(mitreData.classifications);
+    var mitrePlatformCoverage = toArray(mitreData.platform_coverage);
+    var signalAttackMap = buildSignalAttackMap(mitreClassifications);
+    var risks = attachAttackIds(REPORT.risk_findings, 'category', signalAttackMap);
+    var c2 = attachAttackIds(REPORT.c2_indicators, 'type', signalAttackMap).sort(function(a, b) {
+      return severityRank(a.severity) - severityRank(b.severity);
+    });
     var sumHtml = '<div class="ms-summary-grid">';
     sumHtml += '<div class="ms-summary-card"><div class="val">' + nodes.length + '</div><div class="lbl">Assets</div></div>';
     sumHtml += '<div class="ms-summary-card"><div class="val">' + edges.length + '</div><div class="lbl">Connections</div></div>';
@@ -2594,11 +4347,19 @@ var MS = (function() {
     sumHtml += '<div class="ms-summary-card"><div class="val">' + protos.length + '</div><div class="lbl">Protocols</div></div>';
     if (ci.total_packets) sumHtml += '<div class="ms-summary-card"><div class="val">' + ci.total_packets.toLocaleString() + '</div><div class="lbl">Packets</div></div>';
     if (ci.duration_seconds) sumHtml += '<div class="ms-summary-card"><div class="val">' + ci.duration_seconds.toFixed(1) + 's</div><div class="lbl">Duration</div></div>';
-    var risks = REPORT.risk_findings || [];
     var sevCounts = {};
     risks.forEach(function(r) { sevCounts[r.severity] = (sevCounts[r.severity] || 0) + 1; });
     var critHigh = (sevCounts.CRITICAL || 0) + (sevCounts.HIGH || 0);
     sumHtml += '<div class="ms-summary-card"><div class="val" style="color:' + (critHigh > 0 ? 'var(--color-danger)' : 'var(--accent-green)') + '">' + critHigh + '</div><div class="lbl">Critical/High</div></div>';
+    if (mitreClassifications.length || mitrePlatformCoverage.length) {
+      sumHtml += '<div class="ms-summary-card"><div class="val">' + mitreClassifications.length + '</div><div class="lbl">ATT&CK Hits</div></div>';
+    }
+    if (mitrePlatformCoverage.length) {
+      sumHtml += '<div class="ms-summary-card"><div class="val">' + mitrePlatformCoverage.length + '</div><div class="lbl">Coverage</div></div>';
+    }
+    if (Number(mitreSummary.tactic_total || 0) > 0) {
+      sumHtml += '<div class="ms-summary-card"><div class="val">' + esc(mitreSummary.tactic_total) + '</div><div class="lbl">ATT&CK Tactics</div></div>';
+    }
     sumHtml += '</div>';
     if (REPORT.timestamp_start) {
       sumHtml += '<div style="font-size:0.82em;color:var(--text-dim);margin-top:4px;">Scan: ' + esc(REPORT.timestamp_start);
@@ -2620,6 +4381,15 @@ var MS = (function() {
         findHtml += '<div class="ms-finding-card sev-' + esc(r.severity) + '">';
         findHtml += '<div class="ms-finding-head"><span class="ms-finding-sev">' + esc(r.severity) + '</span><span class="ms-finding-cat">' + esc(r.category) + '</span></div>';
         findHtml += '<div class="ms-finding-desc">' + esc(r.description) + '</div>';
+        if (r.detection_id || (r.attack_ids && r.attack_ids.length)) {
+          findHtml += '<div class="ms-finding-meta">';
+          if (r.detection_id) findHtml += '<span class="ms-finding-chip">' + esc(r.detection_id) + '</span>';
+          toArray(r.attack_ids).forEach(function(id) { findHtml += '<span class="ms-finding-chip">' + esc(id) + '</span>'; });
+          findHtml += '</div>';
+        }
+        if (r.purdue_context) {
+          findHtml += '<div class="ms-finding-context"><strong>Purdue:</strong> ' + esc(r.purdue_context) + '</div>';
+        }
         if (r.remediation) {
           findHtml += '<div class="ms-finding-remediation"><strong>Recommendation:</strong> ' + esc(r.remediation) + '</div>';
         }
@@ -2686,6 +4456,7 @@ var MS = (function() {
         });
         assetHtml += '</div>';
       }
+      assetHtml += renderNodeDpiEvidence(n, true);
       if (n._edges.length) {
         assetHtml += '<details style="font-size:0.82em;margin-top:4px">';
         assetHtml += '<summary style="cursor:pointer;color:var(--text-dim);user-select:none">Connections (' + n._edges.length + ')</summary>';
@@ -2714,6 +4485,7 @@ var MS = (function() {
       assetHtml += '</div>';
     });
     document.getElementById('ms-rpt-assets').innerHTML = sectionHtml('ms-rpt-assets', 'Asset Inventory', nodes.length, assetHtml);
+    document.getElementById('ms-rpt-dpi').innerHTML = sectionHtml('ms-rpt-dpi', 'Protocol Observables & Hunt Pivots', toArray(VIEWER_CONTEXT.dpi_highlights).length, renderDpiReportSection());
 
     var ps = REPORT.protocol_summary || {};
     var pKeys = Object.keys(ps).sort(function(a, b) { return ps[b] - ps[a]; });
@@ -2752,7 +4524,6 @@ var MS = (function() {
     }
     document.getElementById('ms-rpt-ports').innerHTML = sectionHtml('ms-rpt-ports', 'Port Analysis', portKeys.length, portHtml);
 
-    var c2 = REPORT.c2_indicators || [];
     var c2Html = '';
     if (c2.length === 0) {
       c2Html = '<div style="color:var(--accent-green);padding:8px 0;">No C2 indicators detected.</div>';
@@ -2762,6 +4533,12 @@ var MS = (function() {
         c2Html += '<div class="ms-finding-card sev-' + esc(ind.severity) + '">';
         c2Html += '<div class="ms-finding-head"><span class="ms-finding-sev">' + esc(ind.severity) + '</span><span class="ms-finding-cat">' + esc(ind.type) + '</span></div>';
         c2Html += '<div class="ms-finding-desc">' + esc(ind.description) + '</div>';
+        if (ind.detection_id || (ind.attack_ids && ind.attack_ids.length)) {
+          c2Html += '<div class="ms-finding-meta">';
+          if (ind.detection_id) c2Html += '<span class="ms-finding-chip">' + esc(ind.detection_id) + '</span>';
+          toArray(ind.attack_ids).forEach(function(id) { c2Html += '<span class="ms-finding-chip">' + esc(id) + '</span>'; });
+          c2Html += '</div>';
+        }
         if (ind.beacon_score != null) {
           var pct = Math.round(ind.beacon_score * 100);
           c2Html += '<div style="margin-top:6px"><div style="font-size:0.78em;color:var(--text-dim);margin-bottom:2px">Beacon Confidence</div>';
@@ -2781,6 +4558,32 @@ var MS = (function() {
       });
     }
     document.getElementById('ms-rpt-c2').innerHTML = sectionHtml('ms-rpt-c2', 'C2 Indicators', c2.length, c2Html);
+
+    var mitreHtml = '';
+    if (mitreClassifications.length === 0 && mitrePlatformCoverage.length === 0) {
+      mitreHtml = '<div style="color:var(--text-dim);padding:8px 0;">No MITRE ATT&CK mappings available.</div>';
+    } else {
+      mitreHtml += mitreMetadataHtml(mitreAttackMeta, mitreSummary);
+      mitreHtml += mitreMatrixHtml(mitreMatrix);
+      if (mitreClassifications.length) {
+        mitreHtml += '<div style="font-size:0.82em;color:var(--text-dim);margin-bottom:8px;">Techniques inferred from passive findings and external communication indicators.</div>';
+        mitreClassifications.forEach(function(item) {
+          mitreHtml += mitreCardHtml(item);
+        });
+      } else {
+        mitreHtml += '<div style="color:var(--text-dim);padding:8px 0;">No ATT&CK techniques were inferred from the observed findings.</div>';
+      }
+      if (mitrePlatformCoverage.length) {
+        mitreHtml += '<div style="font-size:0.78em;color:var(--text-dim);margin:12px 0 8px;text-transform:uppercase;letter-spacing:0.08em;">Platform Coverage</div>';
+        mitrePlatformCoverage.forEach(function(item) {
+          mitreHtml += mitreCardHtml(item);
+        });
+      }
+      if (mitreSummary.unmapped_category_total) {
+        mitreHtml += '<div style="margin-top:8px;font-size:0.82em;color:var(--text-dim);">' + esc(mitreSummary.unmapped_category_total) + ' finding categories remain unmapped in the active ATT&CK pack.</div>';
+      }
+    }
+    document.getElementById('ms-rpt-mitre').innerHTML = sectionHtml('ms-rpt-mitre', 'MITRE ATT&CK Mapping', mitreClassifications.length + mitrePlatformCoverage.length, mitreHtml);
   }
 
   function switchReportTab(tab) {
@@ -2883,7 +4686,9 @@ var MS = (function() {
     centerOnSelected: centerOnSelected,
     deselectNode: deselectNode,
     setFocus: setFocus,
+    setWorkbenchMode: setWorkbenchMode,
     clearFilters: clearFilters,
+    applySearchTerm: applySearchTerm,
     start: start
   };
 })();

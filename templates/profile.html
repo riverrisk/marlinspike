@@ -103,7 +103,6 @@
   <div class="profile-stats" id="profile-stats">
     <div class="stat-card"><div class="stat-label">Scans</div><div class="stat-value" id="stat-scans">—</div></div>
     <div class="stat-card"><div class="stat-label">Projects</div><div class="stat-value" id="stat-projects">—</div></div>
-    <div class="stat-card"><div class="stat-label">Subscription</div><div class="stat-value" id="stat-tier" style="font-size:1.1em;text-transform:capitalize;">—</div></div>
     <div class="stat-card"><div class="stat-label">Upload Limit</div><div class="stat-value" id="stat-limit">—</div><div class="stat-sub">MB per file</div></div>
     <div class="stat-card"><div class="stat-label">Member Since</div><div class="stat-value" id="stat-joined" style="font-size:0.85em;">—</div></div>
   </div>
@@ -194,7 +193,6 @@ var PRF = (function() {
 
       document.getElementById('stat-scans').textContent = d.scan_count != null ? d.scan_count : '—';
       document.getElementById('stat-projects').textContent = d.project_count != null ? d.project_count : '—';
-      document.getElementById('stat-tier').textContent = d.subscription_tier || 'free';
       document.getElementById('stat-limit').textContent = d.upload_limit_mb || 200;
       document.getElementById('stat-joined').textContent = d.joined ? new Date(d.joined).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
 

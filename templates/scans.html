@@ -142,7 +142,7 @@ var SH = (function() {
         if (s.status === 'completed' && s.report_filename) {
           actions = '<a class="btn btn-sm" href="/api/reports/' + encodeURIComponent(s.report_filename) + '/viewer" target="_blank">View Report</a>';
         } else if ((s.status === 'failed' || s.status === 'interrupted') && s.pcap_source && !s.pcap_source.startsWith('live:')) {
-          actions = '<button class="btn btn-sm" onclick="SH.retryScan(\'' + esc(s.pcap_source) + '\',\'' + esc(s.command) + '\')">Retry</button>';
+          actions = '<button class="btn btn-sm" onclick="SH.retryScan(\'' + esc(s.pcap_source) + '\',\'' + esc(s.command) + '\',\'' + esc(s.scan_profile || 'full') + '\')">Retry</button>';
         }
         var hasError = s.error_tail && (s.status === 'failed' || s.status === 'stopped' || s.status === 'interrupted');
         if (hasError) {
@@ -155,7 +155,7 @@ var SH = (function() {
         tr.innerHTML =
           '<td><span class="mono run-id-copy" title="Click to copy full ID" onclick="SH.copyId(this, \'' + esc(s.run_id) + '\')" style="font-size:0.8em;">' + esc(s.run_id.substring(0, 8)) + '</span></td>'
           + '<td>' + esc(s.user) + '</td>'
-          + '<td>' + esc(s.command) + '</td>'
+          + '<td>' + esc(displayCommand(s.command, s.scan_profile)) + '</td>'
           + '<td class="mono dim" style="font-size:0.8em;max-width:200px;overflow:hidden;text-overflow:ellipsis;">' + esc(s.pcap_source || '--') + '</td>'
           + '<td><span class="badge badge-' + esc(s.status) + '">' + esc(s.status) + '</span></td>'
           + '<td class="mono dim">' + nodeEdge + '</td>'
@@ -189,8 +189,8 @@ var SH = (function() {
     });
   }
 
-  function retryScan(pcapSource, command) {
-    var body = { command: command, pcap_file: pcapSource };
+  function retryScan(pcapSource, command, scanProfile) {
+    var body = { command: command, pcap_file: pcapSource, scan_profile: scanProfile || 'full' };
     fetch('/api/scans/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -211,6 +211,9 @@ var SH = (function() {
     var d = document.createElement('div');
     d.textContent = String(s);
     return d.innerHTML;
+  }
+  function displayCommand(command, scanProfile) {
+    return command + ((scanProfile && scanProfile !== 'full') ? ' (' + scanProfile + ')' : '');
   }
   function formatSize(bytes) {
     if (!bytes) return '--';

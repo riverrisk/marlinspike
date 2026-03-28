@@ -656,9 +656,16 @@
           <select id="scan-command">
             <option value="chain">Full Chain</option>
             <option value="ingest">Ingest Only</option>
-            <option value="analyze">Analyze Only</option>
-            <option value="classify">Classify Only</option>
-            <option value="report">Report Only</option>
+            <option value="dissect">Dissect Only</option>
+            <option value="topology">Topology Only</option>
+            <option value="risk">Risk Only</option>
+          </select>
+        </div>
+        <div class="scan-field">
+          <label>Profile</label>
+          <select id="scan-profile">
+            <option value="fast">Fast</option>
+            <option value="full">Full</option>
           </select>
         </div>
         <div class="scan-field">
@@ -732,14 +739,14 @@
     <div class="panel-header">
       <div class="panel-title-wrap">
         <h2>Recent Reports</h2>
-        <div class="panel-subtitle">Open, compare, or remove the latest generated assessment outputs for the active project.</div>
+        <div class="panel-subtitle">Open, baseline-compare, or remove the latest generated assessment outputs for the active project.</div>
       </div>
       <button class="btn btn-sm" onclick="MS.loadReports()">Refresh</button>
     </div>
     <div class="panel-body">
       <div class="compare-bar" id="compare-bar">
-        <span>Compare: <b id="compare-a">—</b> vs <b id="compare-b">—</b></span>
-        <button class="btn btn-primary btn-sm" onclick="MS.compareDiff()">View Diff</button>
+        <span>Baseline: <b id="compare-a">—</b> vs <b id="compare-b">—</b></span>
+        <button class="btn btn-primary btn-sm" onclick="MS.compareDiff()">View Drift</button>
         <button class="btn btn-sm" onclick="MS.clearCompare()">Clear</button>
       </div>
       <table class="ms-table" id="reports-table">
@@ -1175,7 +1182,10 @@ var MS = (function() {
 
   // ── Start scan ──
   function startScan() {
-    var body = { command: document.getElementById('scan-command').value };
+    var body = {
+      command: document.getElementById('scan-command').value,
+      scan_profile: document.getElementById('scan-profile').value
+    };
     if (currentProjectId) body.project_id = currentProjectId;
     if (document.getElementById('skip-ephemeral').checked) body.skip_ephemeral = true;
     var captureFilter = document.getElementById('capture-filter').value.trim();
@@ -1464,7 +1474,7 @@ var MS = (function() {
       else if (!compareB) compareB = fn;
       else {
         cb.checked = false;
-        msToast('Select only 2 reports to compare', true);
+        msToast('Select only 2 reports for baseline and drift review', true);
         return;
       }
     } else {
@@ -1524,7 +1534,7 @@ var MS = (function() {
         } else if (s.status === 'completed' && s.report_filename) {
           actions = '<a class="btn btn-sm" href="/api/reports/' + encodeURIComponent(s.report_filename) + '/viewer" target="_blank">View Report</a>';
         } else if ((s.status === 'failed' || s.status === 'interrupted') && s.pcap_source && !s.pcap_source.startsWith('live:')) {
-          actions = '<button class="btn btn-sm" onclick="MS.retryScan(\'' + esc(s.pcap_source) + '\',\'' + esc(s.command) + '\')">Retry</button>';
+          actions = '<button class="btn btn-sm" onclick="MS.retryScan(\'' + esc(s.pcap_source) + '\',\'' + esc(s.command) + '\',\'' + esc(s.scan_profile || 'full') + '\')">Retry</button>';
         }
         // Error expand toggle
         var hasError = s.error_tail && (s.status === 'failed' || s.status === 'stopped' || s.status === 'interrupted');
@@ -1539,7 +1549,7 @@ var MS = (function() {
         tr.innerHTML =
           '<td><span class="mono run-id-copy" title="Click to copy full ID" onclick="MS.copyId(this, \'' + esc(s.run_id) + '\')" style="font-size:0.8em;">' + esc(s.run_id.substring(0, 8)) + '</span></td>'
           + '<td>' + esc(s.user) + '</td>'
-          + '<td>' + esc(s.command) + '</td>'
+          + '<td>' + esc(displayCommand(s.command, s.scan_profile)) + '</td>'
           + '<td class="mono dim" style="font-size:0.8em;max-width:200px;overflow:hidden;text-overflow:ellipsis;">' + esc(s.pcap_source || '--') + '</td>'
           + '<td><span class="badge badge-' + esc(s.status) + '">' + esc(s.status) + '</span></td>'
           + '<td class="mono dim">' + nodeEdge + '</td>'
@@ -1588,8 +1598,8 @@ var MS = (function() {
     if (!collapsed) output.scrollTop = output.scrollHeight;
   }
 
-  function retryScan(pcapSource, command) {
-    var body = { command: command, pcap_file: pcapSource };
+  function retryScan(pcapSource, command, scanProfile) {
+    var body = { command: command, pcap_file: pcapSource, scan_profile: scanProfile || 'full' };
     if (currentProjectId) body.project_id = currentProjectId;
     fetch('/api/scans/start', {
       method: 'POST',
@@ -1611,6 +1621,9 @@ var MS = (function() {
     var d = document.createElement('div');
     d.textContent = String(s);
     return d.innerHTML;
+  }
+  function displayCommand(command, scanProfile) {
+    return command + ((scanProfile && scanProfile !== 'full') ? ' (' + scanProfile + ')' : '');
   }
 
   function formatSize(bytes) {

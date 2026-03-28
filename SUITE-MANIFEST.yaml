@@ -1,0 +1,69 @@
+manifest_version: 1
+suite_mode: bootstrap-monorepo
+suite_repo: marlinspike
+component_repo_model: authoritative-components
+vendoring_strategy: git-subtree
+
+report_contract:
+  status: planned
+  target_version: 1
+
+components:
+  msengine:
+    status: bootstrap_present
+    target_repo: riverrisk/marlinspike-msengine
+    target_subtree: msengine
+    current_source_paths:
+      - _ms_engine.py
+      - marlinspike.py
+      - data/oui.json
+    bootstrap_paths:
+      - msengine/pyproject.toml
+      - msengine/README.md
+      - msengine/msengine/__init__.py
+      - msengine/msengine/__main__.py
+      - msengine/msengine/engine.py
+      - msengine/msengine/data/oui.json
+    bootstrap_sync_helper: scripts/sync-msengine-bootstrap.sh
+    operational_source_of_truth: _ms_engine.py
+    target_internal_name: msengine
+
+  workbench:
+    status: extraction_planned
+    target_repo: riverrisk/marlinspike-workbench
+    target_subtree: workbench
+    current_source_paths:
+      - app.py
+      - _auth.py
+      - _config.py
+      - _models.py
+      - auth.py
+      - config.py
+      - models.py
+      - templates/
+      - static/
+      - Dockerfile
+      - docker-compose.yml
+      - deploy.sh
+      - deploy-dev.sh
+
+  plugins:
+    status: planned
+    target_repo: riverrisk/marlinspike-plugins
+    target_subtree: plugins
+    planned_components:
+      - marlinspike-mitre
+      - marlinspike-iec62443
+      - marlinspike-pera
+
+  engines:
+    status: partial
+    target_repo: riverrisk/marlinspike-engines
+    target_subtree: engines
+    current_source_paths:
+      - marlinspike-dpi/
+    planned_components:
+      - marlinspike-dpi
+      - name: marlinspike-malware
+        status: integrated
+        notes: IOC/signature matching engine repo created; Stage 4b integration active

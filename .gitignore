@@ -24,3 +24,5 @@ presets/**/*.pcap
 presets/**/*.pcapng
 presets/**/*.cap
 docs/kusanagi-competitive-gap.md
+docs/repo-family-migration-spec.md
+windows/build/
